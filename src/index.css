@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* JIUZE POS design tokens — grounded in the grocery/market retail
+     context this product serves, not a generic template palette. */
+
+  /* Paper: the app surface reads like receipt/ledger paper */
+  --color-paper: #FAFAF8;
+  --color-paper-raised: #FFFFFF;
+
+  /* Ink: near-black with a faint green cast, not pure black */
+  --color-ink: #1B2420;
+  --color-ink-muted: #5C665F;
+  --color-ink-faint: #9BA39C;
+
+  /* Market green: fresh produce / grocery signage — the brand primary */
+  --color-market-50: #EEF6F1;
+  --color-market-100: #D3E8DA;
+  --color-market-400: #4C8F6B;
+  --color-market-600: #2F6F4E;
+  --color-market-700: #235539;
+
+  /* Maize: warm amber accent for calls to action, ties to local grain/produce */
+  --color-maize-400: #EFBB5C;
+  --color-maize-500: #E0A63A;
+  --color-maize-600: #C08A22;
+
+  /* Alert: brick red for voids, low stock, destructive actions */
+  --color-brick-500: #B23A2E;
+  --color-brick-600: #8F2D23;
+
+  --color-line: #E4E1D9;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Signature motif: a perforated "tear line" divider, evoking a till
+   receipt, used sparingly to separate key sections. */
+.tear-line {
+  position: relative;
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--color-line) 0,
+    var(--color-line) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
