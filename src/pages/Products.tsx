@@ -1,0 +1,115 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../contexts/auth-context'
+import { listCategories } from '../services/categoryService'
+import { createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
+import type { Category, Product } from '../types/products'
+
+const emptyForm = { categoryId: '', name: '', sku: '', barcode: '', costPrice: '', sellingPrice: '', stockQuantity: '', minimumStock: '' }
+
+type FormState = typeof emptyForm
+
+export default function Products() {
+  const { profile, role } = useAuth()
+  const isOwner = role === 'owner'
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [form, setForm] = useState<FormState>(emptyForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!profile?.businessId) return
+    setLoading(true); setError(null)
+    try {
+      const [productRows, categoryRows] = await Promise.all([
+        listProducts(profile.businessId),
+        listCategories(profile.businessId),
+      ])
+      setProducts(productRows); setCategories(categoryRows)
+      if (!form.categoryId && categoryRows[0]) setForm((current) => ({ ...current, categoryId: categoryRows[0].id }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load products.')
+    } finally { setLoading(false) }
+  }, [profile?.businessId])
+
+  useEffect(() => { void load() }, [load])
+
+  const reset = () => { setForm(emptyForm); setEditingId(null) }
+  const setField = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }))
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!profile?.businessId || !isOwner) return
+    setSaving(true); setError(null)
+    try {
+      const input = {
+        categoryId: form.categoryId,
+        name: form.name,
+        sku: form.sku,
+        barcode: form.barcode || null,
+        costPrice: Number(form.costPrice),
+        sellingPrice: Number(form.sellingPrice),
+        stockQuantity: Number(form.stockQuantity),
+        minimumStock: Number(form.minimumStock),
+      }
+      if (editingId) {
+        const updated = await updateProduct(editingId, input)
+        setProducts((current) => current.map((item) => item.id === updated.id ? updated : item))
+      } else {
+        const created = await createProduct({ businessId: profile.businessId, ...input })
+        setProducts((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)))
+      }
+      reset()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save product.')
+    } finally { setSaving(false) }
+  }
+
+  const edit = (product: Product) => setForm({ categoryId: product.categoryId, name: product.name, sku: product.sku, barcode: product.barcode ?? '', costPrice: String(product.costPrice), sellingPrice: String(product.sellingPrice), stockQuantity: String(product.stockQuantity), minimumStock: String(product.minimumStock) })
+
+  const deactivate = async (product: Product) => {
+    if (!isOwner || !window.confirm(`Deactivate “${product.name}”?`)) return
+    setError(null)
+    try {
+      const updated = await deactivateProduct(product.id)
+      setProducts((current) => current.map((item) => item.id === updated.id ? updated : item))
+      if (editingId === product.id) reset()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to deactivate product.') }
+  }
+
+  return (
+    <div className="min-h-screen bg-paper px-6 py-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-8">
+          <p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p>
+          <h1 className="font-display font-semibold text-3xl text-ink mt-1">Products</h1>
+          <p className="text-sm text-ink-muted mt-2">Manage your store catalogue, prices and stock levels.</p>
+        </div>
+
+        {isOwner && <form onSubmit={submit} className="bg-paper-raised border border-line rounded-lg p-5 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <input value={form.name} onChange={(e) => setField('name', e.target.value)} maxLength={100} placeholder="Product name" aria-label="Product name" className="field" />
+            <input value={form.sku} onChange={(e) => setField('sku', e.target.value)} maxLength={100} placeholder="SKU" aria-label="SKU" className="field" />
+            <select value={form.categoryId} onChange={(e) => setField('categoryId', e.target.value)} aria-label="Category" className="field"><option value="">Select category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+            <input value={form.barcode} onChange={(e) => setField('barcode', e.target.value)} placeholder="Barcode (optional)" aria-label="Barcode" className="field" />
+            <input value={form.costPrice} onChange={(e) => setField('costPrice', e.target.value)} type="number" min="0" step="0.01" placeholder="Cost price" aria-label="Cost price" className="field" />
+            <input value={form.sellingPrice} onChange={(e) => setField('sellingPrice', e.target.value)} type="number" min="0" step="0.01" placeholder="Selling price" aria-label="Selling price" className="field" />
+            <input value={form.stockQuantity} onChange={(e) => setField('stockQuantity', e.target.value)} type="number" min="0" step="1" placeholder="Stock quantity" aria-label="Stock quantity" className="field" />
+            <input value={form.minimumStock} onChange={(e) => setField('minimumStock', e.target.value)} type="number" min="0" step="1" placeholder="Minimum stock" aria-label="Minimum stock" className="field" />
+          </div>
+          <div className="flex gap-3 mt-4"><button type="submit" disabled={saving || categories.length === 0} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper disabled:opacity-50">{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add product'}</button>{editingId && <button type="button" onClick={reset} className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink-muted">Cancel</button>}</div>
+          {categories.length === 0 && <p className="text-xs text-ink-muted mt-3">Create a category before adding products.</p>}
+        </form>}
+
+        {error && <div role="alert" className="mb-6 rounded-md border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}
+
+        <section className="bg-paper-raised border border-line rounded-lg overflow-hidden">
+          <div className="px-5 py-4 border-b border-line flex items-center justify-between"><h2 className="font-medium text-ink">All products</h2><span className="text-xs font-mono text-ink-muted">{products.length}</span></div>
+          {loading ? <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading products…</div> : products.length === 0 ? <div className="px-5 py-12 text-center text-sm text-ink-muted">No products yet.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-muted"><th className="px-5 py-3">Product</th><th className="px-3 py-3">SKU</th><th className="px-3 py-3">Category</th><th className="px-3 py-3">Selling</th><th className="px-3 py-3">Stock</th><th className="px-3 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-line">{products.map((product) => <tr key={product.id}><td className="px-5 py-4 font-medium text-ink">{product.name}</td><td className="px-3 py-4 font-mono text-xs text-ink-muted">{product.sku}</td><td className="px-3 py-4 text-ink-muted">{categories.find((c) => c.id === product.categoryId)?.name ?? '—'}</td><td className="px-3 py-4 text-ink">KES {product.sellingPrice.toFixed(2)}</td><td className={`px-3 py-4 ${product.stockQuantity <= product.minimumStock ? 'text-brick-600 font-medium' : 'text-ink'}`}>{product.stockQuantity}</td><td className="px-3 py-4 text-xs">{product.isActive ? 'Active' : 'Inactive'}</td><td className="px-5 py-4 text-right">{isOwner && product.isActive && <div className="flex justify-end gap-3"><button type="button" onClick={() => { setEditingId(product.id); edit(product) }} className="text-xs font-medium text-market-700">Edit</button><button type="button" onClick={() => void deactivate(product)} className="text-xs font-medium text-brick-600">Deactivate</button></div>}</td></tr>)}</tbody></table></div>}
+        </section>
+      </div>
+    </div>
+  )
+}
