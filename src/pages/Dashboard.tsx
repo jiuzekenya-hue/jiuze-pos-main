@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 import { getDashboardData, type DashboardData } from '../services/dashboardService'
 
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export default function Dashboard() {
-  const { profile, signOut } = useAuth()
+  const { profile, role, signOut } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
 
@@ -26,6 +27,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 text-sm">
             <Link className="px-3 py-2 border border-line rounded" to="/checkout">New sale</Link>
             <Link className="px-3 py-2 border border-line rounded" to="/sales">Sales</Link>
+            {can(role, 'userManagement') && <Link className="px-3 py-2 border border-line rounded" to="/users">Users</Link>}
             <button type="button" onClick={() => void signOut()} className="px-3 py-2 text-ink-muted hover:text-brick-600 transition-colors">Sign out</button>
           </div>
         </header>
@@ -46,7 +48,7 @@ export default function Dashboard() {
           </section>
         </div>
 
-        <nav className="mt-6 flex flex-wrap gap-3 text-sm"><Link className="text-market-600" to="/products">Products</Link><Link className="text-market-600" to="/stock-movements">Stock history</Link><Link className="text-market-600" to="/sales">Sales history</Link></nav>
+        <nav className="mt-6 flex flex-wrap gap-3 text-sm"><Link className="text-market-600" to="/products">Products</Link><Link className="text-market-600" to="/stock-movements">Stock history</Link><Link className="text-market-600" to="/sales">Sales history</Link>{can(role, 'userManagement') && <Link className="text-market-600" to="/users">Users</Link>}</nav>
       </div>
     </main>
   )
