@@ -1,0 +1,175 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../contexts/auth-context'
+import {
+  createCategory,
+  deleteCategory,
+  listCategories,
+  updateCategory,
+} from '../services/categoryService'
+import type { Category } from '../types/products'
+
+export default function Categories() {
+  const { profile, role } = useAuth()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [name, setName] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadCategories = useCallback(async () => {
+    if (!profile?.businessId) return
+    setLoading(true)
+    setError(null)
+    try {
+      setCategories(await listCategories(profile.businessId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load categories.')
+    } finally {
+      setLoading(false)
+    }
+  }, [profile?.businessId])
+
+  useEffect(() => {
+    void loadCategories()
+  }, [loadCategories])
+
+  const resetForm = () => {
+    setName('')
+    setEditingId(null)
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!profile?.businessId || role !== 'owner') return
+
+    setSaving(true)
+    setError(null)
+    try {
+      if (editingId) {
+        const updated = await updateCategory(editingId, name)
+        setCategories((current) =>
+          current.map((category) => (category.id === updated.id ? updated : category)),
+        )
+      } else {
+        const created = await createCategory(profile.businessId, name)
+        setCategories((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)))
+      }
+      resetForm()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save category.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (category: Category) => {
+    if (role !== 'owner') return
+    if (!window.confirm(`Delete “${category.name}”?`)) return
+
+    setError(null)
+    try {
+      await deleteCategory(category.id)
+      setCategories((current) => current.filter((item) => item.id !== category.id))
+      if (editingId === category.id) resetForm()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete category.')
+    }
+  }
+
+  const isOwner = role === 'owner'
+
+  return (
+    <div className="min-h-screen bg-paper px-6 py-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-8">
+          <p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p>
+          <h1 className="font-display font-semibold text-3xl text-ink mt-1">Categories</h1>
+          <p className="text-sm text-ink-muted mt-2">Organize the products in your store.</p>
+        </div>
+
+        {isOwner && (
+          <form onSubmit={handleSubmit} className="bg-paper-raised border border-line rounded-lg p-5 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={100}
+                placeholder="Category name"
+                aria-label="Category name"
+                className="flex-1 min-w-0 rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-market-500"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : editingId ? 'Save changes' : 'Add category'}
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink-muted"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {error && (
+          <div role="alert" className="mb-6 rounded-md border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">
+            {error}
+          </div>
+        )}
+
+        <section className="bg-paper-raised border border-line rounded-lg overflow-hidden">
+          <div className="px-5 py-4 border-b border-line flex items-center justify-between">
+            <h2 className="font-medium text-ink">All categories</h2>
+            <span className="text-xs font-mono text-ink-muted">{categories.length}</span>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading categories…</div>
+          ) : categories.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm font-medium text-ink">No categories yet</p>
+              {isOwner && <p className="text-xs text-ink-muted mt-1">Add your first category above.</p>}
+            </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {categories.map((category) => (
+                <li key={category.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                  <span className="text-sm text-ink">{category.name}</span>
+                  {isOwner && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(category.id)
+                          setName(category.name)
+                        }}
+                        className="text-xs font-medium text-market-700 hover:text-market-900"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(category)}
+                        className="text-xs font-medium text-brick-600 hover:text-brick-800"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
