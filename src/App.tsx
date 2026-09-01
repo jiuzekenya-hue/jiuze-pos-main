@@ -8,6 +8,7 @@ import Products from './pages/Products'
 import StockMovements from './pages/StockMovements'
 import Checkout from './pages/Checkout'
 import SalesHistory from './pages/SalesHistory'
+import Users from './pages/Users'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <Route path="/stock-movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
       <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
       <Route path="/sales" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
+      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
