@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import AppShell from './pages/AppShell'
+import Categories from './pages/Categories'
 
 function App() {
   return (
@@ -15,8 +16,14 @@ function App() {
           </ProtectedRoute>
         }
       />
-      {/* Unknown routes fall back to the protected root, which itself
-          redirects to /login if there's no session. */}
+      <Route
+        path="/categories"
+        element={
+          <ProtectedRoute>
+            <Categories />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
