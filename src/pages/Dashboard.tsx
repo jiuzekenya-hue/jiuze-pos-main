@@ -6,7 +6,7 @@ import { getDashboardData, type DashboardData } from '../services/dashboardServi
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export default function Dashboard() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
 
@@ -23,7 +23,11 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto">
         <header className="flex items-center justify-between mb-8">
           <div><p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p><h1 className="font-display font-semibold text-3xl text-ink">Dashboard</h1><p className="text-sm text-ink-muted mt-1">Today at a glance</p></div>
-          <div className="flex gap-2 text-sm"><Link className="px-3 py-2 border border-line rounded" to="/checkout">New sale</Link><Link className="px-3 py-2 border border-line rounded" to="/sales">Sales</Link></div>
+          <div className="flex items-center gap-3 text-sm">
+            <Link className="px-3 py-2 border border-line rounded" to="/checkout">New sale</Link>
+            <Link className="px-3 py-2 border border-line rounded" to="/sales">Sales</Link>
+            <button type="button" onClick={() => void signOut()} className="px-3 py-2 text-ink-muted hover:text-brick-600 transition-colors">Sign out</button>
+          </div>
         </header>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
