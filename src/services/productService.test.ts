@@ -15,6 +15,7 @@ const row = {
 const chain = (result: { data?: unknown; error?: unknown }) => {
   const builder: Record<string, ReturnType<typeof vi.fn>> = {}
   for (const method of ['select', 'eq', 'order', 'insert', 'update', 'single']) builder[method] = vi.fn(() => builder)
+  builder.order.mockResolvedValue(result)
   builder.single.mockResolvedValue(result)
   return builder
 }
