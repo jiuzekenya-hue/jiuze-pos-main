@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import AppShell from './pages/AppShell'
 import Categories from './pages/Categories'
 import Products from './pages/Products'
+import StockMovements from './pages/StockMovements'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
       <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/stock-movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
