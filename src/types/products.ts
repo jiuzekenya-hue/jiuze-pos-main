@@ -1,3 +1,18 @@
+export type ProductUnitType = 'piece' | 'pack' | 'kg' | 'g' | 'litre' | 'ml'
+
+export const PRODUCT_UNITS: { value: ProductUnitType; label: string }[] = [
+  { value: 'piece', label: 'Piece' },
+  { value: 'pack', label: 'Pack' },
+  { value: 'kg', label: 'Kilogram (kg)' },
+  { value: 'g', label: 'Gram (g)' },
+  { value: 'litre', label: 'Litre (L)' },
+  { value: 'ml', label: 'Millilitre (ml)' },
+]
+
+export const isFractionalUnit = (unit: ProductUnitType) => unit === 'kg' || unit === 'g' || unit === 'litre' || unit === 'ml'
+
+export const unitLabel = (unit: ProductUnitType) => PRODUCT_UNITS.find((item) => item.value === unit)?.label ?? unit
+
 export interface Category {
   id: string;
   businessId: string;
@@ -17,6 +32,7 @@ export interface Product {
   sellingPrice: number;
   stockQuantity: number;
   minimumStock: number;
+  unitType: ProductUnitType;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +48,7 @@ export interface CreateProductInput {
   sellingPrice: number;
   stockQuantity: number;
   minimumStock: number;
+  unitType: ProductUnitType;
 }
 
 export interface UpdateProductInput {
@@ -43,4 +60,5 @@ export interface UpdateProductInput {
   sellingPrice?: number;
   stockQuantity?: number;
   minimumStock?: number;
+  unitType?: ProductUnitType;
 }
