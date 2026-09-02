@@ -9,7 +9,7 @@ vi.mock('../lib/supabase', () => ({
 const row = {
   id: 'prod-1', business_id: 'business-1', category_id: 'cat-1', name: ' Soda 500ml ', sku: ' SODA-500 ',
   barcode: '6009900000001', cost_price: '55.00', selling_price: '70.00', stock_quantity: 18, minimum_stock: 5,
-  is_active: true, created_at: '2026-08-28T11:46:26Z', updated_at: '2026-08-28T11:58:54Z',
+  unit_type: 'piece', is_active: true, created_at: '2026-08-28T11:46:26Z', updated_at: '2026-08-28T11:58:54Z',
 }
 
 const chain = (result: { data?: unknown; error?: unknown }) => {
@@ -26,14 +26,14 @@ describe('productService', () => {
   it('lists products and maps database fields', async () => {
     const builder = chain({ data: [row], error: null })
     vi.mocked(supabase.from).mockReturnValue(builder as never)
-    await expect(listProducts('business-1')).resolves.toEqual([expect.objectContaining({ id: 'prod-1', businessId: 'business-1', costPrice: 55, sellingPrice: 70 })])
+    await expect(listProducts('business-1')).resolves.toEqual([expect.objectContaining({ id: 'prod-1', businessId: 'business-1', costPrice: 55, sellingPrice: 70, unitType: 'piece' })])
   })
 
   it('trims and creates a product', async () => {
     const builder = chain({ data: { ...row, name: 'Soda 500ml', sku: 'SODA-500' }, error: null })
     vi.mocked(supabase.from).mockReturnValue(builder as never)
     await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: ' Soda 500ml ', sku: ' SODA-500 ', costPrice: 55, sellingPrice: 70, stockQuantity: 18, minimumStock: 5, unitType: 'piece' })).resolves.toMatchObject({ name: 'Soda 500ml', sku: 'SODA-500' })
-    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ business_id: 'business-1', name: 'Soda 500ml', sku: 'SODA-500', is_active: true }))
+    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ business_id: 'business-1', name: 'Soda 500ml', sku: 'SODA-500', is_active: true, unit_type: 'piece' }))
   })
 
   it('rejects empty names', async () => {
@@ -41,7 +41,7 @@ describe('productService', () => {
   })
 
   it('rejects negative numeric values', async () => {
-    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: -1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1, unitType: 'piece' })).rejects.toThrow('cannot be negative')
+    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: -1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1, unitType: 'piece' })).rejects.toThrow('Product prices must be valid non-negative numbers.')
   })
 
   it('rejects selling price below cost', async () => {
@@ -49,8 +49,8 @@ describe('productService', () => {
   })
 
   it('updates a product with a trimmed name', async () => {
-    const current = chain({ data: { cost_price: '55', selling_price: '70', stock_quantity: 18, minimum_stock: 5 }, error: null })
-    current.single.mockResolvedValueOnce({ data: { cost_price: '55', selling_price: '70', stock_quantity: 18, minimum_stock: 5 }, error: null }).mockResolvedValueOnce({ data: { ...row, name: 'Bread Loaf' }, error: null })
+    const current = chain({ data: { cost_price: '55', selling_price: '70', stock_quantity: 18, minimum_stock: 5, unit_type: 'piece' }, error: null })
+    current.single.mockResolvedValueOnce({ data: { cost_price: '55', selling_price: '70', stock_quantity: 18, minimum_stock: 5, unit_type: 'piece' }, error: null }).mockResolvedValueOnce({ data: { ...row, name: 'Bread Loaf' }, error: null })
     vi.mocked(supabase.from).mockReturnValue(current as never)
     await expect(updateProduct('prod-1', { name: ' Bread Loaf ' })).resolves.toMatchObject({ name: 'Bread Loaf' })
     expect(current.update).toHaveBeenCalledWith({ name: 'Bread Loaf' })
