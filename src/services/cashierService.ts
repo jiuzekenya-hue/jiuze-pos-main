@@ -32,3 +32,11 @@ export async function createCashier(input: CreateCashierInput): Promise<CashierU
   if (!data?.user) throw new Error('Cashier account was not created.')
   return data.user as CashierUser
 }
+
+export async function deleteCashier(userId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('manage-cashiers', {
+    body: { action: 'delete', userId },
+  })
+  if (error) throw error
+  if (!data?.success) throw new Error(data?.error ?? 'Cashier account was not removed.')
+}
