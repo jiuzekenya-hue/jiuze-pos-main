@@ -34,6 +34,8 @@ export type AnalyticsData = {
   slowProducts: AnalyticsProduct[]
 }
 
+type SaleRelation = { created_at: string } | Array<{ created_at: string }>
+
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 const startOfWeek = (date: Date) => {
   const day = date.getDay()
@@ -45,6 +47,8 @@ const startOfWeek = (date: Date) => {
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1)
 const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
 const iso = (date: Date) => date.toISOString()
+
+const getSaleCreatedAt = (relation: SaleRelation) => Array.isArray(relation) ? relation[0]?.created_at : relation.created_at
 
 export async function getAnalyticsData(businessId: string): Promise<AnalyticsData> {
   if (!businessId) throw new Error('Business is required.')
@@ -67,16 +71,19 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   if (productsResult.error) throw productsResult.error
 
   const sales = salesResult.data ?? []
-  const items = itemsResult.data ?? []
+  const items = salesResult.error ? [] : (itemsResult.data ?? [])
   const products = productsResult.data ?? []
   const inRange = (createdAt: string, start: Date) => new Date(createdAt) >= start
+  const itemSaleDate = (item: (typeof items)[number]) => getSaleCreatedAt(item.sales as unknown as SaleRelation)
 
   const todaySales = sales.filter((sale) => inRange(sale.created_at, todayStart))
   const weekSales = sales.filter((sale) => inRange(sale.created_at, weekStart))
   const monthSales = sales.filter((sale) => inRange(sale.created_at, monthStart))
   const revenue = (rows: typeof sales) => rows.reduce((sum, row) => sum + Number(row.total), 0)
   const itemForSale = (start: Date, end?: Date) => items.filter((item) => {
-    const created = new Date(item.sales.created_at)
+    const createdAt = itemSaleDate(item)
+    if (!createdAt) return false
+    const created = new Date(createdAt)
     return created >= start && (!end || created < end)
   })
   const profitForItems = (rows: typeof items) => rows.reduce((sum, item) => sum + ((Number(item.unit_price) - Number(item.cost_price)) * Number(item.quantity)), 0)
@@ -103,7 +110,9 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     if (current) current.revenue += Number(sale.total)
   }
   for (const item of items) {
-    const key = new Date(item.sales.created_at).toISOString().slice(0, 10)
+    const createdAt = itemSaleDate(item)
+    if (!createdAt) continue
+    const key = new Date(createdAt).toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.profit += (Number(item.unit_price) - Number(item.cost_price)) * Number(item.quantity)
   }
