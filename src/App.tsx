@@ -9,6 +9,7 @@ import StockMovements from './pages/StockMovements'
 import Checkout from './pages/Checkout'
 import SalesHistory from './pages/SalesHistory'
 import Users from './pages/Users'
+import Analytics from './pages/Analytics'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/stock-movements" element={<StockMovements />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/sales" element={<SalesHistory />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
