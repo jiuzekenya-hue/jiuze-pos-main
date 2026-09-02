@@ -19,6 +19,7 @@ const row = {
   selling_price: '70.00',
   stock_quantity: 18,
   minimum_stock: 5,
+  unit_type: 'piece',
   is_active: true,
   created_at: '2026-08-28T11:46:26.06033+00:00',
   updated_at: '2026-08-28T11:58:54.297155+00:00',
@@ -36,6 +37,7 @@ describe('inventoryService', () => {
       stockQuantity: 18,
       costPrice: 55,
       sellingPrice: 70,
+      unitType: 'piece',
     })
 
     expect(supabase.rpc).toHaveBeenCalledWith('adjust_stock', {
@@ -67,14 +69,26 @@ describe('inventoryService', () => {
 
   it('rejects zero quantity', async () => {
     await expect(adjustStock('prod-1', 0, 'purchase')).rejects.toThrow(
-      'Stock adjustment quantity must be a non-zero integer.',
+      'Stock adjustment quantity must be a non-zero number.',
     )
   })
 
-  it('rejects non-integer quantity', async () => {
-    await expect(adjustStock('prod-1', 1.5, 'purchase')).rejects.toThrow(
-      'Stock adjustment quantity must be a non-zero integer.',
-    )
+  it('allows fractional quantity for variable-unit stock', async () => {
+    const variableUnitRow = { ...row, unit_type: 'kg', stock_quantity: 19.5 }
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: variableUnitRow, error: null } as never)
+
+    await expect(adjustStock('prod-1', 1.5, 'purchase')).resolves.toMatchObject({
+      id: 'prod-1',
+      stockQuantity: 19.5,
+      unitType: 'kg',
+    })
+
+    expect(supabase.rpc).toHaveBeenCalledWith('adjust_stock', {
+      p_product_id: 'prod-1',
+      p_quantity_delta: 1.5,
+      p_type: 'purchase',
+      p_reason: null,
+    })
   })
 
   it('requires a reason for adjustment movements', async () => {
