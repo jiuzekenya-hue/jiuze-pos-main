@@ -2,61 +2,46 @@
 @import "tailwindcss";
 
 @theme {
-  /* JIUZE POS design tokens — grounded in the grocery/market retail
-     context this product serves, not a generic template palette. */
-
-  /* Paper: the app surface reads like receipt/ledger paper */
   --color-paper: #FAFAF8;
   --color-paper-raised: #FFFFFF;
-
-  /* Ink: near-black with a faint green cast, not pure black */
   --color-ink: #1B2420;
   --color-ink-muted: #5C665F;
   --color-ink-faint: #9BA39C;
-
-  /* Market green: fresh produce / grocery signage — the brand primary */
   --color-market-50: #EEF6F1;
   --color-market-100: #D3E8DA;
   --color-market-400: #4C8F6B;
   --color-market-600: #2F6F4E;
   --color-market-700: #235539;
-
-  /* Maize: warm amber accent for calls to action, ties to local grain/produce */
   --color-maize-400: #EFBB5C;
   --color-maize-500: #E0A63A;
   --color-maize-600: #C08A22;
-
-  /* Alert: brick red for voids, low stock, destructive actions */
   --color-brick-500: #B23A2E;
   --color-brick-600: #8F2D23;
-
   --color-line: #E4E1D9;
-
+  --color-sidebar: #0E2119;
+  --color-sidebar-hover: #163126;
+  --color-sidebar-active: #173D2A;
+  --color-sidebar-card: #122B21;
+  --color-sidebar-line: #244236;
+  --color-sidebar-text: #DCE8E1;
+  --color-sidebar-muted: #8EA398;
+  --color-market-300: #7CC49A;
   --font-display: 'Space Grotesk', sans-serif;
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
 
-html, body, #root {
-  height: 100%;
-}
+html, body, #root { height: 100%; }
+body { margin: 0; background-color: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-market-600); outline-offset: 2px; }
 
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-}
+.field { width: 100%; border: 1px solid var(--color-line); border-radius: 0.625rem; background: var(--color-paper-raised); color: var(--color-ink); padding: 0.65rem 0.75rem; font-size: 0.875rem; line-height: 1.4; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease; }
+.field::placeholder { color: var(--color-ink-faint); }
+.field:hover { border-color: #CFCBC1; }
+.field:focus { border-color: var(--color-market-600); box-shadow: 0 0 0 3px var(--color-market-50); }
+.field:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* Signature motif: a perforated "tear line" divider, evoking a till
-   receipt, used sparingly to separate key sections. */
-.tear-line {
-  position: relative;
-  height: 1px;
-  background: repeating-linear-gradient(
-    to right,
-    var(--color-line) 0,
-    var(--color-line) 6px,
-    transparent 6px,
-    transparent 12px
-  );
-}
+.tear-line { position: relative; height: 1px; background: repeating-linear-gradient(to right, var(--color-line) 0, var(--color-line) 6px, transparent 6px, transparent 12px); }
+
+@media (max-width: 1023px) { body { overflow-x: hidden; } }
