@@ -15,6 +15,13 @@ comment on column public.products.unit_type is
 -- ---------------------------------------------------------------------
 -- Quantity precision
 -- ---------------------------------------------------------------------
+-- The stock trigger depends on stock_quantity, so it must be recreated
+-- around the type conversion. The trigger function itself remains
+-- unchanged and continues to prevent negative stock when the business
+-- setting does not allow it.
+drop trigger if exists products_enforce_stock_non_negative
+  on public.products;
+
 alter table public.products
   alter column stock_quantity type numeric(12,3) using stock_quantity::numeric,
   alter column minimum_stock type numeric(12,3) using minimum_stock::numeric;
@@ -24,6 +31,10 @@ alter table public.sale_items
 
 alter table public.stock_movements
   alter column quantity type numeric(12,3) using quantity::numeric;
+
+create trigger products_enforce_stock_non_negative
+  before insert or update of stock_quantity on public.products
+  for each row execute function public.enforce_stock_non_negative();
 
 -- ---------------------------------------------------------------------
 -- complete_sale
