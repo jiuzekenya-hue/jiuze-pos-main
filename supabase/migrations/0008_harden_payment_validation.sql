@@ -1,2 +1,0 @@
--- Payment validation hardening is pending exact review of 0004_complete_sale.sql.
--- DO NOT APPLY this migration yet.
