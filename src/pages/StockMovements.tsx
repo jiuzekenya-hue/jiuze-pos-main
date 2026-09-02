@@ -3,71 +3,15 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { listStockMovements, type StockMovement } from '../services/stockMovementService'
 
-const labels: Record<StockMovement['type'], string> = {
-  purchase: 'Purchase',
-  adjustment: 'Adjustment',
-  return: 'Return',
-  damage: 'Damage',
-}
+const labels: Record<StockMovement['type'], string> = { purchase: 'Purchase', adjustment: 'Adjustment', return: 'Return', damage: 'Damage' }
 
 export default function StockMovements() {
   const { profile, role } = useAuth()
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    if (!profile?.businessId || role !== 'owner') return
-    setLoading(true)
-    setError(null)
-    try {
-      setMovements(await listStockMovements(profile.businessId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load stock history.')
-    } finally {
-      setLoading(false)
-    }
-  }, [profile?.businessId, role])
-
+  const load = useCallback(async () => { if (!profile?.businessId || role !== 'owner') return; setLoading(true); setError(null); try { setMovements(await listStockMovements(profile.businessId)) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load stock history.') } finally { setLoading(false) } }, [profile?.businessId, role])
   useEffect(() => { void load() }, [load])
-
-  if (role !== 'owner') {
-    return (
-      <div className="min-h-screen bg-paper px-6 py-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-8 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p>
-              <h1 className="font-display font-semibold text-3xl text-ink mt-1">Stock history</h1>
-            </div>
-            <Link to="/products" className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink-muted">Back to products</Link>
-          </div>
-          <div className="rounded-lg border border-line bg-paper-raised p-8 text-center">
-            <h2 className="font-display font-semibold text-xl text-ink">Access restricted</h2>
-            <p className="text-sm text-ink-muted mt-2">Stock history is available to business owners only.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-paper px-6 py-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p>
-            <h1 className="font-display font-semibold text-3xl text-ink mt-1">Stock history</h1>
-            <p className="text-sm text-ink-muted mt-2">Review inventory changes and their reasons.</p>
-          </div>
-          <Link to="/products" className="rounded-md border border-line px-4 py-2 text-sm font-medium text-ink-muted">Back to products</Link>
-        </div>
-        {error && <div role="alert" className="mb-6 rounded-md border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}
-        <section className="bg-paper-raised border border-line rounded-lg overflow-hidden">
-          <div className="px-5 py-4 border-b border-line flex items-center justify-between"><h2 className="font-medium text-ink">All movements</h2><span className="text-xs font-mono text-ink-muted">{movements.length}</span></div>
-          {loading ? <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading stock history…</div> : movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-ink-muted">No stock movements yet.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-muted"><th className="px-5 py-3">Date</th><th className="px-3 py-3">Product</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Change</th><th className="px-3 py-3">Reason</th><th className="px-5 py-3">Created by</th></tr></thead><tbody className="divide-y divide-line">{movements.map((movement) => <tr key={movement.id}><td className="px-5 py-4 text-xs text-ink-muted whitespace-nowrap">{new Date(movement.createdAt).toLocaleString()}</td><td className="px-3 py-4"><div className="font-medium text-ink">{movement.productName}</div><div className="font-mono text-xs text-ink-muted">{movement.sku}</div></td><td className="px-3 py-4 text-ink-muted">{labels[movement.type]}</td><td className={`px-3 py-4 font-mono font-medium ${movement.quantity > 0 ? 'text-market-700' : 'text-brick-600'}`}>{movement.quantity > 0 ? '+' : ''}{movement.quantity}</td><td className="px-3 py-4 text-ink-muted">{movement.reason ?? '—'}</td><td className="px-5 py-4 font-mono text-xs text-ink-muted">{movement.createdBy ? `${movement.createdBy.slice(0, 8)}…` : '—'}</td></tr>)}</tbody></table></div>}
-        </section>
-      </div>
-    </div>
-  )
+  if (role !== 'owner') return <div className="min-h-screen bg-paper px-6 py-8"><div className="max-w-5xl mx-auto"><header className="mb-8"><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Inventory</p><h1 className="font-display font-semibold text-3xl text-ink mt-1">Stock history</h1></header><div className="rounded-xl border border-line bg-paper-raised p-8 text-center"><h2 className="font-display font-semibold text-xl text-ink">Access restricted</h2><p className="text-sm text-ink-muted mt-2">Stock history is available to business owners only.</p></div></div></div>
+  return <div className="min-h-screen bg-paper px-5 py-7 sm:px-6"><div className="max-w-6xl mx-auto"><header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8"><div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Inventory</p><h1 className="font-display font-semibold text-3xl text-ink mt-1 tracking-tight">Stock history</h1><p className="text-sm text-ink-muted mt-2">A record of every inventory movement.</p></div><Link to="/products" className="rounded-lg border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink">Products</Link></header>{error && <div role="alert" className="mb-6 rounded-lg border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}<section className="bg-paper-raised border border-line rounded-xl overflow-hidden"><div className="px-5 py-4 border-b border-line flex items-center justify-between"><div><h2 className="font-display font-semibold text-lg text-ink">All movements</h2><p className="text-xs text-ink-muted mt-1">Purchases, returns, adjustments and damage</p></div><span className="text-xs font-mono text-ink-muted">{movements.length}</span></div>{loading ? <div className="px-5 py-12 text-center text-sm text-ink-muted">Loading stock history…</div> : movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-ink-muted">No stock movements yet.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-muted"><th className="px-5 py-3">Date</th><th className="px-3 py-3">Product</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Change</th><th className="px-3 py-3">Reason</th><th className="px-5 py-3">Created by</th></tr></thead><tbody className="divide-y divide-line">{movements.map((movement) => <tr key={movement.id} className="hover:bg-paper"><td className="px-5 py-4 text-xs text-ink-muted whitespace-nowrap">{new Date(movement.createdAt).toLocaleString()}</td><td className="px-3 py-4"><div className="font-medium text-ink">{movement.productName}</div><div className="font-mono text-xs text-ink-muted mt-1">{movement.sku}</div></td><td className="px-3 py-4"><span className="rounded-full bg-paper px-2.5 py-1 text-xs text-ink-muted">{labels[movement.type]}</span></td><td className={`px-3 py-4 font-mono font-medium ${movement.quantity > 0 ? 'text-market-700' : 'text-brick-600'}`}>{movement.quantity > 0 ? '+' : ''}{movement.quantity}</td><td className="px-3 py-4 text-ink-muted">{movement.reason ?? '—'}</td><td className="px-5 py-4 font-mono text-xs text-ink-muted">{movement.createdBy ? `${movement.createdBy.slice(0, 8)}…` : '—'}</td></tr>)}</tbody></table></div>}</section></div></div>
 }
