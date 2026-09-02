@@ -36,7 +36,7 @@ const validate = (input: CompleteSaleInput) => {
   if (input.discount !== undefined && (!Number.isFinite(input.discount) || input.discount < 0)) throw new Error('Discount cannot be negative.')
   for (const item of input.items) {
     if (!item.productId.trim()) throw new Error('Each cart item requires a product.')
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) throw new Error('Item quantity must be a positive integer.')
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) throw new Error('Item quantity must be a positive number.')
     if (item.discount !== undefined && (!Number.isFinite(item.discount) || item.discount < 0)) throw new Error('Item discount cannot be negative.')
   }
 }
