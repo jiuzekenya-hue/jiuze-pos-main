@@ -59,27 +59,37 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   const thirtyDaysAgo = new Date(todayStart)
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
 
-  const [salesResult, itemsResult, productsResult] = await Promise.all([
+  const [salesResult, productsResult] = await Promise.all([
     supabase.from('sales').select('id, total, discount, subtotal, created_at').eq('business_id', businessId).eq('status', 'completed').gte('created_at', iso(thirtyDaysAgo)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
-    supabase.from('sale_items').select('sale_id, product_id, product_name, quantity, unit_price, cost_price, discount, subtotal').eq('business_id', businessId),
     supabase.from('products').select('id, name, stock_quantity, cost_price, minimum_stock').eq('business_id', businessId).eq('is_active', true),
   ])
 
   if (salesResult.error) throw salesResult.error
-  if (itemsResult.error) throw itemsResult.error
   if (productsResult.error) throw productsResult.error
 
   const sales = (salesResult.data ?? []) as SaleRow[]
-  const items = (itemsResult.data ?? []) as ItemRow[]
   const products = productsResult.data ?? []
+
+  // sale_items is tenant-scoped through its parent sale; it does not carry
+  // a business_id column. Fetch only the sale IDs already verified above.
+  const saleIds = sales.map((sale) => sale.id)
+  let items: ItemRow[] = []
+  if (saleIds.length > 0) {
+    const itemsResult = await supabase
+      .from('sale_items')
+      .select('sale_id, product_id, product_name, quantity, unit_price, cost_price, discount, subtotal')
+      .in('sale_id', saleIds)
+    if (itemsResult.error) throw itemsResult.error
+    items = (itemsResult.data ?? []) as ItemRow[]
+  }
+
   const saleById = new Map(sales.map((sale) => [sale.id, sale]))
   const inRange = (createdAt: string, start: Date) => new Date(createdAt) >= start
   const salesInPeriod = (start: Date) => sales.filter((sale) => inRange(sale.created_at, start))
   const revenue = (rows: SaleRow[]) => rows.reduce((sum, row) => sum + Number(row.total), 0)
 
-  // Profit is calculated from the actual sale subtotal after line discounts,
-  // then the sale-level discount is allocated proportionally across its lines.
-  // This prevents gross profit from being overstated when a sale has a discount.
+  // Profit uses the actual line subtotal after line discounts, then allocates
+  // each sale-level discount proportionally across its lines.
   const profitForItems = (rows: ItemRow[]) => rows.reduce((sum, item) => {
     const sale = saleById.get(item.sale_id)
     const lineSubtotal = Number(item.subtotal)
@@ -120,16 +130,16 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     const current = trendMap.get(key)
     if (current) current.revenue += Number(sale.total)
   }
-  for (const item of itemsForSales(sales)) {
+  for (const item of items) {
     const sale = saleById.get(item.sale_id)
-    const key = sale ? new Date(sale.created_at).toISOString().slice(0, 10) : ''
+    if (!sale) continue
+    const key = new Date(sale.created_at).toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.profit += profitForItems([item])
   }
 
   const productMap = new Map<string, AnalyticsProduct>()
   for (const item of monthItems) {
-    const id = item.product_id
     const sale = saleById.get(item.sale_id)
     const lineSubtotal = Number(item.subtotal)
     const saleSubtotal = Number(sale?.subtotal ?? 0)
@@ -137,11 +147,11 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     const allocatedSaleDiscount = saleSubtotal > 0 ? (lineSubtotal / saleSubtotal) * saleDiscount : 0
     const netRevenue = lineSubtotal - allocatedSaleDiscount
     const profit = netRevenue - (Number(item.cost_price) * Number(item.quantity))
-    const current = productMap.get(id) ?? { id, name: item.product_name, units: 0, revenue: 0, profit: 0 }
+    const current = productMap.get(item.product_id) ?? { id: item.product_id, name: item.product_name, units: 0, revenue: 0, profit: 0 }
     current.units += Number(item.quantity)
     current.revenue += netRevenue
     current.profit += profit
-    productMap.set(id, current)
+    productMap.set(item.product_id, current)
   }
   const productPerformance = Array.from(productMap.values())
   const topProducts = [...productPerformance].sort((a, b) => b.revenue - a.revenue).slice(0, 5)
