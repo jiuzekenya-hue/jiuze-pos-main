@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
-import { createCashier, listBusinessUsers, type CashierUser } from '../services/cashierService'
+import { createCashier, deleteCashier, listBusinessUsers, type CashierUser } from '../services/cashierService'
 
 export default function Users() {
   const { role } = useAuth()
   const [users, setUsers] = useState<CashierUser[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ email: '', password: '', fullName: '', phone: '' })
 
@@ -34,7 +35,7 @@ export default function Users() {
       <main className="min-h-screen bg-paper px-6 py-8">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <div><p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p><h1 className="font-display font-semibold text-3xl text-ink mt-1">Users</h1></div>
+            <div><h1 className="font-display font-semibold text-3xl text-ink mt-1">Users</h1></div>
             <Link to="/" className="text-sm text-market-700">Home</Link>
           </div>
           <div className="rounded-lg border border-line bg-paper-raised p-8 text-center">
@@ -61,11 +62,28 @@ export default function Users() {
     }
   }
 
+  const remove = async (user: CashierUser) => {
+    if (user.role !== 'cashier') return
+    const confirmed = window.confirm(`Remove ${user.fullName || user.email || 'this cashier'}? This cannot be undone.`)
+    if (!confirmed) return
+
+    setRemovingUserId(user.id)
+    setError('')
+    try {
+      await deleteCashier(user.id)
+      setUsers((current) => current.filter((currentUser) => currentUser.id !== user.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to remove cashier.')
+    } finally {
+      setRemovingUserId(null)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-paper px-6 py-8">
       <div className="max-w-5xl mx-auto">
         <header className="flex items-start justify-between gap-4 mb-8">
-          <div><p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p><h1 className="font-display font-semibold text-3xl text-ink mt-1">Users</h1><p className="text-sm text-ink-muted mt-2">Manage cashiers for your business.</p></div>
+          <div><h1 className="font-display font-semibold text-3xl text-ink mt-1">Users</h1><p className="text-sm text-ink-muted mt-2">Manage cashiers for your business.</p></div>
           <Link to="/" className="text-sm text-market-700">Home</Link>
         </header>
 
@@ -85,7 +103,7 @@ export default function Users() {
 
         <section className="bg-paper-raised border border-line rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-line flex items-center justify-between"><h2 className="font-medium text-ink">Business users</h2><span className="text-xs font-mono text-ink-muted">{users.length}</span></div>
-          {loading ? <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading users…</div> : users.length === 0 ? <div className="px-5 py-12 text-center text-sm text-ink-muted">No users found.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-muted"><th className="px-5 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Phone</th><th className="px-3 py-3">Role</th><th className="px-5 py-3">Created</th></tr></thead><tbody className="divide-y divide-line">{users.map((user) => <tr key={user.id}><td className="px-5 py-4 font-medium text-ink">{user.fullName || '—'}</td><td className="px-3 py-4 text-ink-muted">{user.email || '—'}</td><td className="px-3 py-4 text-ink-muted">{user.phone || '—'}</td><td className="px-3 py-4 capitalize text-ink-muted">{user.role}</td><td className="px-5 py-4 text-ink-muted">{new Date(user.createdAt).toLocaleDateString()}</td></tr>)}</tbody></table></div>}
+          {loading ? <div className="px-5 py-10 text-center text-sm text-ink-muted">Loading users…</div> : users.length === 0 ? <div className="px-5 py-12 text-center text-sm text-ink-muted">No users found.</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-muted"><th className="px-5 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Phone</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Created</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-line">{users.map((user) => <tr key={user.id}><td className="px-5 py-4 font-medium text-ink">{user.fullName || '—'}</td><td className="px-3 py-4 text-ink-muted">{user.email || '—'}</td><td className="px-3 py-4 text-ink-muted">{user.phone || '—'}</td><td className="px-3 py-4 capitalize text-ink-muted">{user.role}</td><td className="px-3 py-4 text-ink-muted">{new Date(user.createdAt).toLocaleDateString()}</td><td className="px-5 py-4 text-right">{user.role === 'cashier' && <button type="button" onClick={() => void remove(user)} disabled={removingUserId === user.id} className="text-sm text-brick-600 hover:underline disabled:opacity-50">{removingUserId === user.id ? 'Removing…' : 'Remove'}</button>}</td></tr>)}</tbody></table></div>}
         </section>
 
         <nav className="mt-6 flex flex-wrap gap-4 text-sm"><Link to="/products" className="text-market-700">Products</Link><Link to="/sales" className="text-market-700">Sales history</Link><Link to="/categories" className="text-market-700">Categories</Link></nav>
