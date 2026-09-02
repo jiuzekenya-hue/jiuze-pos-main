@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
 import { getDashboardData, type DashboardData } from '../services/dashboardService'
+import { getBusiness, type Business } from '../services/businessService'
 
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const quantity = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
@@ -10,15 +11,22 @@ const quantity = (value: number) => Number.isInteger(value) ? String(value) : va
 export default function Dashboard() {
   const { profile, role, signOut } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [business, setBusiness] = useState<Business | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!profile?.businessId) return
-    getDashboardData(profile.businessId).then(setData).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load dashboard.'))
+    setError('')
+    Promise.all([getDashboardData(profile.businessId), getBusiness(profile.businessId)])
+      .then(([dashboardData, businessData]) => {
+        setData(dashboardData)
+        setBusiness(businessData)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load dashboard.'))
   }, [profile?.businessId])
 
   if (error) return <main className="min-h-screen bg-paper px-6 py-8"><div className="max-w-5xl mx-auto"><p role="alert" className="rounded-xl border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</p></div></main>
-  if (!data) return <main className="min-h-screen bg-paper flex items-center justify-center text-sm text-ink-muted">Loading dashboard…</main>
+  if (!data || !business) return <main className="min-h-screen bg-paper flex items-center justify-center text-sm text-ink-muted">Loading dashboard…</main>
 
   const stats = [
     { label: 'Today revenue', value: money(data.todayRevenue), detail: 'Sales today' },
@@ -33,8 +41,8 @@ export default function Dashboard() {
         <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between mb-9">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">JIUZE POS</p>
-            <h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Dashboard</h1>
-            <p className="text-sm text-ink-muted mt-2">Today at a glance</p>
+            <h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">{business.name}</h1>
+            <p className="text-sm text-ink-muted mt-2">Dashboard · Today at a glance</p>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Link className="rounded-lg bg-ink px-4 py-2.5 font-medium text-paper transition-transform hover:-translate-y-px" to="/checkout">New sale</Link>
