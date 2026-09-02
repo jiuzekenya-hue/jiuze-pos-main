@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
@@ -6,6 +6,32 @@ import { getAnalyticsData, type AnalyticsData } from '../services/analyticsServi
 
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const quantity = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
+
+type Insight = { label: string; title: string; detail: string; tone: 'positive' | 'warning' | 'neutral' }
+
+function buildInsights(data: AnalyticsData): Insight[] {
+  const soldDays = data.salesTrend.filter((day) => day.revenue > 0)
+  const averageActiveDay = soldDays.length ? soldDays.reduce((sum, day) => sum + day.revenue, 0) / soldDays.length : 0
+  const bestProduct = data.topProducts[0]
+  const attentionProduct = data.slowProducts[0]
+  return [
+    bestProduct
+      ? { label: 'Best performer', title: bestProduct.name, detail: `${money(bestProduct.revenue)} revenue and ${money(bestProduct.profit)} gross profit this month.`, tone: 'positive' as const }
+      : { label: 'Best performer', title: 'Not enough sales data', detail: 'Keep recording sales to identify your strongest products.', tone: 'neutral' as const },
+    data.lowStockCount > 0
+      ? { label: 'Needs attention', title: `${data.lowStockCount} low-stock ${data.lowStockCount === 1 ? 'product' : 'products'}`, detail: 'Review inventory levels before these products run out.', tone: 'warning' as const }
+      : { label: 'Inventory', title: 'Stock looks healthy', detail: 'No active products are currently at or below their minimum stock level.', tone: 'positive' as const },
+    data.averageSale > 0
+      ? { label: 'Basket opportunity', title: `Average sale ${money(data.averageSale)}`, detail: 'Bundling complementary products can help increase the value of each transaction.', tone: 'neutral' as const }
+      : { label: 'Basket opportunity', title: 'Build transaction history', detail: 'Average transaction insights will appear as sales accumulate.', tone: 'neutral' as const },
+    averageActiveDay > 0
+      ? { label: 'Sales pattern', title: `${money(averageActiveDay)} per active day`, detail: 'Use the sales trend to identify stronger days and repeat what works.', tone: 'neutral' as const }
+      : { label: 'Sales pattern', title: 'Waiting for sales', detail: 'More activity is needed before a meaningful sales pattern can be identified.', tone: 'neutral' as const },
+    attentionProduct && attentionProduct.id !== bestProduct?.id
+      ? { label: 'Slow mover', title: attentionProduct.name, detail: `${quantity(attentionProduct.units)} units sold this month. Consider reviewing pricing, placement or demand.`, tone: 'warning' as const }
+      : null,
+  ].filter(Boolean).slice(0, 4) as Insight[]
+}
 
 export default function Analytics() {
   const { profile, role } = useAuth()
@@ -27,31 +53,7 @@ export default function Analytics() {
   const slowestUnits = Math.max(...data.slowProducts.map((product) => product.units), 1)
   const projectionProgress = data.projectedMonthRevenue ? Math.min(100, (data.monthRevenue / data.projectedMonthRevenue) * 100) : 0
   const trendLabels = data.salesTrend.filter((_, index) => index % 5 === 0 || index === data.salesTrend.length - 1)
-
-  const insights = useMemo(() => {
-    const soldDays = data.salesTrend.filter((day) => day.revenue > 0)
-    const averageActiveDay = soldDays.length ? soldDays.reduce((sum, day) => sum + day.revenue, 0) / soldDays.length : 0
-    const bestProduct = data.topProducts[0]
-    const attentionProduct = data.slowProducts[0]
-    const insightsList = [
-      bestProduct
-        ? { label: 'Best performer', title: bestProduct.name, detail: `${money(bestProduct.revenue)} revenue and ${money(bestProduct.profit)} gross profit this month.`, tone: 'positive' }
-        : { label: 'Best performer', title: 'Not enough sales data', detail: 'Keep recording sales to identify your strongest products.', tone: 'neutral' },
-      data.lowStockCount > 0
-        ? { label: 'Needs attention', title: `${data.lowStockCount} low-stock ${data.lowStockCount === 1 ? 'product' : 'products'}`, detail: 'Review inventory levels before these products run out.', tone: 'warning' }
-        : { label: 'Inventory', title: 'Stock looks healthy', detail: 'No active products are currently at or below their minimum stock level.', tone: 'positive' },
-      data.averageSale > 0
-        ? { label: 'Basket opportunity', title: `Average sale ${money(data.averageSale)}`, detail: 'Bundling complementary products can help increase the value of each transaction.', tone: 'neutral' }
-        : { label: 'Basket opportunity', title: 'Build transaction history', detail: 'Average transaction insights will appear as sales accumulate.', tone: 'neutral' },
-      averageActiveDay > 0
-        ? { label: 'Sales pattern', title: `${money(averageActiveDay)} per active day`, detail: data.monthRevenue > averageActiveDay * Math.max(1, soldDays.length - 1) ? 'Recent sales are contributing strongly to the current month.' : 'Use the sales trend to identify stronger days and repeat what works.', tone: 'neutral' }
-        : { label: 'Sales pattern', title: 'Waiting for sales', detail: 'More activity is needed before a meaningful sales pattern can be identified.', tone: 'neutral' },
-      attentionProduct && attentionProduct.id !== bestProduct?.id
-        ? { label: 'Slow mover', title: attentionProduct.name, detail: `${quantity(attentionProduct.units)} units sold this month. Consider reviewing pricing, placement or demand.`, tone: 'warning' }
-        : null,
-    ].filter(Boolean) as Array<{ label: string; title: string; detail: string; tone: 'positive' | 'warning' | 'neutral' }>
-    return insightsList.slice(0, 4)
-  }, [data])
+  const insights = buildInsights(data)
 
   return <main className="min-h-screen bg-paper px-5 py-6 sm:px-6 lg:px-8">
     <div className="max-w-[1500px] mx-auto">
@@ -72,6 +74,6 @@ export default function Analytics() {
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="rounded-2xl border border-line bg-paper-raised p-5"><p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p><p className="font-display font-semibold text-2xl text-ink tracking-tight mt-3">{value}</p><p className="text-xs text-ink-muted mt-1">{detail}</p></div> }
-function InsightItem({ label, title, detail, tone }: { label: string; title: string; detail: string; tone: 'positive' | 'warning' | 'neutral' }) { const dot = tone === 'warning' ? 'bg-brick-600' : tone === 'positive' ? 'bg-market-600' : 'bg-ink-muted'; return <div className="p-5"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${dot}`} /><p className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-muted">{label}</p></div><p className="font-display font-semibold text-base text-ink mt-3">{title}</p><p className="text-xs leading-5 text-ink-muted mt-1.5">{detail}</p></div> }
+function InsightItem({ label, title, detail, tone }: Insight) { const dot = tone === 'warning' ? 'bg-brick-600' : tone === 'positive' ? 'bg-market-600' : 'bg-ink-muted'; return <div className="p-5"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${dot}`} /><p className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-muted">{label}</p></div><p className="font-display font-semibold text-base text-ink mt-3">{title}</p><p className="text-xs leading-5 text-ink-muted mt-1.5">{detail}</p></div> }
 function InsightCard({ label, value, detail, alert = false }: { label: string; value: string; detail: string; alert?: boolean }) { return <div className="rounded-2xl border border-line bg-paper-raised p-5 flex items-start justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p><p className="font-display font-semibold text-xl text-ink mt-3">{value}</p><p className={`text-xs mt-1 ${alert ? 'text-brick-600' : 'text-ink-muted'}`}>{detail}</p></div>{alert && <span className="h-2.5 w-2.5 rounded-full bg-brick-600 mt-1" />}</div> }
 function ProductTable({ title, subtitle, products, max, units = false }: { title: string; subtitle: string; products: AnalyticsData['topProducts']; max: number; units?: boolean }) { return <section className="rounded-2xl border border-line bg-paper-raised overflow-hidden"><div className="px-5 py-4 border-b border-line"><h2 className="font-display font-semibold text-lg text-ink">{title}</h2><p className="text-xs text-ink-muted mt-1">{subtitle}</p></div><div className="divide-y divide-line">{products.length === 0 ? <p className="px-5 py-10 text-sm text-ink-muted">Not enough sales data yet.</p> : products.map((product, index) => <div key={product.id} className="px-5 py-4 flex items-center gap-4"><span className="w-5 text-xs font-mono text-ink-muted">0{index + 1}</span><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium text-ink truncate">{product.name}</p><span className="text-sm font-semibold text-ink whitespace-nowrap">{units ? `${quantity(product.units)} units` : money(product.revenue)}</span></div><div className="h-1.5 rounded-full bg-paper mt-2 overflow-hidden"><div className="h-full rounded-full bg-market-600" style={{ width: `${Math.max(3, ((units ? product.units : product.revenue) / max) * 100)}%` }} /></div><p className="text-[11px] text-ink-muted mt-1">{units ? money(product.revenue) : `${quantity(product.units)} units · ${money(product.profit)} profit`}</p></div></div>)}</div></section> }
