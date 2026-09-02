@@ -32,20 +32,20 @@ describe('productService', () => {
   it('trims and creates a product', async () => {
     const builder = chain({ data: { ...row, name: 'Soda 500ml', sku: 'SODA-500' }, error: null })
     vi.mocked(supabase.from).mockReturnValue(builder as never)
-    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: ' Soda 500ml ', sku: ' SODA-500 ', costPrice: 55, sellingPrice: 70, stockQuantity: 18, minimumStock: 5 })).resolves.toMatchObject({ name: 'Soda 500ml', sku: 'SODA-500' })
+    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: ' Soda 500ml ', sku: ' SODA-500 ', costPrice: 55, sellingPrice: 70, stockQuantity: 18, minimumStock: 5, unitType: 'piece' })).resolves.toMatchObject({ name: 'Soda 500ml', sku: 'SODA-500' })
     expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ business_id: 'business-1', name: 'Soda 500ml', sku: 'SODA-500', is_active: true }))
   })
 
   it('rejects empty names', async () => {
-    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: ' ', sku: 'SKU', costPrice: 1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1 })).rejects.toThrow('Product name is required.')
+    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: ' ', sku: 'SKU', costPrice: 1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1, unitType: 'piece' })).rejects.toThrow('Product name is required.')
   })
 
   it('rejects negative numeric values', async () => {
-    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: -1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1 })).rejects.toThrow('cannot be negative')
+    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: -1, sellingPrice: 2, stockQuantity: 1, minimumStock: 1, unitType: 'piece' })).rejects.toThrow('cannot be negative')
   })
 
   it('rejects selling price below cost', async () => {
-    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: 80, sellingPrice: 70, stockQuantity: 1, minimumStock: 1 })).rejects.toThrow('Selling price cannot be lower than cost price.')
+    await expect(createProduct({ businessId: 'business-1', categoryId: 'cat-1', name: 'Milk', sku: 'MILK', costPrice: 80, sellingPrice: 70, stockQuantity: 1, minimumStock: 1, unitType: 'piece' })).rejects.toThrow('Selling price cannot be lower than cost price.')
   })
 
   it('updates a product with a trimmed name', async () => {
