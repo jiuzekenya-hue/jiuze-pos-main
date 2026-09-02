@@ -23,7 +23,7 @@ export default function Dashboard() {
     <main className="min-h-screen bg-paper px-6 py-8">
       <div className="max-w-5xl mx-auto">
         <header className="flex items-center justify-between mb-8">
-          <div><p className="text-xs font-mono uppercase tracking-wide text-market-600">Phase 4</p><h1 className="font-display font-semibold text-3xl text-ink">Dashboard</h1><p className="text-sm text-ink-muted mt-1">Today at a glance</p></div>
+          <div><h1 className="font-display font-semibold text-3xl text-ink">Dashboard</h1><p className="text-sm text-ink-muted mt-1">Today at a glance</p></div>
           <div className="flex items-center gap-3 text-sm">
             <Link className="px-3 py-2 border border-line rounded" to="/checkout">New sale</Link>
             <Link className="px-3 py-2 border border-line rounded" to="/sales">Sales</Link>
@@ -48,7 +48,7 @@ export default function Dashboard() {
           </section>
         </div>
 
-        <nav className="mt-6 flex flex-wrap gap-3 text-sm"><Link className="text-market-600" to="/products">Products</Link><Link className="text-market-600" to="/stock-movements">Stock history</Link><Link className="text-market-600" to="/sales">Sales history</Link>{can(role, 'userManagement') && <Link className="text-market-600" to="/users">Users</Link>}</nav>
+        <nav className="mt-6 flex flex-wrap gap-3 text-sm"><Link className="text-market-600" to="/products">Products</Link><Link className="text-market-600" to="/categories">Categories</Link><Link className="text-market-600" to="/stock-movements">Stock history</Link><Link className="text-market-600" to="/sales">Sales history</Link>{can(role, 'userManagement') && <Link className="text-market-600" to="/users">Users</Link>}</nav>
       </div>
     </main>
   )
