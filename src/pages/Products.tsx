@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/auth-context'
 import { listCategories } from '../services/categoryService'
 import { adjustStock } from '../services/inventoryService'
 import { activateProduct, createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
-import { isFractionalUnit, PRODUCT_UNITS, unitLabel, type Category, type Product, type ProductUnitType } from '../types/products'
+import { isFractionalUnit, PRODUCT_UNITS, type Category, type Product, type ProductUnitType } from '../types/products'
 
 const emptyForm = { categoryId: '', name: '', sku: '', barcode: '', costPrice: '', sellingPrice: '', stockQuantity: '', minimumStock: '', unitType: 'piece' as ProductUnitType }
 type FormState = typeof emptyForm
