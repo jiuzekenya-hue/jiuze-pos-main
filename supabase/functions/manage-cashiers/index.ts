@@ -15,6 +15,9 @@ type CreatePayload = {
 }
 
 type ListPayload = { action: 'list' }
+type DeletePayload = { action: 'delete'; userId: string }
+
+type Payload = ListPayload | CreatePayload | DeletePayload
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -51,7 +54,7 @@ Deno.serve(async (request) => {
     return json({ error: 'Owner access required' }, 403)
   }
 
-  let payload: ListPayload | CreatePayload
+  let payload: Payload
   try {
     payload = await request.json()
   } catch {
@@ -82,6 +85,48 @@ Deno.serve(async (request) => {
     )
 
     return json({ users })
+  }
+
+  if (payload.action === 'delete') {
+    const userId = String(payload.userId ?? '').trim()
+    if (!userId) return json({ error: 'User ID is required' }, 400)
+    if (userId === authData.user.id) return json({ error: 'You cannot remove your own account' }, 400)
+
+    const { data: target, error: targetError } = await client
+      .from('profiles')
+      .select('id, business_id, role')
+      .eq('id', userId)
+      .eq('business_id', ownerProfile.business_id)
+      .maybeSingle()
+
+    if (targetError) return json({ error: targetError.message }, 500)
+    if (!target) return json({ error: 'Cashier not found in your business' }, 404)
+    if (target.role !== 'cashier') return json({ error: 'Only cashier accounts can be removed' }, 400)
+
+    const { count: salesCount, error: salesError } = await client
+      .from('sales')
+      .select('id', { count: 'exact', head: true })
+      .eq('cashier_id', userId)
+
+    if (salesError) return json({ error: salesError.message }, 500)
+    if ((salesCount ?? 0) > 0) {
+      return json({ error: 'This cashier has recorded sales and cannot be removed. Deactivate the account instead.' }, 409)
+    }
+
+    const { count: movementCount, error: movementError } = await client
+      .from('stock_movements')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', userId)
+
+    if (movementError) return json({ error: movementError.message }, 500)
+    if ((movementCount ?? 0) > 0) {
+      return json({ error: 'This cashier has stock history and cannot be removed. Deactivate the account instead.' }, 409)
+    }
+
+    const { error: deleteError } = await client.auth.admin.deleteUser(userId)
+    if (deleteError) return json({ error: deleteError.message }, 400)
+
+    return json({ success: true })
   }
 
   if (payload.action !== 'create') return json({ error: 'Unknown action' }, 400)
