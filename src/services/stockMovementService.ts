@@ -5,7 +5,7 @@ export type StockMovement = {
   productId: string
   productName: string
   sku: string
-  type: 'purchase' | 'adjustment' | 'return' | 'damage'
+  type: 'purchase' | 'sale' | 'adjustment' | 'return' | 'damage'
   quantity: number
   reason: string | null
   createdBy: string | null
