@@ -28,6 +28,7 @@ export default function Checkout() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [cart, setCart] = useState<CartLine[]>([])
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>('cash')
@@ -77,17 +78,53 @@ export default function Checkout() {
       const nextQuantity = isFractionalUnit(product.unitType) ? Math.min(product.stockQuantity, existing.quantity + 1) : existing.quantity + 1
       return current.map((line) => line.product.id === product.id ? { ...line, quantity: nextQuantity } : line)
     })
+    setQuantityInputs((current) => ({ ...current, [product.id]: formatQuantity(1) }))
   }
 
   const setQuantity = (productId: string, value: number) => setCart((current) => current.flatMap((line) => {
     if (line.product.id !== productId) return [line]
-    if (!Number.isFinite(value) || value <= 0) return []
+    if (!Number.isFinite(value) || value <= 0) return [line]
     return [{ ...line, quantity: Math.min(value, line.product.stockQuantity) }]
   }))
 
   const changeQuantity = (line: CartLine, delta: number) => {
     const step = isFractionalUnit(line.product.unitType) ? 0.001 : 1
-    setQuantity(line.product.id, line.quantity + delta * step)
+    const nextQuantity = Math.min(line.product.stockQuantity, line.quantity + delta * step)
+    if (nextQuantity <= 0) {
+      setQuantityInputs((current) => ({ ...current, [line.product.id]: formatQuantity(line.quantity) }))
+      return
+    }
+    setQuantity(line.product.id, nextQuantity)
+    setQuantityInputs((current) => ({ ...current, [line.product.id]: formatQuantity(nextQuantity) }))
+  }
+
+  const handleQuantityChange = (line: CartLine, rawValue: string) => {
+    setQuantityInputs((current) => ({ ...current, [line.product.id]: rawValue }))
+    if (rawValue === '' || rawValue === '0' || rawValue === '0.') return
+    const value = Number(rawValue)
+    if (!Number.isFinite(value) || value <= 0) return
+    setQuantity(line.product.id, value)
+  }
+
+  const handleQuantityBlur = (line: CartLine) => {
+    const rawValue = quantityInputs[line.product.id]
+    const value = Number(rawValue)
+    if (Number.isFinite(value) && value > 0) {
+      const nextQuantity = Math.min(value, line.product.stockQuantity)
+      setQuantity(line.product.id, nextQuantity)
+      setQuantityInputs((current) => ({ ...current, [line.product.id]: formatQuantity(nextQuantity) }))
+    } else {
+      setQuantityInputs((current) => ({ ...current, [line.product.id]: formatQuantity(line.quantity) }))
+    }
+  }
+
+  const removeFromCart = (productId: string) => {
+    setCart((current) => current.filter((line) => line.product.id !== productId))
+    setQuantityInputs((current) => {
+      const next = { ...current }
+      delete next[productId]
+      return next
+    })
   }
 
   const submit = async () => {
@@ -103,6 +140,7 @@ export default function Checkout() {
       setCompleted(result)
       setCompletedItems(soldItems)
       setCart([])
+      setQuantityInputs({})
       setPaymentAmount('')
       setPaymentReference('')
       setDiscount('')
@@ -177,20 +215,18 @@ export default function Checkout() {
           <div className="px-5 py-5 border-b border-line flex items-center justify-between"><div><p className="text-xs font-mono uppercase tracking-[0.14em] text-ink-muted">Current sale</p><h2 className="font-display font-semibold text-xl text-ink mt-1">Order summary</h2></div><span className="rounded-full bg-paper px-3 py-1 text-xs font-mono text-ink-muted">{cart.length} lines</span></div>
 
           <div className="px-5 max-h-[360px] overflow-y-auto">
-            {cart.length === 0 ? <div className="py-14 text-center"><div className="mx-auto h-12 w-12 rounded-2xl bg-paper flex items-center justify-center text-ink-muted"><PlusIcon /></div><p className="font-medium text-ink mt-4">No items yet</p><p className="text-sm text-ink-muted mt-1">Click a product to add it to the sale.</p></div> : cart.map((line) => <div key={line.product.id} className="py-4 border-b border-line last:border-0"><div className="flex justify-between gap-3"><div className="min-w-0"><p className="text-sm font-medium text-ink truncate">{line.product.name}</p><p className="text-xs text-ink-muted mt-1">{money(line.product.sellingPrice)} / {line.product.unitType}</p></div><button type="button" onClick={() => setQuantity(line.product.id, 0)} className="text-xs text-brick-600 hover:underline">Remove</button></div><div className="flex items-center justify-between gap-3 mt-3"><div className="flex items-center rounded-xl border border-line overflow-hidden"><button type="button" aria-label={`Decrease ${line.product.name}`} onClick={() => changeQuantity(line, -1)} className="h-9 w-9 flex items-center justify-center text-ink-muted hover:bg-paper"><MinusIcon /></button><input aria-label={`Quantity for ${line.product.name}`} type="number" min="0.001" max={line.product.stockQuantity} step={isFractionalUnit(line.product.unitType) ? '0.001' : '1'} value={line.quantity} onChange={(e) => setQuantity(line.product.id, Number(e.target.value))} className="h-9 w-16 border-x border-line bg-transparent text-center text-sm font-medium outline-none" /><button type="button" aria-label={`Increase ${line.product.name}`} onClick={() => changeQuantity(line, 1)} disabled={line.quantity >= line.product.stockQuantity} className="h-9 w-9 flex items-center justify-center text-ink-muted hover:bg-paper disabled:opacity-30"><PlusIcon /></button></div><span className="text-sm font-semibold text-ink">{money(line.product.sellingPrice * line.quantity)}</span></div></div>)}
+            {cart.length === 0 ? <div className="py-14 text-center"><div className="mx-auto h-12 w-12 rounded-2xl bg-paper flex items-center justify-center text-ink-muted"><PlusIcon /></div><p className="font-medium text-ink mt-4">No items yet</p><p className="text-sm text-ink-muted mt-1">Click a product to add it to the sale.</p></div> : cart.map((line) => <div key={line.product.id} className="py-4 border-b border-line last:border-0"><div className="flex justify-between gap-3"><div className="min-w-0"><p className="text-sm font-medium text-ink truncate">{line.product.name}</p><p className="text-xs text-ink-muted mt-1">{money(line.product.sellingPrice)} / {line.product.unitType}</p></div><button type="button" onClick={() => removeFromCart(line.product.id)} className="text-xs text-brick-600 hover:underline">Remove</button></div><div className="flex items-center justify-between gap-3 mt-3"><div className="flex items-center rounded-xl border border-line overflow-hidden"><button type="button" aria-label={`Decrease ${line.product.name}`} onClick={() => changeQuantity(line, -1)} className="h-9 w-9 flex items-center justify-center text-ink-muted hover:bg-paper"><MinusIcon /></button><input aria-label={`Quantity for ${line.product.name}`} type="number" min="0.001" max={line.product.stockQuantity} step={isFractionalUnit(line.product.unitType) ? '0.001' : '1'} value={quantityInputs[line.product.id] ?? formatQuantity(line.quantity)} onChange={(e) => handleQuantityChange(line, e.target.value)} onBlur={() => handleQuantityBlur(line)} className="h-9 w-16 border-x border-line bg-transparent text-center text-sm font-medium outline-none" /><button type="button" aria-label={`Increase ${line.product.name}`} onClick={() => changeQuantity(line, 1)} disabled={line.quantity >= line.product.stockQuantity} className="h-9 w-9 flex items-center justify-center text-ink-muted hover:bg-paper disabled:opacity-30"><PlusIcon /></button></div><span className="text-sm font-semibold text-ink">{money(line.product.sellingPrice * line.quantity)}</span></div></div>)}
           </div>
 
           <div className="border-t border-line px-5 py-5 space-y-4">
-            <div className="space-y-2 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Subtotal</span><span className="font-medium text-ink">{money(subtotal)}</span></div><label className="block text-ink-muted">Discount<input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0.00" className="field mt-1.5 w-full h-10" /></label><div className="flex justify-between items-end pt-2"><span className="font-medium text-ink">Total</span><span className="font-display font-semibold text-2xl text-ink">{money(total)}</span></div></div>
-
-            <div><p className="text-sm font-medium text-ink mb-2.5">Payment method</p><div className="grid grid-cols-3 gap-2">{(['cash', 'mpesa', 'card'] as SalePaymentMethod[]).map((method) => <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded-xl border px-3 py-2.5 text-sm font-medium capitalize transition-colors ${paymentMethod === method ? 'border-ink bg-ink text-paper' : 'border-line text-ink-muted hover:border-ink hover:text-ink'}`}>{method === 'mpesa' ? 'M-Pesa' : method}</button>)}</div></div>
-
-            <label className="block text-sm font-medium text-ink">Amount paid<input type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={total.toFixed(2)} className="field mt-1.5 w-full h-11 text-base" /></label>
-            {paymentMethod !== 'cash' && <label className="block text-sm font-medium text-ink">Payment reference<input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder={paymentMethod === 'mpesa' ? 'M-Pesa transaction code' : 'Card reference'} className="field mt-1.5 w-full h-11" /></label>}
-
-            <div className="rounded-xl bg-paper px-4 py-3 flex items-center justify-between"><span className="text-sm text-ink-muted">Change</span><span className="font-display font-semibold text-lg text-ink">{money(change)}</span></div>
-            <button type="button" onClick={() => void submit()} disabled={saving || !cart.length || paid < total || (paymentMethod !== 'cash' && paid !== total)} className="w-full rounded-xl bg-market-700 px-4 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-market-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : 'Complete sale'}</button>
-            {!cart.length && <p className="text-center text-xs text-ink-muted">Add products to enable checkout.</p>}
+            <div className="flex items-center justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="font-medium text-ink">{money(subtotal)}</span></div>
+            <label className="block"><span className="block text-sm text-ink-muted mb-2">Discount</span><input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0.00" className="field w-full" /></label>
+            <div className="flex items-end justify-between border-t border-line pt-4"><span className="text-base font-medium text-ink">Total</span><span className="font-display font-semibold text-3xl text-ink">{money(total)}</span></div>
+            <div><p className="text-sm font-medium text-ink mb-2">Payment method</p><div className="grid grid-cols-3 gap-2">{(['cash', 'mpesa', 'card'] as SalePaymentMethod[]).map((method) => <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded-xl border px-3 py-2.5 text-sm font-medium capitalize transition-colors ${paymentMethod === method ? 'bg-ink text-paper border-ink' : 'border-line text-ink-muted hover:text-ink'}`}>{method === 'mpesa' ? 'M-Pesa' : method}</button>)}</div></div>
+            <label className="block"><span className="block text-sm text-ink-muted mb-2">Amount paid</span><input type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={total.toFixed(2)} className="field w-full" /></label>
+            {paymentMethod !== 'cash' && <label className="block"><span className="block text-sm text-ink-muted mb-2">Payment reference</span><input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Enter transaction reference" className="field w-full" /></label>}
+            {paymentMethod === 'cash' && <div className="flex items-center justify-between rounded-xl bg-paper px-4 py-3"><span className="text-sm text-ink-muted">Change</span><span className="font-mono font-semibold text-ink">{money(change)}</span></div>}
+            <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="w-full rounded-xl bg-market-600 text-white py-3.5 text-sm font-semibold hover:bg-market-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : 'Complete sale'}</button>
           </div>
         </aside>
       </div>
