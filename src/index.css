@@ -53,5 +53,10 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
 
 .tear-line { position: relative; height: 1px; background: repeating-linear-gradient(to right, var(--color-line) 0, var(--color-line) 6px, transparent 6px, transparent 12px); }
 
+/* Mobile navigation: keep the rail horizontally scrollable without showing a browser scrollbar. */
+.mobile-nav-scroll { scrollbar-width: none; overscroll-behavior-x: contain; scroll-behavior: smooth; }
+.mobile-nav-scroll::-webkit-scrollbar { display: none; }
+.mobile-nav-scroll::after { content: ''; flex: 0 0 0.5rem; }
+
 @media (max-width: 1023px) { body { overflow-x: hidden; } }
 @media (max-width: 639px) { div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.25rem; } }
