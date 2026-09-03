@@ -9,18 +9,67 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [ready, setReady] = useState(false)
+  const [checkingRecovery, setCheckingRecovery] = useState(true)
+  const [recoveryReady, setRecoveryReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isSessionLoading) return
-    const hash = window.location.hash
-    const hasRecoveryToken = /access_token=/.test(hash) || /type=recovery/.test(hash)
-    setReady(Boolean(session || hasRecoveryToken))
-  }, [isSessionLoading, session])
+    let mounted = true
 
-  if (!isSessionLoading && !ready) return <Navigate to="/login" replace />
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mounted) return
+      if (event === 'PASSWORD_RECOVERY' && nextSession) {
+        setRecoveryReady(true)
+        setCheckingRecovery(false)
+      }
+    })
+
+    async function prepareRecovery() {
+      const url = new URL(window.location.href)
+      const code = url.searchParams.get('code')
+      const hasImplicitRecovery = url.hash.includes('access_token=') && url.hash.includes('type=recovery')
+
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (!mounted) return
+        if (exchangeError) {
+          setError('This password reset link is invalid or has expired. Please request a new one.')
+          setCheckingRecovery(false)
+          return
+        }
+        setRecoveryReady(true)
+        setCheckingRecovery(false)
+        window.history.replaceState({}, document.title, `${url.pathname}${url.hash}`)
+        return
+      }
+
+      if (hasImplicitRecovery) {
+        const { data } = await supabase.auth.getSession()
+        if (!mounted) return
+        if (data.session) setRecoveryReady(true)
+        else setError('This password reset link is invalid or has expired. Please request a new one.')
+        setCheckingRecovery(false)
+        return
+      }
+
+      if (session) setRecoveryReady(true)
+      setCheckingRecovery(false)
+    }
+
+    void prepareRecovery()
+
+    return () => {
+      mounted = false
+      authListener.subscription.unsubscribe()
+    }
+  }, [session])
+
+  if (isSessionLoading || checkingRecovery) {
+    return <div className="min-h-screen bg-sidebar flex items-center justify-center px-5"><div className="text-center"><div className="font-display font-semibold text-3xl tracking-tight text-white"><span className="text-market-300">JIUZE</span> POS</div><p className="text-sm text-sidebar-muted mt-3">Verifying your password reset link…</p></div></div>
+  }
+
+  if (!recoveryReady) return <Navigate to="/login" replace state={{ resetError: error }} />
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
