@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
 import { useOnlineStatus } from '../lib/useOnlineStatus'
@@ -35,6 +36,13 @@ export default function AppShell() {
   const visibleItems = navItems.filter((item) => !item.ownerOnly || can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings'))
   const activeLabel = visibleItems.find((item) => item.to === location.pathname)?.label ?? 'JIUZE POS'
 
+  useEffect(() => {
+    const activeItem = document.querySelector('[data-mobile-nav-active="true"]')
+    if (activeItem instanceof HTMLElement) {
+      activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [location.pathname])
+
   return (
     <div className="min-h-screen bg-paper text-ink lg:flex">
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:border-r lg:border-sidebar-line lg:bg-sidebar px-4 py-5">
@@ -42,7 +50,7 @@ export default function AppShell() {
         <nav className="space-y-1 flex-1" aria-label="Main navigation">{visibleItems.map((item) => <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${isActive ? 'bg-sidebar-active text-market-300' : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white'}`}><Icon name={item.icon} /><span>{item.label}</span></NavLink>)}</nav>
         <div className="border-t border-sidebar-line pt-4 space-y-3"><div className="flex items-center gap-2 px-3 text-xs text-sidebar-muted"><span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-market-400' : 'bg-brick-500'}`} />{isOnline ? 'Online' : 'Offline'}</div><div className="rounded-xl border border-sidebar-line bg-sidebar-card px-3 py-3"><p className="text-xs font-medium text-white truncate">{profile?.businessId ? 'Business account' : 'JIUZE POS'}</p><p className="text-[11px] text-sidebar-muted mt-0.5 truncate">{user?.email ?? 'Signed in'}</p><p className="text-[10px] uppercase tracking-wide text-market-400 mt-2">{role ?? 'account'}</p></div><button type="button" onClick={() => void signOut()} className="w-full rounded-lg px-3 py-2 text-left text-xs text-sidebar-muted hover:bg-sidebar-hover hover:text-white transition-colors">Sign out</button></div>
       </aside>
-      <div className="min-w-0 flex-1"><header className="sticky top-0 z-30 border-b border-line bg-paper/95 backdrop-blur lg:hidden"><div className="px-4 py-3 flex items-center justify-between gap-4"><div><p className="font-display font-semibold text-lg"><span className="text-market-600">JIUZE</span> POS</p><p className="text-[10px] uppercase tracking-wider text-ink-muted">{activeLabel}</p></div><div className="flex items-center gap-3"><span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-market-400' : 'bg-brick-500'}`} aria-label={isOnline ? 'Online' : 'Offline'} /><button type="button" onClick={() => void signOut()} className="text-xs text-ink-muted">Sign out</button></div></div><nav className="overflow-x-auto px-3 pb-3 flex gap-1" aria-label="Main navigation">{visibleItems.map((item) => <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${isActive ? 'bg-ink text-paper' : 'bg-paper-raised border border-line text-ink-muted'}`}>{item.label}</NavLink>)}</nav></header><div className="min-h-[calc(100vh-104px)] lg:min-h-screen"><Outlet /></div></div>
+      <div className="min-w-0 flex-1"><header className="sticky top-0 z-30 border-b border-line bg-paper/95 backdrop-blur lg:hidden"><div className="px-4 py-3 flex items-center justify-between gap-4"><div><p className="font-display font-semibold text-lg"><span className="text-market-600">JIUZE</span> POS</p><p className="text-[10px] uppercase tracking-wider text-ink-muted">{activeLabel}</p></div><div className="flex items-center gap-3"><span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-market-400' : 'bg-brick-500'}`} aria-label={isOnline ? 'Online' : 'Offline'} /><button type="button" onClick={() => void signOut()} className="text-xs text-ink-muted">Sign out</button></div></div><nav className="mobile-nav-scroll overflow-x-auto px-3 pb-3 flex gap-1" aria-label="Main navigation">{visibleItems.map((item) => <NavLink key={item.to} to={item.to} end={item.to === '/'} data-mobile-nav-active={location.pathname === item.to ? 'true' : 'false'} className={({ isActive }) => `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${isActive ? 'bg-ink text-paper' : 'bg-paper-raised border border-line text-ink-muted'}`}>{item.label}</NavLink>)}</nav></header><div className="min-h-[calc(100vh-104px)] lg:min-h-screen"><Outlet /></div></div>
     </div>
   )
 }
