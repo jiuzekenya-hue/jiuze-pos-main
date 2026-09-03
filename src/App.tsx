@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import AppShell from './pages/AppShell'
 import Dashboard from './pages/Dashboard'
 import Categories from './pages/Categories'
@@ -16,6 +17,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/categories" element={<Categories />} />
