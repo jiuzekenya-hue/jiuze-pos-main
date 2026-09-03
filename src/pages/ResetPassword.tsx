@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/auth-context'
 import { supabase } from '../lib/supabase'
 
 export default function ResetPassword() {
-  const { session, isSessionLoading } = useAuth()
+  const { isSessionLoading } = useAuth()
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -53,7 +53,9 @@ export default function ResetPassword() {
         return
       }
 
-      if (session) setRecoveryReady(true)
+      // A normal authenticated session is deliberately NOT enough to enter
+      // this screen. Password changes for signed-in users go through Settings,
+      // where the current password is required. This route is recovery-only.
       setCheckingRecovery(false)
     }
 
@@ -63,7 +65,7 @@ export default function ResetPassword() {
       mounted = false
       authListener.subscription.unsubscribe()
     }
-  }, [session])
+  }, [])
 
   if (isSessionLoading || checkingRecovery) {
     return <div className="min-h-screen bg-sidebar flex items-center justify-center px-5"><div className="text-center"><div className="font-display font-semibold text-3xl tracking-tight text-white"><span className="text-market-300">JIUZE</span> POS</div><p className="text-sm text-sidebar-muted mt-3">Verifying your password reset link…</p></div></div>
