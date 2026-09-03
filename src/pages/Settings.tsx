@@ -90,3 +90,4 @@ export default function Settings() {
       <div className="rounded-2xl border border-line bg-paper-raised p-5 sm:p-6"><p className="text-xs font-medium uppercase tracking-[0.12em] text-market-600">Account</p><div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"><div><p className="text-sm font-medium text-ink">Owner account</p><p className="text-xs text-ink-muted mt-1">{business?.name ?? 'Business'} · {user?.email ?? 'Signed in'}</p></div><span className="inline-flex self-start rounded-full bg-market-50 px-3 py-1 text-xs capitalize text-market-700">Owner</span></div></div>
     </div>}
   </div></main>
+}
