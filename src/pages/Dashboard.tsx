@@ -9,7 +9,7 @@ const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumF
 const quantity = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
 
 export default function Dashboard() {
-  const { profile, role, signOut } = useAuth()
+  const { profile, role } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
   const [error, setError] = useState('')
@@ -48,7 +48,6 @@ export default function Dashboard() {
             <Link className="rounded-lg bg-ink px-4 py-2.5 font-medium text-paper transition-transform hover:-translate-y-px" to="/checkout">New sale</Link>
             <Link className="hidden sm:inline-flex rounded-lg border border-line bg-paper-raised px-4 py-2.5 font-medium text-ink transition-colors hover:bg-paper" to="/sales">Sales</Link>
             {can(role, 'userManagement') && <Link className="hidden sm:inline-flex rounded-lg border border-line bg-paper-raised px-4 py-2.5 font-medium text-ink transition-colors hover:bg-paper" to="/users">Users</Link>}
-            <button type="button" onClick={() => void signOut()} className="px-3 py-2.5 text-ink-muted transition-colors hover:text-brick-600">Sign out</button>
           </div>
         </header>
 
@@ -96,14 +95,6 @@ export default function Dashboard() {
             </div>
           </section>
         </div>
-
-        <nav aria-label="POS navigation" className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-5 text-sm">
-          <Link className="text-market-600 hover:underline" to="/products">Products</Link>
-          <Link className="text-market-600 hover:underline" to="/categories">Categories</Link>
-          <Link className="text-market-600 hover:underline" to="/stock-movements">Stock history</Link>
-          <Link className="text-market-600 hover:underline" to="/sales">Sales history</Link>
-          {can(role, 'userManagement') && <Link className="text-market-600 hover:underline" to="/users">Users</Link>}
-        </nav>
       </div>
     </main>
   )
