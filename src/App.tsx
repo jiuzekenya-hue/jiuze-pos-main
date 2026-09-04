@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import { useAuth } from './contexts/auth-context'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import AppShell from './pages/AppShell'
@@ -13,6 +14,24 @@ import Users from './pages/Users'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
+
+function OwnerOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { role, isProfileLoading } = useAuth()
+
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">
+        Loading...
+      </div>
+    )
+  }
+
+  if (role !== 'owner') {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
 
 function App() {
   return (
@@ -29,7 +48,14 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/subscription" element={<Subscription />} />
+        <Route
+          path="/subscription"
+          element={
+            <OwnerOnlyRoute>
+              <Subscription />
+            </OwnerOnlyRoute>
+          }
+        />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
