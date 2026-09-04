@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './contexts/auth-context'
 import Login from './pages/Login'
@@ -15,7 +16,7 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
 
-function OwnerOnlyRoute({ children }: { children: React.ReactNode }) {
+function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
 
   if (isProfileLoading) {
