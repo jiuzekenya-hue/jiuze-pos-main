@@ -31,6 +31,23 @@ export type SubscriptionStatusData = {
   cancelled_at?: string | null
 }
 
+function parseEntitlementValue(value: unknown): EntitlementValue {
+  if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
+    return value
+  }
+
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  if (typeof value === 'object') {
+    const numericValue = Number(value)
+    if (Number.isFinite(numericValue)) return numericValue
+  }
+
+  return String(value)
+}
+
 export async function getSubscriptionStatus(): Promise<SubscriptionStatusData> {
   const { data, error } = await supabase.rpc('get_subscription_status')
   if (error) throw new Error(error.message)
@@ -63,10 +80,7 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     const key = featureKeyById.get(entitlement.feature_id)
     if (!key) continue
     const current = featuresByPlan.get(entitlement.plan_id) ?? {}
-    const value = entitlement.entitlement_value
-    current[key] = typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string'
-      ? value
-      : Number(value) === value ? Number(value) : String(value)
+    current[key] = parseEntitlementValue(entitlement.entitlement_value)
     featuresByPlan.set(entitlement.plan_id, current)
   }
 
