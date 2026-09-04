@@ -12,6 +12,7 @@ import SalesHistory from './pages/SalesHistory'
 import Users from './pages/Users'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import Subscription from './pages/Subscription'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/subscription" element={<Subscription />} />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
