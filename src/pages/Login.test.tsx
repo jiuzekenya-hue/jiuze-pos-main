@@ -38,23 +38,37 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderLogin()
 
-    await user.click(await screen.findByRole('button', { name: /sign in/i }))
+    await user.click(
+      await screen.findByRole('button', { name: /sign in/i }),
+    )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/enter your email and password/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /enter your email and password/i,
+    )
   })
 
   it('shows a loading state while signing in, then an error for invalid credentials', async () => {
     const user = userEvent.setup()
     renderLogin()
 
-    await user.type(await screen.findByLabelText(/email/i), 'owner@test.com')
-    await user.type(screen.getByLabelText(/password/i), 'wrong-password')
+    await user.type(
+      await screen.findByLabelText(/email/i),
+      'owner@test.com',
+    )
+
+    await user.type(
+      screen.getByLabelText('Password', { selector: 'input' }),
+      'wrong-password',
+    )
 
     const submit = screen.getByRole('button', { name: /sign in/i })
+
     await user.click(submit)
 
-    // Error state renders after the (mocked, immediate) sign-in resolves.
-    expect(await screen.findByRole('alert')).toHaveTextContent(/incorrect email or password/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /incorrect email or password/i,
+    )
+
     expect(submit).not.toBeDisabled()
   })
 
@@ -62,17 +76,41 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderLogin()
 
-    await user.type(await screen.findByLabelText(/email/i), 'owner@test.com')
-    await user.type(screen.getByLabelText(/password/i), 'correct-password')
-    await user.click(screen.getByRole('button', { name: /sign in/i }))
+    await user.type(
+      await screen.findByLabelText(/email/i),
+      'owner@test.com',
+    )
 
-    await waitFor(() => expect(screen.getByText('protected-app-shell')).toBeInTheDocument())
+    await user.type(
+      screen.getByLabelText('Password', { selector: 'input' }),
+      'correct-password',
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: /sign in/i }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('protected-app-shell'),
+      ).toBeInTheDocument(),
+    )
   })
 
   it('redirects away from Login immediately if already authenticated', async () => {
-    mock.__setInitialSession({ user: { id: 'user-1', email: 'owner@test.com' } })
+    mock.__setInitialSession({
+      user: {
+        id: 'user-1',
+        email: 'owner@test.com',
+      },
+    })
+
     renderLogin()
 
-    await waitFor(() => expect(screen.getByText('protected-app-shell')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(
+        screen.getByText('protected-app-shell'),
+      ).toBeInTheDocument(),
+    )
   })
 })
