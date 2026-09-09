@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { getBusiness } from '../services/businessService'
 import { listCategories } from '../services/categoryService'
 import { completeSale, type CompletedSale, type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
@@ -27,6 +28,7 @@ export default function Checkout() {
   const { profile } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [businessName, setBusinessName] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
@@ -46,9 +48,10 @@ export default function Checkout() {
     setLoading(true)
     setError(null)
     try {
-      const [productRows, categoryRows] = await Promise.all([listProducts(profile.businessId), listCategories(profile.businessId)])
+      const [productRows, categoryRows, business] = await Promise.all([listProducts(profile.businessId), listCategories(profile.businessId), getBusiness(profile.businessId)])
       setProducts(productRows)
       setCategories(categoryRows)
+      setBusinessName(business.name)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load checkout.')
     } finally {
@@ -162,7 +165,7 @@ export default function Checkout() {
     <style>{`@media print { body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 8mm; border: 0 !important; box-shadow: none !important; } .receipt-actions { display: none !important; } }`}</style>
     <div className="max-w-md mx-auto">
       <div className="receipt-print rounded-2xl border border-line bg-paper-raised p-6 shadow-sm">
-        <div className="text-center border-b border-line pb-5"><p className="font-display font-semibold text-2xl text-ink">JIUZEPOS</p><p className="text-xs text-ink-muted mt-1">Sales receipt</p><p className="text-xs font-mono text-ink mt-3">{completed.receiptNumber}</p></div>
+        <div className="text-center border-b border-line pb-5"><p className="font-display font-semibold text-2xl text-ink">{businessName || 'Shop'}</p><p className="text-xs text-ink-muted mt-1">Sales receipt</p><p className="text-xs font-mono text-ink mt-3">{completed.receiptNumber}</p><p className="text-xs text-ink-muted mt-2">Cashier: {profile?.fullName?.trim() || 'Unknown cashier'}</p></div>
         <div className="py-5 space-y-3 text-sm">{completedItems.map((line) => <div key={line.product.id} className="flex justify-between gap-4"><div className="min-w-0"><p className="font-medium text-ink">{line.product.name}</p><p className="text-xs text-ink-muted">{formatQuantity(line.quantity)} {line.product.unitType} × {money(line.product.sellingPrice)}</p></div><span className="font-medium text-ink">{money(line.product.sellingPrice * line.quantity)}</span></div>)}</div>
         <div className="border-t border-line pt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Subtotal</span><span>{money(completed.subtotal)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Discount</span><span>{money(completed.discount)}</span></div><div className="flex justify-between text-base font-semibold"><span>Total</span><span>{money(completed.total)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Payment</span><span>{completed.paymentMethod.toUpperCase()}</span></div><div className="flex justify-between"><span className="text-ink-muted">Paid</span><span>{money(completed.amountPaid)}</span></div><div className="flex justify-between font-semibold"><span>Change</span><span>{money(completed.change)}</span></div></div>
         <div className="border-t border-line mt-5 pt-4 text-center text-xs text-ink-muted">Thank you for your purchase.</div>
