@@ -4,6 +4,7 @@ export type SaleSummary = {
   id: string
   receiptNumber: string
   cashierId: string
+  cashierName: string
   subtotal: number
   discount: number
   total: number
@@ -29,7 +30,11 @@ export type SaleDetail = SaleSummary & {
 }
 
 export const listSales = async (businessId: string, search = ''): Promise<SaleSummary[]> => {
-  let query = supabase.from('sales').select('id, receipt_number, cashier_id, subtotal, discount, total, status, created_at').eq('business_id', businessId).order('created_at', { ascending: false })
+  let query = supabase
+    .from('sales')
+    .select('id, receipt_number, cashier_id, cashier:profiles!sales_cashier_id_fkey(full_name), subtotal, discount, total, status, created_at')
+    .eq('business_id', businessId)
+    .order('created_at', { ascending: false })
   if (search.trim()) query = query.ilike('receipt_number', `%${search.trim()}%`)
   const { data, error } = await query
   if (error) throw error
@@ -37,6 +42,7 @@ export const listSales = async (businessId: string, search = ''): Promise<SaleSu
     id: row.id,
     receiptNumber: row.receipt_number,
     cashierId: row.cashier_id,
+    cashierName: row.cashier?.full_name?.trim() || 'Unknown cashier',
     subtotal: Number(row.subtotal),
     discount: Number(row.discount),
     total: Number(row.total),
@@ -47,7 +53,12 @@ export const listSales = async (businessId: string, search = ''): Promise<SaleSu
 
 export const getSale = async (businessId: string, saleId: string): Promise<SaleDetail> => {
   const [{ data: sale, error: saleError }, { data: items, error: itemsError }, { data: payment, error: paymentError }] = await Promise.all([
-    supabase.from('sales').select('id, receipt_number, cashier_id, subtotal, discount, total, status, created_at').eq('business_id', businessId).eq('id', saleId).maybeSingle(),
+    supabase
+      .from('sales')
+      .select('id, receipt_number, cashier_id, cashier:profiles!sales_cashier_id_fkey(full_name), subtotal, discount, total, status, created_at')
+      .eq('business_id', businessId)
+      .eq('id', saleId)
+      .maybeSingle(),
     supabase.from('sale_items').select('id, product_id, product_name, quantity, unit_price, discount, subtotal').eq('sale_id', saleId).order('created_at', { ascending: true }),
     supabase.from('payments').select('method, amount, reference').eq('sale_id', saleId).maybeSingle(),
   ])
@@ -59,6 +70,7 @@ export const getSale = async (businessId: string, saleId: string): Promise<SaleD
     id: sale.id,
     receiptNumber: sale.receipt_number,
     cashierId: sale.cashier_id,
+    cashierName: sale.cashier?.full_name?.trim() || 'Unknown cashier',
     subtotal: Number(sale.subtotal),
     discount: Number(sale.discount),
     total: Number(sale.total),
