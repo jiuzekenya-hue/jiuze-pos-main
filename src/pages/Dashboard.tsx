@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: 'Today net sales', value: money(data.todayRevenue), detail: 'After returns' },
-    { label: 'Today returns', value: money(data.todayReturns), detail: data.todayReturns > 0 ? 'Refunds processed' : 'No refunds today', alert: data.todayReturns > 0 },
+    { label: 'Today gross profit', value: money(data.todayProfit), detail: 'Net sales less cost of goods' },
     { label: 'Transactions', value: data.todayTransactions, detail: 'Completed sales' },
     { label: 'Items sold', value: quantity(data.todayItemsSold), detail: 'Net units moved' },
     { label: 'Low stock', value: data.lowStockCount, detail: data.lowStockCount === 1 ? 'Needs attention' : 'Need attention', alert: data.lowStockCount > 0 },
