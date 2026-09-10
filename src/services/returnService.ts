@@ -1,11 +1,13 @@
 import { supabase } from '../lib/supabase'
 
 export type RefundMethod = 'cash' | 'mpesa' | 'card'
+export type ReturnUnitType = 'piece' | 'pack' | 'kg' | 'g' | 'litre' | 'ml'
 
 export type ReturnableSaleItem = {
   id: string
   productId: string | null
   productName: string
+  unitType: ReturnUnitType
   soldQuantity: number
   returnedQuantity: number
   remainingQuantity: number
@@ -55,6 +57,11 @@ type ReturnItemRow = {
   quantity: number
 }
 
+type ProductUnitRow = {
+  id: string
+  unit_type: ReturnUnitType
+}
+
 const validateReturnInput = (input: ProcessSaleReturnInput) => {
   if (!input.saleId.trim()) throw new Error('Original sale is required.')
   if (!input.items.length) throw new Error('Select at least one item to return.')
@@ -88,18 +95,32 @@ export const getReturnableSaleItems = async (businessId: string, saleId: string)
   if (saleItemsError) throw saleItemsError
   if (returnsError) throw returnsError
 
+  const rows = (saleItems ?? []) as SaleItemRow[]
+  const productIds = Array.from(new Set(rows.map((row) => row.product_id).filter((id): id is string => Boolean(id))))
+  const productUnits = new Map<string, ReturnUnitType>()
+
+  if (productIds.length) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, unit_type')
+      .in('id', productIds)
+    if (error) throw error
+    for (const row of (data ?? []) as ProductUnitRow[]) productUnits.set(row.id, row.unit_type)
+  }
+
   const returnedByItem = new Map<string, number>()
   for (const row of (returns ?? []) as ReturnItemRow[]) {
     returnedByItem.set(row.original_sale_item_id, (returnedByItem.get(row.original_sale_item_id) ?? 0) + Number(row.quantity))
   }
 
-  return ((saleItems ?? []) as SaleItemRow[]).map((row) => {
+  return rows.map((row) => {
     const soldQuantity = Number(row.quantity)
     const returnedQuantity = returnedByItem.get(row.id) ?? 0
     return {
       id: row.id,
       productId: row.product_id,
       productName: row.product_name,
+      unitType: productUnits.get(row.product_id ?? '') ?? 'piece',
       soldQuantity,
       returnedQuantity,
       remainingQuantity: Math.max(0, soldQuantity - returnedQuantity),
