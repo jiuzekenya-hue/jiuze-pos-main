@@ -29,6 +29,24 @@ export type SaleDetail = SaleSummary & {
   } | null
 }
 
+type CashierProfile = { full_name: string | null }
+type SaleWithCashier = {
+  id: string
+  receipt_number: string
+  cashier_id: string
+  cashier: CashierProfile | CashierProfile[] | null
+  subtotal: number
+  discount: number
+  total: number
+  status: 'completed' | 'voided' | 'returned'
+  created_at: string
+}
+
+const cashierName = (cashier: CashierProfile | CashierProfile[] | null | undefined) => {
+  const profile = Array.isArray(cashier) ? cashier[0] : cashier
+  return profile?.full_name?.trim() || 'Unknown cashier'
+}
+
 export const listSales = async (businessId: string, search = ''): Promise<SaleSummary[]> => {
   let query = supabase
     .from('sales')
@@ -38,11 +56,11 @@ export const listSales = async (businessId: string, search = ''): Promise<SaleSu
   if (search.trim()) query = query.ilike('receipt_number', `%${search.trim()}%`)
   const { data, error } = await query
   if (error) throw error
-  return (data ?? []).map((row) => ({
+  return ((data ?? []) as unknown as SaleWithCashier[]).map((row) => ({
     id: row.id,
     receiptNumber: row.receipt_number,
     cashierId: row.cashier_id,
-    cashierName: row.cashier?.full_name?.trim() || 'Unknown cashier',
+    cashierName: cashierName(row.cashier),
     subtotal: Number(row.subtotal),
     discount: Number(row.discount),
     total: Number(row.total),
@@ -66,16 +84,17 @@ export const getSale = async (businessId: string, saleId: string): Promise<SaleD
   if (itemsError) throw itemsError
   if (paymentError) throw paymentError
   if (!sale) throw new Error('Sale not found.')
+  const typedSale = sale as unknown as SaleWithCashier
   return {
-    id: sale.id,
-    receiptNumber: sale.receipt_number,
-    cashierId: sale.cashier_id,
-    cashierName: sale.cashier?.full_name?.trim() || 'Unknown cashier',
-    subtotal: Number(sale.subtotal),
-    discount: Number(sale.discount),
-    total: Number(sale.total),
-    status: sale.status,
-    createdAt: sale.created_at,
+    id: typedSale.id,
+    receiptNumber: typedSale.receipt_number,
+    cashierId: typedSale.cashier_id,
+    cashierName: cashierName(typedSale.cashier),
+    subtotal: Number(typedSale.subtotal),
+    discount: Number(typedSale.discount),
+    total: Number(typedSale.total),
+    status: typedSale.status,
+    createdAt: typedSale.created_at,
     items: (items ?? []).map((row) => ({ id: row.id, productId: row.product_id, productName: row.product_name, quantity: row.quantity, unitPrice: Number(row.unit_price), discount: Number(row.discount), subtotal: Number(row.subtotal) })),
     payment: payment ? { method: payment.method, amount: Number(payment.amount), reference: payment.reference } : null,
   }
