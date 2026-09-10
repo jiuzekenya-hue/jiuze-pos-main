@@ -52,8 +52,6 @@ create index sales_return_items_original_item_idx
 create index sales_return_items_business_idx
   on public.sales_return_items (business_id);
 
--- Returns are read-only through the Data API. Inserts/updates/deletes are
--- performed only by the SECURITY DEFINER transaction below.
 alter table public.sales_returns enable row level security;
 alter table public.sales_return_items enable row level security;
 
@@ -74,14 +72,11 @@ for select
 to authenticated
 using (business_id = public.auth_business_id());
 
--- Business-scoped, gap-tolerant return receipt numbering. The owning
--- business row is locked so concurrent returns in one business cannot
--- receive the same number.
 create function public.next_return_receipt_number(p_business_id uuid)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_count integer;
@@ -101,15 +96,8 @@ end;
 $$;
 
 revoke all on function public.next_return_receipt_number(uuid) from public;
+grant execute on function public.next_return_receipt_number(uuid) to authenticated;
 
--- Atomic return transaction.
---
--- p_items is a JSON array of:
---   {"sale_item_id":"uuid", "quantity": number}
---
--- The original sale row is locked for the whole transaction. This makes
--- concurrent return attempts for the same sale serialize before the
--- already-returned quantity is calculated.
 create function public.process_sale_return(
   p_sale_id uuid,
   p_items jsonb,
@@ -120,7 +108,7 @@ create function public.process_sale_return(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_user_id                 uuid := auth.uid();
@@ -135,8 +123,8 @@ declare
   v_remaining_quantity       numeric(12,3);
   v_sale_subtotal            numeric;
   v_allocated_sale_discount  numeric;
-  v_line_net_total           numeric;
-  v_previous_refund          numeric;
+  v_line_net_total            numeric;
+  v_previous_refund           numeric;
   v_refund_amount             numeric(12,2);
   v_total_refund              numeric(12,2) := 0;
   v_item_count                integer;
@@ -208,7 +196,18 @@ begin
     raise exception 'Each sale item can appear only once in a return';
   end if;
 
-  -- Validate every requested line and calculate the exact refund amount.
+  create temporary table pg_temp.jiuze_return_lines (
+    sale_item_id uuid not null,
+    product_id uuid not null,
+    product_name text not null,
+    quantity numeric(12,3) not null,
+    unit_price numeric(12,2) not null,
+    cost_price numeric(12,2) not null,
+    line_discount numeric(12,2) not null,
+    allocated_sale_discount numeric(12,2) not null,
+    refund_amount numeric(12,2) not null
+  ) on commit drop;
+
   for v_item in select * from jsonb_array_elements(p_items)
   loop
     if not (v_item ? 'sale_item_id') or not (v_item ? 'quantity') then
@@ -237,6 +236,10 @@ begin
 
     if not found then
       raise exception 'Sale item % does not belong to the original sale', v_item->>'sale_item_id';
+    end if;
+
+    if v_sale_item.product_id is null then
+      raise exception 'Product for returned item "%" is no longer available', v_sale_item.product_name;
     end if;
 
     select coalesce(sum(sri.quantity), 0)
@@ -276,6 +279,29 @@ begin
       raise exception 'Calculated refund cannot be negative for "%"', v_sale_item.product_name;
     end if;
 
+    insert into pg_temp.jiuze_return_lines (
+      sale_item_id,
+      product_id,
+      product_name,
+      quantity,
+      unit_price,
+      cost_price,
+      line_discount,
+      allocated_sale_discount,
+      refund_amount
+    )
+    values (
+      v_sale_item.id,
+      v_sale_item.product_id,
+      v_sale_item.product_name,
+      v_quantity,
+      v_sale_item.unit_price,
+      v_sale_item.cost_price,
+      v_sale_item.discount,
+      round((v_allocated_sale_discount / v_sale_item.quantity) * v_quantity, 2),
+      v_refund_amount
+    );
+
     v_total_refund := v_total_refund + v_refund_amount;
   end loop;
 
@@ -303,44 +329,8 @@ begin
   )
   returning id into v_return_id;
 
-  -- Validation is repeated during insertion so the stored snapshot is
-  -- exactly the one used to calculate the refund.
-  for v_item in select * from jsonb_array_elements(p_items)
+  for v_item in select to_jsonb(line) from pg_temp.jiuze_return_lines line
   loop
-    v_quantity := (v_item->>'quantity')::numeric;
-
-    select si.*
-    into v_sale_item
-    from public.sale_items si
-    where si.id = (v_item->>'sale_item_id')::uuid
-      and si.sale_id = p_sale_id;
-
-    v_sale_subtotal := v_sale.subtotal;
-    v_allocated_sale_discount := case
-      when v_sale_subtotal > 0
-        then (v_sale_item.subtotal / v_sale_subtotal) * v_sale.discount
-      else 0
-    end;
-    v_line_net_total := greatest(0, v_sale_item.subtotal - v_allocated_sale_discount);
-
-    select coalesce(sum(sri.quantity), 0)
-    into v_already_returned
-    from public.sales_return_items sri
-    where sri.original_sale_item_id = v_sale_item.id;
-
-    v_remaining_quantity := v_sale_item.quantity - v_already_returned;
-
-    select coalesce(sum(sri.refund_amount), 0)
-    into v_previous_refund
-    from public.sales_return_items sri
-    where sri.original_sale_item_id = v_sale_item.id;
-
-    if v_quantity = v_remaining_quantity then
-      v_refund_amount := round(v_line_net_total - v_previous_refund, 2);
-    else
-      v_refund_amount := round((v_line_net_total / v_sale_item.quantity) * v_quantity, 2);
-    end if;
-
     insert into public.sales_return_items (
       business_id,
       return_id,
@@ -357,46 +347,44 @@ begin
     values (
       v_business_id,
       v_return_id,
-      v_sale_item.id,
-      v_sale_item.product_id,
-      v_sale_item.product_name,
-      v_quantity,
-      v_sale_item.unit_price,
-      v_sale_item.cost_price,
-      v_sale_item.discount,
-      round((v_allocated_sale_discount / v_sale_item.quantity) * v_quantity, 2),
-      v_refund_amount
+      (v_item->>'sale_item_id')::uuid,
+      (v_item->>'product_id')::uuid,
+      v_item->>'product_name',
+      (v_item->>'quantity')::numeric,
+      (v_item->>'unit_price')::numeric,
+      (v_item->>'cost_price')::numeric,
+      (v_item->>'line_discount')::numeric,
+      (v_item->>'allocated_sale_discount')::numeric,
+      (v_item->>'refund_amount')::numeric
     );
 
-    if v_sale_item.product_id is not null then
-      update public.products
-      set stock_quantity = stock_quantity + v_quantity
-      where id = v_sale_item.product_id
-        and business_id = v_business_id;
+    update public.products
+    set stock_quantity = stock_quantity + (v_item->>'quantity')::numeric
+    where id = (v_item->>'product_id')::uuid
+      and business_id = v_business_id;
 
-      if not found then
-        raise exception 'Product for returned item no longer exists in this business';
-      end if;
-
-      insert into public.stock_movements (
-        business_id,
-        product_id,
-        type,
-        quantity,
-        reference_id,
-        reason,
-        created_by
-      )
-      values (
-        v_business_id,
-        v_sale_item.product_id,
-        'return',
-        v_quantity,
-        v_return_id,
-        'Return ' || v_return_receipt_number || ' for sale ' || v_sale.receipt_number,
-        v_user_id
-      );
+    if not found then
+      raise exception 'Product for returned item no longer exists in this business';
     end if;
+
+    insert into public.stock_movements (
+      business_id,
+      product_id,
+      type,
+      quantity,
+      reference_id,
+      reason,
+      created_by
+    )
+    values (
+      v_business_id,
+      (v_item->>'product_id')::uuid,
+      'return',
+      (v_item->>'quantity')::numeric,
+      v_return_id,
+      'Return ' || v_return_receipt_number || ' for sale ' || v_sale.receipt_number,
+      v_user_id
+    );
   end loop;
 
   return jsonb_build_object(
@@ -414,18 +402,5 @@ begin
 end;
 $$;
 
-revoke all
-on function public.process_sale_return(uuid, jsonb, text, text, text)
-from public;
-
-grant execute
-on function public.process_sale_return(uuid, jsonb, text, text, text)
-to authenticated;
-
-revoke all
-on function public.next_return_receipt_number(uuid)
-from public;
-
-grant execute
-on function public.next_return_receipt_number(uuid)
-to authenticated;
+revoke all on function public.process_sale_return(uuid, jsonb, text, text, text) from public;
+grant execute on function public.process_sale_return(uuid, jsonb, text, text, text) to authenticated;
