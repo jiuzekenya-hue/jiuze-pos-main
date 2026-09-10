@@ -29,9 +29,10 @@ export default function Dashboard() {
   if (!data || !business) return <main className="min-h-screen bg-paper flex items-center justify-center text-sm text-ink-muted">Loading dashboard…</main>
 
   const stats = [
-    { label: 'Today revenue', value: money(data.todayRevenue), detail: 'Sales today' },
+    { label: 'Today net sales', value: money(data.todayRevenue), detail: 'After returns' },
+    { label: 'Today returns', value: money(data.todayReturns), detail: data.todayReturns > 0 ? 'Refunds processed' : 'No refunds today', alert: data.todayReturns > 0 },
     { label: 'Transactions', value: data.todayTransactions, detail: 'Completed sales' },
-    { label: 'Items sold', value: quantity(data.todayItemsSold), detail: 'Units moved' },
+    { label: 'Items sold', value: quantity(data.todayItemsSold), detail: 'Net units moved' },
     { label: 'Low stock', value: data.lowStockCount, detail: data.lowStockCount === 1 ? 'Needs attention' : 'Need attention', alert: data.lowStockCount > 0 },
   ]
 
@@ -51,7 +52,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-8">
           {stats.map((stat) => (
             <div key={stat.label} className="bg-paper-raised border border-line rounded-xl p-5 shadow-[0_1px_2px_rgba(20,30,25,0.03)]">
               <div className="flex items-start justify-between gap-3">
