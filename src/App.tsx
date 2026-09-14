@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './contexts/auth-context'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import ResetPassword from './pages/ResetPassword'
 import AppShell from './pages/AppShell'
 import Dashboard from './pages/Dashboard'
@@ -38,6 +39,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
@@ -48,15 +50,8 @@ function App() {
         <Route path="/sales" element={<SalesHistory />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/subscription" element={<OwnerOnlyRoute><Subscription /></OwnerOnlyRoute>} />
         <Route path="/settings" element={<Settings />} />
-        <Route
-          path="/subscription"
-          element={
-            <OwnerOnlyRoute>
-              <Subscription />
-            </OwnerOnlyRoute>
-          }
-        />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
