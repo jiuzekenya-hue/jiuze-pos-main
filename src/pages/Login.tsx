@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
-  const { session, isSessionLoading, signIn } = useAuth()
+  const { session, isSessionLoading } = useAuth()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,9 +41,11 @@ export default function Login() {
       return
     }
 
-    const { error: signInError } = await signIn(cleanEmail, password)
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
     setIsSubmitting(false)
-    if (signInError) setError(signInError)
+    if (signInError) {
+      setError(/invalid login credentials/i.test(signInError.message) ? 'Incorrect email or password.' : /email not confirmed/i.test(signInError.message) ? 'Please confirm your email before signing in.' : 'Unable to sign in right now. Please try again.')
+    }
   }
 
   const switchMode = (reset: boolean) => {
@@ -96,7 +98,11 @@ export default function Login() {
 
           <button type="submit" disabled={isSubmitting} className="mt-6 w-full rounded-lg bg-market-600 text-white text-sm font-semibold py-3 hover:bg-market-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? (isResetMode ? 'Sending reset link…' : 'Signing in…') : (isResetMode ? 'Send reset link' : 'Sign in')}</button>
 
-          {isResetMode && <button type="button" onClick={() => switchMode(false)} className="mt-4 w-full text-xs font-medium text-sidebar-muted hover:text-white transition-colors">Back to sign in</button>}
+          {isResetMode ? (
+            <button type="button" onClick={() => switchMode(false)} className="mt-4 w-full text-xs font-medium text-sidebar-muted hover:text-white transition-colors">Back to sign in</button>
+          ) : (
+            <p className="text-center text-xs text-sidebar-muted mt-5">New to JIUZE POS? <Link to="/signup" className="font-medium text-market-300 hover:text-white">Create an account</Link></p>
+          )}
         </form>
 
         <p className="text-center text-[11px] text-sidebar-muted mt-6">Secure business access · JIUZE POS</p>
