@@ -10,6 +10,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [profileLoadResult, setProfileLoadResult] = useState<ProfileLoadResult | null>(null)
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
 
   // Restore any existing session on mount (page refresh), then subscribe
   // to future auth state changes (sign in, sign out, token refresh).
@@ -41,15 +42,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userId = session?.user.id
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      setIsProfileLoading(false)
+      setProfileLoadResult(null)
+      setProfileUserId(null)
+      return
+    }
 
     let isCancelled = false
     setIsProfileLoading(true)
+    setProfileLoadResult(null)
+    setProfileUserId(null)
 
     fetchProfile(userId)
       .then((result) => {
         if (isCancelled) return
         setProfileLoadResult(result)
+        setProfileUserId(userId)
       })
       .finally(() => {
         if (!isCancelled) setIsProfileLoading(false)
@@ -62,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Derived, not stored: if there's no authenticated user, there is no
   // profile to show, regardless of what was loaded for a previous user.
-  const effectiveProfileLoadResult = userId ? profileLoadResult : null
+  const effectiveProfileLoadResult = userId && profileUserId === userId ? profileLoadResult : null
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
