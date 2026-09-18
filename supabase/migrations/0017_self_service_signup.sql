@@ -17,6 +17,8 @@ declare
   v_full_name text := nullif(btrim(coalesce(new.raw_user_meta_data->>'full_name', '')), '');
   v_phone text := nullif(btrim(coalesce(new.raw_user_meta_data->>'phone', '')), '');
   v_location text := nullif(btrim(coalesce(new.raw_user_meta_data->>'location', '')), '');
+  v_referral_code text := nullif(btrim(coalesce(new.raw_user_meta_data->>'referral_code', '')), '');
+  v_referrer_business_id uuid;
   v_business_id uuid;
 begin
   -- Only self-service users with the expected signup marker are provisioned.
@@ -30,6 +32,13 @@ begin
 
   if v_full_name is null then
     raise exception 'Owner name is required for JIUZE POS signup';
+  end if;
+
+  if v_referral_code is not null then
+    select id into v_referrer_business_id
+    from public.businesses
+    where referral_code = upper(v_referral_code)
+    limit 1;
   end if;
 
   insert into public.businesses (
@@ -60,6 +69,12 @@ begin
     v_phone,
     'owner'
   );
+
+  if v_referrer_business_id is not null and v_referrer_business_id <> v_business_id then
+    insert into public.business_referrals (referrer_business_id, referred_business_id)
+    values (v_referrer_business_id, v_business_id)
+    on conflict (referred_business_id) do nothing;
+  end if;
 
   return new;
 end;
