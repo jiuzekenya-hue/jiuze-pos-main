@@ -9,6 +9,8 @@ export default function Settings() {
   const { role, profile, user } = useAuth()
   const [business, setBusiness] = useState<Business | null>(null)
   const [allowNegativeStock, setAllowNegativeStock] = useState(false)
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('30')
+  const [savingSecurity, setSavingSecurity] = useState(false)
   const [lowStockThreshold, setLowStockThreshold] = useState('5')
   const [businessForm, setBusinessForm] = useState({ name: '', phone: '', location: '' })
   const [passwordForm, setPasswordForm] = useState({ current: '', password: '', confirm: '' })
@@ -31,13 +33,14 @@ export default function Settings() {
       try {
         const [businessData, settingsResult] = await Promise.all([
           getBusiness(profile.businessId),
-          supabase.from('settings').select('low_stock_threshold, allow_negative_stock').eq('business_id', profile.businessId).single(),
+          supabase.from('settings').select('low_stock_threshold, allow_negative_stock, idle_timeout_minutes').eq('business_id', profile.businessId).single(),
         ])
         if (settingsResult.error) throw new Error(settingsResult.error.message)
         setBusiness(businessData)
         setBusinessForm({ name: businessData.name, phone: businessData.phone ?? '', location: businessData.location ?? '' })
         setLowStockThreshold(String(settingsResult.data?.low_stock_threshold ?? 5))
         setAllowNegativeStock(Boolean(settingsResult.data?.allow_negative_stock ?? false))
+        setIdleTimeoutMinutes(String(settingsResult.data?.idle_timeout_minutes ?? 30))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load settings.')
       } finally {
@@ -247,6 +250,51 @@ export default function Settings() {
               </form>
             </section>
 
+
+            <form onSubmit={async (event) => {
+              event.preventDefault()
+              if (!profile?.businessId) return
+              const minutes = Number(idleTimeoutMinutes)
+              if (![5, 15, 30, 0].includes(minutes)) {
+                setError('Choose 5, 15, 30 minutes, or Never.')
+                return
+              }
+              setSavingSecurity(true)
+              setError('')
+              setMessage('')
+              try {
+                const { error: settingsError } = await supabase
+                  .from('settings')
+                  .update({ idle_timeout_minutes: minutes })
+                  .eq('business_id', profile.businessId)
+                if (settingsError) throw new Error(settingsError.message)
+                setMessage('Security settings saved successfully.')
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Unable to save security settings.')
+              } finally {
+                setSavingSecurity(false)
+              }
+            }} className="overflow-hidden rounded-2xl border border-line bg-paper-raised">
+              <div className="border-b border-line p-5 sm:p-6">
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-market-600">POS security</p>
+                <h2 className="mt-2 font-display text-xl font-semibold text-ink">Automatic sign out</h2>
+                <p className="mt-1 text-sm text-ink-muted">Sign out inactive users automatically on shared shop devices.</p>
+              </div>
+              <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+                <label className="w-full sm:max-w-xs">
+                  <span className="mb-1.5 block text-xs font-medium text-ink">Inactivity timeout</span>
+                  <select value={idleTimeoutMinutes} onChange={(e) => setIdleTimeoutMinutes(e.target.value)} className="field">
+                    <option value="5">5 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="0">Never</option>
+                  </select>
+                </label>
+                <button type="submit" disabled={savingSecurity} className="min-h-11 rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-paper disabled:opacity-50">
+                  {savingSecurity ? 'Saving…' : 'Save security'}
+                </button>
+              </div>
+            </form>
             <form onSubmit={changePassword} className="overflow-hidden rounded-2xl border border-line bg-paper-raised">
               <div className="border-b border-line p-5 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
