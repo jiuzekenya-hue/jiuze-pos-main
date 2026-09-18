@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
 import { getDashboardData, type DashboardData } from '../services/dashboardService'
 import { getBusiness, type Business } from '../services/businessService'
+import { getReferralSummary, getReferralLink, getWhatsAppReferralUrl } from '../services/referralService'
 
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const quantity = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
@@ -12,15 +13,18 @@ export default function Dashboard() {
   const { profile, role } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
+  const [referral, setReferral] = useState<{ referralCode: string; totalReferrals: number } | null>(null)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!profile?.businessId) return
     setError('')
-    Promise.all([getDashboardData(profile.businessId), getBusiness(profile.businessId)])
-      .then(([dashboardData, businessData]) => {
+    Promise.all([getDashboardData(profile.businessId), getBusiness(profile.businessId), getReferralSummary(profile.businessId)])
+      .then(([dashboardData, businessData, referralData]) => {
         setData(dashboardData)
         setBusiness(businessData)
+        setReferral(referralData)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load dashboard.'))
   }, [profile?.businessId])
@@ -51,6 +55,36 @@ export default function Dashboard() {
             {can(role, 'userManagement') && <Link className="hidden sm:inline-flex rounded-lg border border-line bg-paper-raised px-4 py-2.5 font-medium text-ink transition-colors hover:bg-paper" to="/users">Users</Link>}
           </div>
         </header>
+
+        {role === 'owner' && referral && (
+          <section className="mb-8 rounded-xl border border-line bg-paper-raised p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Referral</p>
+                <h2 className="font-display font-semibold text-xl text-ink mt-1">Share JIUZE POS</h2>
+                <p className="text-sm text-ink-muted mt-1">Invite another business to start a 7-day free trial.</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-ink-muted">
+                <span>{referral.totalReferrals} {referral.totalReferrals === 1 ? 'referral' : 'referrals'}</span>
+                <span className="h-1 w-1 rounded-full bg-line" />
+                <span className="font-mono text-ink">{referral.referralCode}</span>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <a href={getWhatsAppReferralUrl(referral.referralCode)} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-lg bg-market-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-market-700 transition-colors">
+                Share on WhatsApp
+              </a>
+              <button type="button" onClick={() => {
+                void navigator.clipboard.writeText(getReferralLink(referral.referralCode)).then(() => {
+                  setCopied(true)
+                  window.setTimeout(() => setCopied(false), 1800)
+                })
+              }} className="inline-flex items-center justify-center rounded-lg border border-line bg-paper px-4 py-2.5 text-sm font-medium text-ink hover:bg-paper-raised transition-colors">
+                {copied ? 'Referral link copied' : 'Copy referral link'}
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-8">
           {stats.map((stat) => (
