@@ -45,7 +45,7 @@ function App() {
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<Checkout />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>}
+        <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/products" element={<Products />} />
         <Route path="/stock-movements" element={<StockMovements />} />
