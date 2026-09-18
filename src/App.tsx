@@ -16,6 +16,7 @@ import Users from './pages/Users'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
+import Referral from './pages/Referral'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
@@ -44,6 +45,7 @@ function App() {
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<Checkout />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>}
         <Route path="/categories" element={<Categories />} />
         <Route path="/products" element={<Products />} />
         <Route path="/stock-movements" element={<StockMovements />} />
