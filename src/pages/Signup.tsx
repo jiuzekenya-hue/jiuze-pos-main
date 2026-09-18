@@ -66,7 +66,6 @@ export default function Signup() {
       email: cleanEmail,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
         data: {
           signup_source: 'jiuze_pos',
           business_name: cleanBusinessName,
@@ -90,7 +89,7 @@ export default function Signup() {
     }
 
     setIsSubmitting(false)
-    setMessage('Account created. Check your email to confirm your account, then sign in to start your 7-day trial.')
+    setError('Account was created, but automatic sign-in is unavailable. Make sure email confirmation is disabled in Supabase Auth, then try signing up again.')
   }
 
   return (
