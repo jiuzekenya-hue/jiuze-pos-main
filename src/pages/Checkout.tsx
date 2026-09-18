@@ -161,7 +161,7 @@ export default function Checkout() {
     setError(null)
   }
 
-  if (completed) return <div className="min-h-screen bg-paper px-4 py-8 sm:px-6">
+  if (completed) return <div className="min-h-screen bg-paper px-4 py-8 sm:px-6 pb-24 lg:pb-8">
     <style>{`@media print { body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 8mm; border: 0 !important; box-shadow: none !important; } .receipt-actions { display: none !important; } }`}</style>
     <div className="max-w-md mx-auto">
       <div className="receipt-print rounded-2xl border border-line bg-paper-raised p-6 shadow-sm">
@@ -176,9 +176,17 @@ export default function Checkout() {
 
   return <div className="min-h-screen bg-paper px-4 py-5 sm:px-6 lg:px-8">
     <div className="max-w-[1500px] mx-auto">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
+      {cart.length > 0 && (
+        <div className="fixed inset-x-3 bottom-[4.5rem] z-40 lg:hidden">
+          <a href="#order-summary" className="flex items-center justify-between rounded-2xl bg-ink px-4 py-3.5 text-paper shadow-xl ring-1 ring-black/10">
+            <span className="text-sm font-medium">{cart.length} {cart.length === 1 ? 'item' : 'items'} in cart</span>
+            <span className="font-display font-semibold">{money(total)} · View cart</span>
+          </a>
+        </div>
+      )}
+      <header className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div><p className="text-xs font-mono uppercase tracking-[0.16em] text-market-700">Point of sale</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink mt-1">New sale</h1><p className="text-sm text-ink-muted mt-2">Select products, review the order and collect payment.</p></div>
-        <div className="flex items-center gap-4 text-sm"><Link to="/" className="text-ink-muted hover:text-ink">Dashboard</Link><Link to="/sales" className="text-ink-muted hover:text-ink">Sales history</Link></div>
+        <div className="flex items-center gap-4 text-sm"><Link to="/dashboard" className="text-ink-muted hover:text-ink">Dashboard</Link><Link to="/sales" className="text-ink-muted hover:text-ink">Sales history</Link></div>
       </header>
 
       {error && <div role="alert" className="mb-5 rounded-xl border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}
@@ -214,7 +222,7 @@ export default function Checkout() {
           </div>}
         </section>
 
-        <aside className="rounded-2xl border border-line bg-paper-raised shadow-sm xl:sticky xl:top-5 overflow-hidden">
+        <aside id="order-summary" className="rounded-2xl border border-line bg-paper-raised shadow-sm xl:sticky xl:top-5 overflow-hidden">
           <div className="px-5 py-5 border-b border-line flex items-center justify-between"><div><p className="text-xs font-mono uppercase tracking-[0.14em] text-ink-muted">Current sale</p><h2 className="font-display font-semibold text-xl text-ink mt-1">Order summary</h2></div><span className="rounded-full bg-paper px-3 py-1 text-xs font-mono text-ink-muted">{cart.length} lines</span></div>
 
           <div className="px-5 max-h-[360px] overflow-y-auto">
