@@ -14,6 +14,7 @@ const navItems = [
   { to: '/analytics', label: 'Analytics', icon: 'chart', ownerOnly: true },
   { to: '/users', label: 'Users', icon: 'users', ownerOnly: true },
   { to: '/subscription', label: 'Subscription', icon: 'card', ownerOnly: true },
+  { to: '/referral', label: 'Refer a business', icon: 'share', ownerOnly: true },
   { to: '/settings', label: 'Settings', icon: 'settings', ownerOnly: true },
 ]
 
@@ -27,6 +28,7 @@ function Icon({ name }: { name: string }) {
   if (name === 'box') return <svg {...common}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4.5 7.5 7.5 4 7.5-4M12 11.5V21" /></svg>
   if (name === 'chart') return <svg {...common}><path d="M4 19V5M4 19h16" /><path d="m7 15 3-4 3 2 5-7" /></svg>
   if (name === 'card') return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></svg>
+  if (name === 'share') return <svg {...common}><path d="M15 8a3 3 0 1 0-2.8-4 3 3 0 0 0 .1 1L9 7.2a3 3 0 1 0 0 3.6l3.3 2.2a3 3 0 1 0 .8-1.2l-3.4-2.2a3 3 0 0 0 0-1.2l3.4-2.2A3 3 0 0 0 15 8Z" /></svg>
   if (name === 'more') return <svg {...common}><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></svg>
   if (name === 'settings') return <svg {...common}><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.1h-2.6V20a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H7v-2.6h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9-.3 1.7 1.7 0 0 0 1-1.6V6h2.6v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.6 1Z" /></svg>
   return <svg {...common}><circle cx="12" cy="8" r="3" /><path d="M5 21a7 7 0 0 1 14 0M19 4v4M21 6h-4" /></svg>
