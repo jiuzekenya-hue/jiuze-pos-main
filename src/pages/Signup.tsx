@@ -20,6 +20,7 @@ export default function Signup() {
   const { session, isSessionLoading } = useAuth()
   const navigate = useNavigate()
   const [businessName, setBusinessName] = useState('')
+  const referralCode = new URLSearchParams(window.location.search).get('ref')?.trim().toUpperCase() || ''
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -70,6 +71,7 @@ export default function Signup() {
           full_name: cleanFullName,
           phone: cleanPhone || null,
           location: cleanLocation || null,
+          referral_code: referralCode || null,
         },
       },
     })
