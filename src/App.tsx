@@ -42,7 +42,8 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<Checkout />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/products" element={<Products />} />
         <Route path="/stock-movements" element={<StockMovements />} />
