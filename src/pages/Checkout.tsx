@@ -188,9 +188,9 @@ export default function Checkout() {
       )}
 
       {cartOpen && (
-        <div className="fixed inset-0 z-[60] lg:hidden">
-          <button type="button" aria-label="Close cart" onClick={() => setCartOpen(false)} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
-          <aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-hidden rounded-t-3xl border-t border-line bg-paper-raised shadow-2xl">
+        <div className="fixed inset-0 z-[100] lg:hidden" role="dialog" aria-modal="true" aria-label="Checkout">
+          <button type="button" aria-label="Close checkout" onClick={() => setCartOpen(false)} className="absolute inset-0 z-0 bg-ink/40 backdrop-blur-[2px]" />
+          <aside onClick={(event) => event.stopPropagation()} className="absolute inset-x-0 bottom-0 z-10 max-h-[88vh] overflow-y-auto rounded-t-3xl border-t border-line bg-paper-raised shadow-2xl">
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
               <div>
                 <p className="text-xs font-mono uppercase tracking-[0.14em] text-ink-muted">Checkout</p>
@@ -198,7 +198,7 @@ export default function Checkout() {
               </div>
               <button type="button" onClick={() => setCartOpen(false)} className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-muted">Close</button>
             </div>
-            <div className="max-h-[42vh] overflow-y-auto px-5">
+            <div className="max-h-[35vh] overflow-y-auto px-5">
               {cart.map((line) => (
                 <div key={line.product.id} className="py-4 border-b border-line last:border-0">
                   <div className="flex justify-between gap-3">
@@ -216,7 +216,7 @@ export default function Checkout() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-line px-5 py-5 space-y-4 overflow-y-auto max-h-[43vh]">
+            <div className="border-t border-line px-5 py-5 space-y-4">
               <div className="flex items-center justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="font-medium text-ink">{money(subtotal)}</span></div>
               <label className="block"><span className="block text-sm text-ink-muted mb-2">Discount</span><input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0.00" className="field w-full" /></label>
               <div className="flex items-end justify-between border-t border-line pt-4"><span className="text-base font-medium text-ink">Total</span><span className="font-display font-semibold text-3xl text-ink">{money(total)}</span></div>
