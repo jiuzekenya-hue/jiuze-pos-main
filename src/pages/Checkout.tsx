@@ -42,6 +42,7 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState<CompletedSale | null>(null)
   const [completedItems, setCompletedItems] = useState<CartLine[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
 
   const load = useCallback(async () => {
     if (!profile?.businessId) return
@@ -144,6 +145,7 @@ export default function Checkout() {
       setCompletedItems(soldItems)
       setCart([])
       setQuantityInputs({})
+      setCartOpen(false)
       setPaymentAmount('')
       setPaymentReference('')
       setDiscount('')
@@ -178,10 +180,53 @@ export default function Checkout() {
     <div className="max-w-[1500px] mx-auto">
       {cart.length > 0 && (
         <div className="fixed inset-x-3 bottom-[4.5rem] z-40 lg:hidden">
-          <a href="#order-summary" className="flex items-center justify-between rounded-2xl bg-ink px-4 py-3.5 text-paper shadow-xl ring-1 ring-black/10">
+          <button type="button" onClick={() => setCartOpen(true)} className="w-full flex items-center justify-between rounded-2xl bg-ink px-4 py-3.5 text-paper shadow-xl ring-1 ring-black/10">
             <span className="text-sm font-medium">{cart.length} {cart.length === 1 ? 'item' : 'items'} in cart</span>
-            <span className="font-display font-semibold">{money(total)} · View cart</span>
-          </a>
+            <span className="font-display font-semibold">{money(total)} · Checkout</span>
+          </button>
+        </div>
+      )}
+
+      {cartOpen && (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button type="button" aria-label="Close cart" onClick={() => setCartOpen(false)} className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" />
+          <aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-hidden rounded-t-3xl border-t border-line bg-paper-raised shadow-2xl">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <div>
+                <p className="text-xs font-mono uppercase tracking-[0.14em] text-ink-muted">Checkout</p>
+                <h2 className="font-display font-semibold text-xl text-ink mt-1">Order summary</h2>
+              </div>
+              <button type="button" onClick={() => setCartOpen(false)} className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-muted">Close</button>
+            </div>
+            <div className="max-h-[42vh] overflow-y-auto px-5">
+              {cart.map((line) => (
+                <div key={line.product.id} className="py-4 border-b border-line last:border-0">
+                  <div className="flex justify-between gap-3">
+                    <div className="min-w-0"><p className="text-sm font-medium text-ink truncate">{line.product.name}</p><p className="text-xs text-ink-muted mt-1">{money(line.product.sellingPrice)} / {line.product.unitType}</p></div>
+                    <button type="button" onClick={() => removeFromCart(line.product.id)} className="text-xs text-brick-600">Remove</button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 mt-3">
+                    <div className="flex items-center rounded-xl border border-line overflow-hidden">
+                      <button type="button" aria-label={`Decrease ${line.product.name}`} onClick={() => changeQuantity(line, -1)} className="h-10 w-10 flex items-center justify-center text-ink-muted"><MinusIcon /></button>
+                      <input aria-label={`Quantity for ${line.product.name}`} type="number" min="0.001" max={line.product.stockQuantity} step={isFractionalUnit(line.product.unitType) ? '0.001' : '1'} value={quantityInputs[line.product.id] ?? formatQuantity(line.quantity)} onChange={(e) => handleQuantityChange(line, e.target.value)} onBlur={() => handleQuantityBlur(line)} className="h-10 w-16 border-x border-line bg-transparent text-center text-sm font-medium outline-none" />
+                      <button type="button" aria-label={`Increase ${line.product.name}`} onClick={() => changeQuantity(line, 1)} disabled={line.quantity >= line.product.stockQuantity} className="h-10 w-10 flex items-center justify-center text-ink-muted disabled:opacity-30"><PlusIcon /></button>
+                    </div>
+                    <span className="text-sm font-semibold text-ink">{money(line.product.sellingPrice * line.quantity)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-line px-5 py-5 space-y-4 overflow-y-auto max-h-[43vh]">
+              <div className="flex items-center justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="font-medium text-ink">{money(subtotal)}</span></div>
+              <label className="block"><span className="block text-sm text-ink-muted mb-2">Discount</span><input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0.00" className="field w-full" /></label>
+              <div className="flex items-end justify-between border-t border-line pt-4"><span className="text-base font-medium text-ink">Total</span><span className="font-display font-semibold text-3xl text-ink">{money(total)}</span></div>
+              <div><p className="text-sm font-medium text-ink mb-2">Payment method</p><div className="grid grid-cols-3 gap-2">{(['cash', 'mpesa', 'card'] as SalePaymentMethod[]).map((method) => <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded-xl border px-3 py-3 text-sm font-medium capitalize ${paymentMethod === method ? 'bg-ink text-paper border-ink' : 'border-line text-ink-muted'}`}>{method === 'mpesa' ? 'M-Pesa' : method}</button>)}</div></div>
+              <label className="block"><span className="block text-sm text-ink-muted mb-2">Amount paid</span><input type="number" inputMode="decimal" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={total.toFixed(2)} className="field w-full h-12 text-base" /></label>
+              {paymentMethod !== 'cash' && <label className="block"><span className="block text-sm text-ink-muted mb-2">Payment reference</span><input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Transaction reference" className="field w-full h-12 text-base" /></label>}
+              {paymentMethod === 'cash' && <div className="flex items-center justify-between rounded-xl bg-paper px-4 py-3"><span className="text-sm text-ink-muted">Change</span><span className="font-mono font-semibold text-ink">{money(change)}</span></div>}
+              <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="w-full rounded-xl bg-market-600 text-white py-4 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : `Complete sale · ${money(total)}`}</button>
+            </div>
+          </aside>
         </div>
       )}
       <header className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
@@ -222,7 +267,7 @@ export default function Checkout() {
           </div>}
         </section>
 
-        <aside id="order-summary" className="rounded-2xl border border-line bg-paper-raised shadow-sm xl:sticky xl:top-5 overflow-hidden">
+        <aside id="order-summary" className="hidden lg:block rounded-2xl border border-line bg-paper-raised shadow-sm xl:sticky xl:top-5 overflow-hidden">
           <div className="px-5 py-5 border-b border-line flex items-center justify-between"><div><p className="text-xs font-mono uppercase tracking-[0.14em] text-ink-muted">Current sale</p><h2 className="font-display font-semibold text-xl text-ink mt-1">Order summary</h2></div><span className="rounded-full bg-paper px-3 py-1 text-xs font-mono text-ink-muted">{cart.length} lines</span></div>
 
           <div className="px-5 max-h-[360px] overflow-y-auto">
