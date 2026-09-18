@@ -7,6 +7,8 @@ import { AuthContext, type AuthContextValue } from './auth-context'
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
+  const [lastActivity, setLastActivity] = useState(() => Date.now())
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [profileLoadResult, setProfileLoadResult] = useState<ProfileLoadResult | null>(null)
@@ -34,6 +36,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.subscription.unsubscribe()
     }
   }, [])
+
+  // Keep cashier sessions private on shared devices. After 30 minutes with no
+  // interaction, sign out locally and let the protected route return to login.
+  useEffect(() => {
+    if (!session) return
+
+    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    const markActivity = () => setLastActivity(Date.now())
+    events.forEach((event) => window.addEventListener(event, markActivity, { passive: true }))
+
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+        void supabase.auth.signOut()
+      }
+    }, 60_000)
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, markActivity))
+      window.clearInterval(timer)
+    }
+  }, [session, lastActivity])
 
   // Whenever the authenticated user changes, (re)load their profile/role.
   // When there's no user, we deliberately do nothing here — the "no
