@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { supabase } from '../lib/supabase'
 
@@ -31,8 +31,6 @@ export default function Signup() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  if (!isSessionLoading && session) return <Navigate to="/" replace />
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -90,6 +88,47 @@ export default function Signup() {
 
     setIsSubmitting(false)
     setError('Account was created, but automatic sign-in is unavailable. Make sure email confirmation is disabled in Supabase Auth, then try signing up again.')
+  }
+
+  if (!isSessionLoading && session) {
+    return (
+      <div className="min-h-screen bg-sidebar flex items-center justify-center px-5 py-8 sm:px-6">
+        <div className="w-full max-w-[440px]">
+          <div className="text-center mb-7">
+            <div className="font-display font-semibold text-3xl tracking-tight text-white">
+              <span className="text-market-300">JIUZE</span> POS
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-sidebar-muted mt-2">Retail management</p>
+          </div>
+          <div className="rounded-2xl border border-sidebar-line bg-sidebar-card p-6 sm:p-8 shadow-2xl text-center">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-market-300">Existing session</p>
+            <h1 className="font-display font-semibold text-2xl text-white mt-2">You are already signed in</h1>
+            <p className="text-sm leading-relaxed text-sidebar-muted mt-2">
+              Sign out of the current business account before creating a new JIUZE POS business account.
+            </p>
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => navigate('/', { replace: true })}
+                className="w-full rounded-lg bg-market-600 text-white text-sm font-semibold py-3 hover:bg-market-700 transition-colors"
+              >
+                Continue to POS
+              </button>
+              <button
+                type="button"
+                onClick={() => void supabase.auth.signOut()}
+                className="w-full rounded-lg border border-sidebar-line text-sidebar-text text-sm font-medium py-3 hover:bg-sidebar-hover hover:text-white transition-colors"
+              >
+                Sign out & create new account
+              </button>
+            </div>
+            <p className="text-center text-xs text-sidebar-muted mt-5">
+              Signed in as <span className="text-white">{session.user.email ?? 'current account'}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
