@@ -14,7 +14,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
   auth: {
+    // Keep the session across page refreshes, but clear it when the browser
+    // or PWA session is closed so the next reopen requires login.
     persistSession: true,
+    storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
