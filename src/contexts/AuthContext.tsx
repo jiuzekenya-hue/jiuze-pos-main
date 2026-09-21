@@ -1,14 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { fetchProfile, type ProfileLoadResult } from '../services/profileService'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 30
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSessionLoading, setIsSessionLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
-  const [lastActivity, setLastActivity] = useState(() => Date.now())
-  const IDLE_TIMEOUT_MS = 30 * 60 * 1000
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState(DEFAULT_IDLE_TIMEOUT_MINUTES)
+  const [idleTimeoutLoaded, setIdleTimeoutLoaded] = useState(false)
+  const lastActivityRef = useRef(Date.now())
 
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [profileLoadResult, setProfileLoadResult] = useState<ProfileLoadResult | null>(null)
@@ -37,33 +40,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Keep cashier sessions private on shared devices. After 30 minutes with no
-  // interaction, sign out locally and let the protected route return to login.
+  const userId = session?.user.id
+
+  // Load the business-specific inactivity timeout after the authenticated
+  // user's profile is available. A missing/unreadable setting safely falls
+  // back to the default 30-minute timeout.
   useEffect(() => {
-    if (!session) return
+    const businessId = effectiveBusinessId(profileLoadResult, profileUserId, userId)
 
-    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
-    const markActivity = () => setLastActivity(Date.now())
-    events.forEach((event) => window.addEventListener(event, markActivity, { passive: true }))
+    if (!businessId) {
+      setIdleTimeoutMinutes(DEFAULT_IDLE_TIMEOUT_MINUTES)
+      setIdleTimeoutLoaded(false)
+      return
+    }
 
-    const timer = window.setInterval(() => {
-      if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
-        void supabase.auth.signOut()
-      }
-    }, 60_000)
+    let isCancelled = false
+
+    supabase
+      .from('settings')
+      .select('idle_timeout_minutes')
+      .eq('business_id', businessId)
+      .single()
+      .then(({ data, error }) => {
+        if (isCancelled) return
+
+        const configuredMinutes = Number(data?.idle_timeout_minutes)
+        setIdleTimeoutMinutes(
+          !error && [0, 5, 15, 30].includes(configuredMinutes)
+            ? configuredMinutes
+            : DEFAULT_IDLE_TIMEOUT_MINUTES,
+        )
+        setIdleTimeoutLoaded(true)
+      })
 
     return () => {
-      events.forEach((event) => window.removeEventListener(event, markActivity))
+      isCancelled = true
+    }
+  }, [profileLoadResult, profileUserId, userId])
+
+  // Keep sessions private on shared POS devices. The owner can configure
+  // 5, 15, 30 minutes, or Never. Activity is tracked in a ref so event
+  // listeners are not recreated on every interaction.
+  useEffect(() => {
+    if (!session || !userId || !idleTimeoutLoaded || idleTimeoutMinutes === 0) return
+
+    lastActivityRef.current = Date.now()
+
+    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    const markActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+
+    events.forEach((event) => {
+      window.addEventListener(event, markActivity, { passive: true })
+    })
+
+    const timeoutMs = idleTimeoutMinutes * 60 * 1000
+
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= timeoutMs) {
+        void supabase.auth.signOut()
+      }
+    }, 10_000)
+
+    return () => {
+      events.forEach((event) => {
+        window.removeEventListener(event, markActivity)
+      })
       window.clearInterval(timer)
     }
-  }, [session, lastActivity])
+  }, [session, userId, idleTimeoutLoaded, idleTimeoutMinutes])
 
   // Whenever the authenticated user changes, (re)load their profile/role.
   // When there's no user, we deliberately do nothing here — the "no
   // session" case is derived at render time below, rather than reset
   // via setState inside the effect.
-  const userId = session?.user.id
-
   useEffect(() => {
     if (!userId) {
       setIsProfileLoading(false)
@@ -122,6 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/** Resolve the current user's business ID without exposing a stale profile. */
+function effectiveBusinessId(
+  result: ProfileLoadResult | null,
+  profileUserId: string | null,
+  userId: string | undefined,
+): string | null {
+  if (!userId || profileUserId !== userId || result?.status !== 'loaded') return null
+  return result.profile.businessId
 }
 
 /** Turn Supabase's raw auth error messages into clean, user-facing copy. */
