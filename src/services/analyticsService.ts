@@ -8,6 +8,16 @@ export type AnalyticsProduct = {
   profit: number
 }
 
+export type AnalyticsMonth = {
+  month: string
+  label: string
+  grossRevenue: number
+  returns: number
+  revenue: number
+  profit: number
+  transactions: number
+}
+
 export type AnalyticsDay = {
   date: string
   revenue: number
@@ -38,6 +48,7 @@ export type AnalyticsData = {
   projectedMonthRevenue: number
   projectedMonthProfit: number
   salesTrend: AnalyticsDay[]
+  monthlyHistory: AnalyticsMonth[]
   topProducts: AnalyticsProduct[]
   slowProducts: AnalyticsProduct[]
 }
@@ -66,13 +77,17 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   const todayStart = startOfDay(now)
   const weekStart = startOfWeek(now)
   const monthStart = startOfMonth(now)
+  const twelveMonthsAgo = new Date(monthStart)
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
+  const historyStart = new Date(twelveMonthsAgo)
+  historyStart.setDate(historyStart.getDate() - 1)
   const thirtyDaysAgo = new Date(todayStart)
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
 
   const [salesResult, productsResult, returnsResult] = await Promise.all([
-    supabase.from('sales').select('id, total, discount, subtotal, created_at').eq('business_id', businessId).eq('status', 'completed').gte('created_at', iso(thirtyDaysAgo)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
+    supabase.from('sales').select('id, total, discount, subtotal, created_at').eq('business_id', businessId).eq('status', 'completed').gte('created_at', iso(historyStart)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
     supabase.from('products').select('id, name, stock_quantity, cost_price, minimum_stock').eq('business_id', businessId).eq('is_active', true),
-    supabase.from('sales_returns').select('id, refund_amount, created_at').eq('business_id', businessId).gte('created_at', iso(thirtyDaysAgo)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
+    supabase.from('sales_returns').select('id, refund_amount, created_at').eq('business_id', businessId).gte('created_at', iso(historyStart)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
   ])
 
   if (salesResult.error) throw salesResult.error
@@ -236,6 +251,62 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   const averageSale = monthSales.length ? monthRevenue / monthSales.length : 0
   const grossMargin = monthRevenue > 0 ? (monthProfit / monthRevenue) * 100 : 0
 
+  const monthlyMap = new Map<string, AnalyticsMonth>()
+  for (let index = 0; index < 12; index += 1) {
+    const date = new Date(monthStart)
+    date.setMonth(date.getMonth() - (11 - index))
+    const monthKey = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    monthlyMap.set(monthKey, {
+      month: monthKey,
+      label: date.toLocaleDateString('en-KE', { month: 'short', year: 'numeric' }),
+      grossRevenue: 0,
+      returns: 0,
+      revenue: 0,
+      profit: 0,
+      transactions: 0,
+    })
+  }
+
+  for (const sale of sales) {
+    const date = new Date(sale.created_at)
+    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const current = monthlyMap.get(key)
+    if (current) {
+      current.grossRevenue += Number(sale.total)
+      current.transactions += 1
+    }
+  }
+
+  for (const returnRow of returns) {
+    const date = new Date(returnRow.created_at)
+    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const current = monthlyMap.get(key)
+    if (current) current.returns += Number(returnRow.refund_amount)
+  }
+
+  for (const item of items) {
+    const sale = saleById.get(item.sale_id)
+    if (!sale) continue
+    const date = new Date(sale.created_at)
+    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const current = monthlyMap.get(key)
+    if (current) current.profit += profitForItems([item])
+  }
+
+  for (const item of returnItems) {
+    const returnRow = returnById.get(item.return_id)
+    if (!returnRow) continue
+    const date = new Date(returnRow.created_at)
+    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const current = monthlyMap.get(key)
+    if (current) current.profit -= Number(item.refund_amount) - (Number(item.cost_price) * Number(item.quantity))
+  }
+
+  const monthlyHistory = Array.from(monthlyMap.values()).map((month) => ({
+    ...month,
+    revenue: month.grossRevenue - month.returns,
+  }))
+
   return {
     todayGrossRevenue,
     todayReturns: todayReturnValue,
@@ -258,6 +329,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     projectedMonthRevenue,
     projectedMonthProfit,
     salesTrend: Array.from(trendMap, ([date, values]) => ({ date, revenue: values.grossRevenue - values.returns, ...values })),
+    monthlyHistory,
     topProducts,
     slowProducts,
   }
