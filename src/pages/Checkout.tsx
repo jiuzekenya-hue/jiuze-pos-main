@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { getBusiness } from '../services/businessService'
@@ -44,7 +44,7 @@ export default function Checkout() {
   const [completedItems, setCompletedItems] = useState<CartLine[]>([])
   const [completedPaymentReference, setCompletedPaymentReference] = useState('')
   const [cartOpen, setCartOpen] = useState(false)
-  const autoPrintTriggered = useRef(false)
+  const [printMode, setPrintMode] = useState<'order' | 'receipt' | null>(null)
 
   const load = useCallback(async () => {
     if (!profile?.businessId) return
@@ -65,11 +65,16 @@ export default function Checkout() {
   useEffect(() => { void load() }, [load])
 
   useEffect(() => {
-    if (!completed || autoPrintTriggered.current) return
-    autoPrintTriggered.current = true
-    const timer = window.setTimeout(() => window.print(), 300)
+    if (!printMode) return
+    const timer = window.setTimeout(() => window.print(), 150)
     return () => window.clearTimeout(timer)
-  }, [completed])
+  }, [printMode])
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintMode(null)
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
 
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -140,6 +145,15 @@ export default function Checkout() {
     })
   }
 
+  const printOrder = () => {
+    if (!cart.length) {
+      setError('Add at least one product to print an order.')
+      return
+    }
+    setError(null)
+    setPrintMode('order')
+  }
+
   const submit = async () => {
     if (!cart.length) { setError('Add at least one product to the cart.'); return }
     if (paid < total) { setError('Payment amount is less than the sale total.'); return }
@@ -153,6 +167,7 @@ export default function Checkout() {
       setCompleted(result)
       setCompletedItems(soldItems)
       setCompletedPaymentReference(paymentReference.trim())
+      setPrintMode('receipt')
       setCart([])
       setQuantityInputs({})
       setCartOpen(false)
@@ -171,7 +186,7 @@ export default function Checkout() {
     setCompleted(null)
     setCompletedItems([])
     setCompletedPaymentReference('')
-    autoPrintTriggered.current = false
+    setPrintMode(null)
     setError(null)
   }
 
@@ -295,11 +310,68 @@ export default function Checkout() {
               <label className="block"><span className="block text-sm text-ink-muted mb-2">Amount paid</span><input type="number" inputMode="decimal" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={total.toFixed(2)} className="field w-full h-12 text-base" /></label>
               {paymentMethod !== 'cash' && <label className="block"><span className="block text-sm text-ink-muted mb-2">Payment reference</span><input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Transaction reference" className="field w-full h-12 text-base" /></label>}
               {paymentMethod === 'cash' && <div className="flex items-center justify-between rounded-xl bg-paper px-4 py-3"><span className="text-sm text-ink-muted">Change</span><span className="font-mono font-semibold text-ink">{money(change)}</span></div>}
-              <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="w-full rounded-xl bg-market-600 text-white py-4 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : `Complete sale · ${money(total)}`}</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={printOrder} disabled={saving || !cart.length} className="rounded-xl border border-line py-4 text-sm font-semibold text-ink disabled:opacity-50 disabled:cursor-not-allowed">Print order</button>
+                <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="rounded-xl bg-market-600 text-white py-4 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Taking payment…' : `Take payment · ${money(total)}`}</button>
+              </div>
             </div>
           </aside>
         </div>
       )}
+      <style>{`
+        @page { size: 80mm auto; margin: 0; }
+        @media print {
+          html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+          body * { visibility: hidden !important; }
+          .order-print, .order-print * { visibility: visible !important; }
+          .order-print {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 72.1mm !important;
+            margin: 0 !important;
+            padding: 3mm 2.5mm !important;
+            border: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
+            box-sizing: border-box !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+          }
+          .order-print .receipt-muted { color: #333 !important; }
+          .order-print .receipt-line { border-color: #000 !important; }
+        }
+      `}</style>
+
+      <div className="order-print fixed -left-[100000px] top-0 w-[72.1mm] bg-white text-black text-[12px] leading-[1.35]" aria-hidden="true">
+        <div className="text-center border-b border-line receipt-line pb-3">
+          <p className="font-semibold text-[20px]">{businessName || 'Shop'}</p>
+          <p className="text-[11px] mt-0.5">ORDER SLIP</p>
+          <p className="text-[11px] font-semibold mt-2">NOT PAID</p>
+        </div>
+
+        <div className="py-3 space-y-2">
+          {cart.map((line) => (
+            <div key={line.product.id} className="grid grid-cols-[1fr_auto] gap-2 items-start">
+              <div className="min-w-0">
+                <p className="font-semibold break-words">{line.product.name}</p>
+                <p className="text-[10px] receipt-muted">{formatQuantity(line.quantity)} {line.product.unitType} × {money(line.product.sellingPrice)}</p>
+              </div>
+              <span className="font-semibold whitespace-nowrap">{money(line.product.sellingPrice * line.quantity)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-line receipt-line pt-3 space-y-1.5">
+          <div className="flex justify-between"><span className="receipt-muted">Subtotal</span><span>{money(subtotal)}</span></div>
+          <div className="flex justify-between"><span className="receipt-muted">Discount</span><span>{money(discountValue)}</span></div>
+          <div className="flex justify-between text-[15px] font-bold pt-1"><span>AMOUNT DUE</span><span>{money(total)}</span></div>
+        </div>
+
+        <div className="border-t border-line receipt-line mt-3 pt-3 text-center text-[10px] receipt-muted">
+          Please present this order slip when making payment.
+        </div>
+      </div>
+
       <header className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div><p className="text-xs font-mono uppercase tracking-[0.16em] text-market-700">Point of sale</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink mt-1">New sale</h1><p className="text-sm text-ink-muted mt-2">Select products, review the order and collect payment.</p></div>
         <div className="flex items-center gap-4 text-sm"><Link to="/dashboard" className="text-ink-muted hover:text-ink">Dashboard</Link><Link to="/sales" className="text-ink-muted hover:text-ink">Sales history</Link></div>
@@ -353,7 +425,10 @@ export default function Checkout() {
             <label className="block"><span className="block text-sm text-ink-muted mb-2">Amount paid</span><input type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={total.toFixed(2)} className="field w-full" /></label>
             {paymentMethod !== 'cash' && <label className="block"><span className="block text-sm text-ink-muted mb-2">Payment reference</span><input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Enter transaction reference" className="field w-full" /></label>}
             {paymentMethod === 'cash' && <div className="flex items-center justify-between rounded-xl bg-paper px-4 py-3"><span className="text-sm text-ink-muted">Change</span><span className="font-mono font-semibold text-ink">{money(change)}</span></div>}
-            <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="w-full rounded-xl bg-market-600 text-white py-3.5 text-sm font-semibold hover:bg-market-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : 'Complete sale'}</button>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={printOrder} disabled={saving || !cart.length} className="rounded-xl border border-line py-3.5 text-sm font-semibold text-ink hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Print order</button>
+              <button type="button" onClick={() => void submit()} disabled={saving || !cart.length} className="rounded-xl bg-market-600 text-white py-3.5 text-sm font-semibold hover:bg-market-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{saving ? 'Completing sale…' : 'Take payment'}</button>
+            </div>
           </div>
         </aside>
       </div>
