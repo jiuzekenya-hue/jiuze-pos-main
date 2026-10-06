@@ -66,7 +66,6 @@ const startOfWeek = (date: Date) => {
   result.setDate(result.getDate() + mondayOffset)
   return result
 }
-const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1)
 const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
 const iso = (date: Date) => date.toISOString()
 
