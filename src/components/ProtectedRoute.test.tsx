@@ -56,6 +56,15 @@ describe('ProtectedRoute', () => {
 
   it('renders protected content when a session exists', async () => {
     mock.__setInitialSession({ user: { id: 'user-1', email: 'owner@test.com' } })
+    mock.__setProfilesQueryResult({
+      data: {
+        id: 'user-1',
+        business_id: 'business-1',
+        full_name: 'Test Owner',
+        role: 'owner',
+      },
+      error: null,
+    })
     renderApp()
 
     await waitFor(() => expect(screen.getByText('protected-content')).toBeInTheDocument())
