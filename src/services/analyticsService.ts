@@ -70,19 +70,26 @@ const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(
 const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
 const iso = (date: Date) => date.toISOString()
 
-export async function getAnalyticsData(businessId: string): Promise<AnalyticsData> {
+export async function getAnalyticsData(businessId: string, selectedMonth?: string): Promise<AnalyticsData> {
   if (!businessId) throw new Error('Business is required.')
 
   const now = new Date()
   const todayStart = startOfDay(now)
   const weekStart = startOfWeek(now)
-  const monthStart = startOfMonth(now)
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const monthKey = /^\d{4}-\d{2}$/.test(selectedMonth ?? '') ? selectedMonth! : currentMonthKey
+  const [selectedYear, selectedMonthNumber] = monthKey.split('-').map(Number)
+  const monthStart = new Date(selectedYear, selectedMonthNumber - 1, 1)
+  const monthEnd = new Date(selectedYear, selectedMonthNumber, 1)
+  const selectedMonthIsCurrent = monthKey === currentMonthKey
   const twelveMonthsAgo = new Date(monthStart)
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
   const historyStart = new Date(twelveMonthsAgo)
   historyStart.setDate(historyStart.getDate() - 1)
-  const thirtyDaysAgo = new Date(todayStart)
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
+  const trendDays = selectedMonthIsCurrent ? Math.min(now.getDate(), new Date(selectedYear, selectedMonthNumber, 0).getDate()) : new Date(selectedYear, selectedMonthNumber, 0).getDate()
+  const trendStart = new Date(monthStart)
+  const trendEnd = selectedMonthIsCurrent ? new Date(now) : new Date(monthEnd)
+
 
   const PAGE_SIZE = 500
   const ID_CHUNK_SIZE = 100
@@ -218,38 +225,48 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   const weekProfit = profitForItems(weekItems) - profitReversedForReturns(returnItemsForReturns(weekReturns))
   const monthProfit = profitForItems(monthItems) - profitReversedForReturns(monthReturnItems)
 
-  const monthDaysElapsed = Math.max(1, Math.ceil((now.getTime() - monthStart.getTime()) / 86400000))
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const projectedMonthRevenue = (monthRevenue / monthDaysElapsed) * daysInMonth
-  const projectedMonthProfit = (monthProfit / monthDaysElapsed) * daysInMonth
+  const daysInMonth = new Date(selectedYear, selectedMonthNumber, 0).getDate()
+  const monthDaysElapsed = selectedMonthIsCurrent
+    ? Math.max(1, Math.ceil((now.getTime() - monthStart.getTime()) / 86400000))
+    : daysInMonth
+  const projectedMonthRevenue = selectedMonthIsCurrent ? (monthRevenue / monthDaysElapsed) * daysInMonth : monthRevenue
+  const projectedMonthProfit = selectedMonthIsCurrent ? (monthProfit / monthDaysElapsed) * daysInMonth : monthProfit
 
   const trendMap = new Map<string, { grossRevenue: number; returns: number; profit: number }>()
-  for (let index = 0; index < 30; index += 1) {
-    const date = new Date(thirtyDaysAgo)
+  for (let index = 0; index < trendDays; index += 1) {
+    const date = new Date(trendStart)
     date.setDate(date.getDate() + index)
     trendMap.set(date.toISOString().slice(0, 10), { grossRevenue: 0, returns: 0, profit: 0 })
   }
   for (const sale of sales) {
-    const key = new Date(sale.created_at).toISOString().slice(0, 10)
+    const saleDate = new Date(sale.created_at)
+    if (saleDate < trendStart || saleDate >= trendEnd) continue
+    const key = saleDate.toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.grossRevenue += Number(sale.total)
   }
   for (const returnRow of returns) {
-    const key = new Date(returnRow.created_at).toISOString().slice(0, 10)
+    const returnDate = new Date(returnRow.created_at)
+    if (returnDate < trendStart || returnDate >= trendEnd) continue
+    const key = returnDate.toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.returns += Number(returnRow.refund_amount)
   }
   for (const item of items) {
     const sale = saleById.get(item.sale_id)
     if (!sale) continue
-    const key = new Date(sale.created_at).toISOString().slice(0, 10)
+    const saleDate = new Date(sale.created_at)
+    if (saleDate < trendStart || saleDate >= trendEnd) continue
+    const key = saleDate.toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.profit += profitForItems([item])
   }
   for (const item of returnItems) {
     const returnRow = returnById.get(item.return_id)
     if (!returnRow) continue
-    const key = new Date(returnRow.created_at).toISOString().slice(0, 10)
+    const returnDate = new Date(returnRow.created_at)
+    if (returnDate < trendStart || returnDate >= trendEnd) continue
+    const key = returnDate.toISOString().slice(0, 10)
     const current = trendMap.get(key)
     if (current) current.profit -= Number(item.refund_amount) - (Number(item.cost_price) * Number(item.quantity))
   }
