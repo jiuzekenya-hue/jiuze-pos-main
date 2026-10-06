@@ -44,7 +44,10 @@ export default function Analytics() {
   useEffect(() => {
     if (!profile?.businessId || !can(role, 'reports')) return
     setError('')
-    getAnalyticsData(profile.businessId).then(setData).catch((err) => setError(err instanceof Error ? err.message : 'Unable to load analytics.'))
+    getAnalyticsData(profile.businessId).then(setData).catch((err) => {
+      console.error('Analytics load failed:', err)
+      setError(err instanceof Error ? err.message : 'Unable to load analytics.')
+    })
   }, [profile?.businessId, role])
 
   if (!can(role, 'reports')) return <Navigate to="/" replace />
