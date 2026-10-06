@@ -38,6 +38,8 @@ function buildInsights(data: AnalyticsData): Insight[] {
 
 export default function Analytics() {
   const { profile, role } = useAuth()
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey)
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [error, setError] = useState('')
 
@@ -48,7 +50,7 @@ export default function Analytics() {
       console.error('Analytics load failed:', err)
       setError(err instanceof Error ? err.message : 'Unable to load analytics.')
     })
-  }, [profile?.businessId, role])
+  }, [profile?.businessId, role, selectedMonth])
 
   if (!can(role, 'reports')) return <Navigate to="/" replace />
   if (error) return <main className="min-h-screen bg-paper px-5 py-8"><div className="max-w-6xl mx-auto"><p role="alert" className="rounded-xl border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</p></div></main>
@@ -60,30 +62,33 @@ export default function Analytics() {
   const projectionProgress = data.projectedMonthRevenue ? Math.min(100, (data.monthRevenue / data.projectedMonthRevenue) * 100) : 0
   const trendLabels = data.salesTrend.filter((_, index) => index % 5 === 0 || index === data.salesTrend.length - 1)
   const insights = buildInsights(data)
+  const selectedMonthRecord = data.monthlyHistory.find((month) => month.month === selectedMonth)
+  const selectedMonthLabel = selectedMonthRecord?.label ?? selectedMonth
+  const isCurrentMonth = selectedMonth === currentMonthKey
 
   return <main className="min-h-screen bg-paper px-5 py-6 sm:px-6 lg:px-8">
     <div className="max-w-[1500px] mx-auto">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-7">
         <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Owner intelligence</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Analytics</h1><p className="text-sm text-ink-muted mt-2">Understand sales, profit, returns and where the business is heading.</p></div>
-        <div className="flex items-center gap-2"><span className="rounded-full border border-line bg-paper-raised px-3 py-2 text-xs text-ink-muted">Last 30 days · 12 months history</span><Link to="/checkout" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">New sale</Link></div>
+        <div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-2 rounded-lg border border-line bg-paper-raised px-3 py-2"><span className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">Month</span><select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} className="bg-transparent text-sm font-medium text-ink outline-none" aria-label="Select analytics month">{[...data.monthlyHistory].reverse().map((month) => <option key={month.month} value={month.month}>{month.label}</option>)}</select></label><Link to="/checkout" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">New sale</Link></div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-5"><Metric label="Today net sales" value={money(data.todayRevenue)} detail={`${money(data.todayReturns)} returns · ${data.todayTransactions} transactions`} /><Metric label="This week net" value={money(data.weekRevenue)} detail={`${money(data.weekReturns)} returns`} /><Metric label="This month net" value={money(data.monthRevenue)} detail={`${money(data.monthReturns)} returns · ${data.monthTransactions} transactions`} /><Metric label="Gross margin" value={`${data.grossMargin.toFixed(1)}%`} detail={`Avg net sale ${money(data.averageSale)}`} /></section>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-5"><Metric label="Today net sales" value={money(data.todayRevenue)} detail={`${money(data.todayReturns)} returns · ${data.todayTransactions} transactions`} /><Metric label="This week net" value={money(data.weekRevenue)} detail={`${money(data.weekReturns)} returns`} /><Metric label={`${selectedMonthLabel} net`} value={money(data.monthRevenue)} detail={`${money(data.monthReturns)} returns · ${data.monthTransactions} transactions`} /><Metric label="Gross margin" value={`${data.grossMargin.toFixed(1)}%`} detail={`Avg net sale ${money(data.averageSale)}`} /></section>
 
-      <section className="grid gap-5 md:grid-cols-3 mb-5"><InsightCard label="Gross sales" value={money(data.monthGrossRevenue)} detail="Before returns · current month" /><InsightCard label="Sales returns" value={money(data.monthReturns)} detail="Refunds processed · current month" alert={data.monthReturns > 0} /><InsightCard label="Net sales" value={money(data.monthRevenue)} detail="Gross sales less returns" /></section>
+      <section className="grid gap-5 md:grid-cols-3 mb-5"><InsightCard label="Gross sales" value={money(data.monthGrossRevenue)} detail={`Before returns · ${selectedMonthLabel}`} /><InsightCard label="Sales returns" value={money(data.monthReturns)} detail={`Refunds processed · ${selectedMonthLabel}`} alert={data.monthReturns > 0} /><InsightCard label="Net sales" value={money(data.monthRevenue)} detail={`Gross sales less returns · ${selectedMonthLabel}`} /></section>
 
-      <section className="grid gap-5 md:grid-cols-3 mb-5"><InsightCard label="Today gross profit" value={money(data.todayProfit)} detail="Net sales less cost of goods · today" /><InsightCard label="Week gross profit" value={money(data.weekProfit)} detail="Net sales less cost of goods · this week" /><InsightCard label="Month gross profit" value={money(data.monthProfit)} detail="Net sales less cost of goods · current month" /></section>
+      <section className="grid gap-5 md:grid-cols-3 mb-5"><InsightCard label="Today gross profit" value={money(data.todayProfit)} detail="Net sales less cost of goods · today" /><InsightCard label="Week gross profit" value={money(data.weekProfit)} detail="Net sales less cost of goods · this week" /><InsightCard label={`${selectedMonthLabel} gross profit`} value={money(data.monthProfit)} detail={`Net sales less cost of goods · ${selectedMonthLabel}`} /></section>
 
       <section className="grid gap-5 xl:grid-cols-[1.6fr_0.9fr] mb-5">
-        <div className="rounded-2xl border border-line bg-paper-raised p-5 sm:p-6"><div className="flex items-start justify-between gap-4 mb-6"><div><h2 className="font-display font-semibold text-lg text-ink">Net sales performance</h2><p className="text-xs text-ink-muted mt-1">Daily net revenue for the last 30 days</p></div><div className="text-right"><p className="text-xs text-ink-muted">Current month</p><p className="font-display font-semibold text-lg text-ink mt-1">{money(data.monthRevenue)}</p></div></div><div className="h-56 flex items-end gap-1.5 sm:gap-2 border-b border-line pb-1">{data.salesTrend.map((day) => <div key={day.date} className="group flex-1 h-full flex items-end"><div title={`${day.date}: ${money(day.revenue)} net · ${money(day.returns)} returns`} className="w-full min-h-1 rounded-t-md bg-market-600/80 group-hover:bg-market-700 transition-colors" style={{ height: `${Math.max(2, (day.revenue / maxRevenue) * 100)}%` }} /></div>)}</div><div className="flex justify-between pt-2 text-[10px] font-mono text-ink-muted">{trendLabels.map((day) => <span key={day.date}>{day.date.slice(5)}</span>)}</div></div>
-        <div className="rounded-2xl border border-line bg-paper-raised p-5 sm:p-6"><div className="flex items-start justify-between"><div><h2 className="font-display font-semibold text-lg text-ink">Monthly projection</h2><p className="text-xs text-ink-muted mt-1">Based on current net daily pace</p></div><span className="text-xs rounded-full bg-market-50 text-market-700 px-2.5 py-1">Estimated</span></div><div className="mt-7"><p className="text-xs uppercase tracking-wide text-ink-muted">Projected net sales</p><p className="font-display font-semibold text-3xl text-ink mt-2">{money(data.projectedMonthRevenue)}</p><div className="h-2 rounded-full bg-paper mt-4 overflow-hidden"><div className="h-full rounded-full bg-market-600" style={{ width: `${projectionProgress}%` }} /></div><div className="flex justify-between text-xs mt-2"><span className="text-ink-muted">{money(data.monthRevenue)} achieved</span><span className="text-ink-muted">{projectionProgress.toFixed(0)}%</span></div></div><div className="border-t border-line mt-6 pt-5"><p className="text-xs uppercase tracking-wide text-ink-muted">Projected gross profit</p><p className="font-display font-semibold text-xl text-ink mt-2">{money(data.projectedMonthProfit)}</p></div></div>
+        <div className="rounded-2xl border border-line bg-paper-raised p-5 sm:p-6"><div className="flex items-start justify-between gap-4 mb-6"><div><h2 className="font-display font-semibold text-lg text-ink">Net sales performance</h2><p className="text-xs text-ink-muted mt-1">Daily net revenue</p></div><div className="text-right"><p className="text-xs text-ink-muted">{selectedMonthLabel}</p><p className="font-display font-semibold text-lg text-ink mt-1">{money(data.monthRevenue)}</p></div></div><div className="h-56 flex items-end gap-1.5 sm:gap-2 border-b border-line pb-1">{data.salesTrend.map((day) => <div key={day.date} className="group flex-1 h-full flex items-end"><div title={`${day.date}: ${money(day.revenue)} net · ${money(day.returns)} returns`} className="w-full min-h-1 rounded-t-md bg-market-600/80 group-hover:bg-market-700 transition-colors" style={{ height: `${Math.max(2, (day.revenue / maxRevenue) * 100)}%` }} /></div>)}</div><div className="flex justify-between pt-2 text-[10px] font-mono text-ink-muted">{trendLabels.map((day) => <span key={day.date}>{day.date.slice(5)}</span>)}</div></div>
+        <div className="rounded-2xl border border-line bg-paper-raised p-5 sm:p-6"><div className="flex items-start justify-between"><div><h2 className="font-display font-semibold text-lg text-ink">{isCurrentMonth ? 'Monthly projection' : 'Month result'}</h2><p className="text-xs text-ink-muted mt-1">{isCurrentMonth ? 'Based on current net daily pace' : 'Completed month performance'}</p></div><span className="text-xs rounded-full bg-market-50 text-market-700 px-2.5 py-1">{isCurrentMonth ? 'Estimated' : 'Actual'}</span></div><div className="mt-7"><p className="text-xs uppercase tracking-wide text-ink-muted">{isCurrentMonth ? 'Projected net sales' : 'Net sales'}</p><p className="font-display font-semibold text-3xl text-ink mt-2">{money(data.projectedMonthRevenue)}</p><div className="h-2 rounded-full bg-paper mt-4 overflow-hidden"><div className="h-full rounded-full bg-market-600" style={{ width: `${projectionProgress}%` }} /></div><div className="flex justify-between text-xs mt-2"><span className="text-ink-muted">{money(data.monthRevenue)} achieved</span><span className="text-ink-muted">{projectionProgress.toFixed(0)}%</span></div></div><div className="border-t border-line mt-6 pt-5"><p className="text-xs uppercase tracking-wide text-ink-muted">{isCurrentMonth ? 'Projected gross profit' : 'Gross profit'}</p><p className="font-display font-semibold text-xl text-ink mt-2">{money(data.projectedMonthProfit)}</p></div></div>
       </section>
 
       <section className="rounded-2xl border border-line bg-paper-raised overflow-hidden mb-5">
         <div className="px-5 py-5 border-b border-line">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-market-600">Historical performance</p>
           <h2 className="font-display font-semibold text-xl text-ink mt-1">Monthly history</h2>
-          <p className="text-xs text-ink-muted mt-1">Previous months remain available without changing or deleting the original sales records.</p>
+          <p className="text-xs text-ink-muted mt-1">Select a month above or click a month below to analyze its performance.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left">
@@ -99,11 +104,11 @@ export default function Analytics() {
             </thead>
             <tbody className="divide-y divide-line">
               {[...data.monthlyHistory].reverse().map((month, index) => (
-                <tr key={month.month} className={index === 0 ? 'bg-market-50/40' : ''}>
+                <tr key={month.month} className={month.month === selectedMonth ? 'bg-market-50/40' : ''}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-ink">{month.label}</span>
-                      {index === 0 && <span className="rounded-full bg-market-100 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-market-700">Current</span>}
+                      <button type="button" onClick={() => setSelectedMonth(month.month)} className="text-sm font-medium text-ink hover:text-market-700 transition-colors">{month.label}</button>
+                      {month.month === currentMonthKey && <span className="rounded-full bg-market-100 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-market-700">Current</span>}
                     </div>
                   </td>
                   <td className="px-5 py-4 text-sm text-ink text-right whitespace-nowrap">{money(month.grossRevenue)}</td>
@@ -119,8 +124,8 @@ export default function Analytics() {
       </section>
 
       <section className="rounded-2xl border border-line bg-paper-raised overflow-hidden mb-5"><div className="px-5 py-5 border-b border-line"><p className="text-xs font-medium uppercase tracking-[0.14em] text-market-600">Business insights</p><h2 className="font-display font-semibold text-xl text-ink mt-1">What needs your attention</h2><p className="text-xs text-ink-muted mt-1">Practical observations based on current sales, returns and inventory data.</p></div><div className="grid md:grid-cols-2 xl:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">{insights.map((insight) => <InsightItem key={`${insight.label}-${insight.title}`} {...insight} />)}</div></section>
-      <section className="grid gap-5 lg:grid-cols-3 mb-5"><InsightCard label="Inventory value" value={money(data.inventoryValue)} detail="At current cost price" /><InsightCard label="Low stock" value={String(data.lowStockCount)} detail={data.lowStockCount ? 'Products need attention' : 'Inventory looks healthy'} alert={data.lowStockCount > 0} /><InsightCard label="Average transaction" value={money(data.averageSale)} detail="Current month net average" /></section>
-      <section className="grid gap-5 lg:grid-cols-2"><ProductTable title="Top products" subtitle="Highest net revenue this month" products={data.topProducts} max={bestProductRevenue} /><ProductTable title="Slow-moving products" subtitle="Lowest net unit sales this month" products={data.slowProducts} max={slowestUnits} units /></section>
+      <section className="grid gap-5 lg:grid-cols-3 mb-5"><InsightCard label="Inventory value" value={money(data.inventoryValue)} detail="At current cost price" /><InsightCard label="Low stock" value={String(data.lowStockCount)} detail={data.lowStockCount ? 'Products need attention' : 'Inventory looks healthy'} alert={data.lowStockCount > 0} /><InsightCard label="Average transaction" value={money(data.averageSale)} detail={`${selectedMonthLabel} net average`} /></section>
+      <section className="grid gap-5 lg:grid-cols-2"><ProductTable title="Top products" subtitle={`Highest net revenue · ${selectedMonthLabel}`} products={data.topProducts} max={bestProductRevenue} /><ProductTable title="Slow-moving products" subtitle={`Lowest net unit sales · ${selectedMonthLabel}`} products={data.slowProducts} max={slowestUnits} units /></section>
     </div>
   </main>
 }
