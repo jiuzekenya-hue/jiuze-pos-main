@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { getBusiness } from '../services/businessService'
@@ -42,7 +42,9 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState<CompletedSale | null>(null)
   const [completedItems, setCompletedItems] = useState<CartLine[]>([])
+  const [completedPaymentReference, setCompletedPaymentReference] = useState('')
   const [cartOpen, setCartOpen] = useState(false)
+  const autoPrintTriggered = useRef(false)
 
   const load = useCallback(async () => {
     if (!profile?.businessId) return
@@ -61,6 +63,13 @@ export default function Checkout() {
   }, [profile?.businessId])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (!completed || autoPrintTriggered.current) return
+    autoPrintTriggered.current = true
+    const timer = window.setTimeout(() => window.print(), 300)
+    return () => window.clearTimeout(timer)
+  }, [completed])
 
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -143,6 +152,7 @@ export default function Checkout() {
       const result = await completeSale({ items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })), paymentMethod, paymentAmount: paid, paymentReference, discount: discountValue })
       setCompleted(result)
       setCompletedItems(soldItems)
+      setCompletedPaymentReference(paymentReference.trim())
       setCart([])
       setQuantityInputs({})
       setCartOpen(false)
@@ -160,19 +170,80 @@ export default function Checkout() {
   const startNewSale = () => {
     setCompleted(null)
     setCompletedItems([])
+    setCompletedPaymentReference('')
+    autoPrintTriggered.current = false
     setError(null)
   }
 
   if (completed) return <div className="min-h-screen bg-paper px-4 py-8 sm:px-6 pb-24 lg:pb-8">
-    <style>{`@media print { body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 8mm; border: 0 !important; box-shadow: none !important; } .receipt-actions { display: none !important; } }`}</style>
+    <style>{`
+      @page { size: 80mm auto; margin: 0; }
+      @media print {
+        html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+        body * { visibility: hidden !important; }
+        .receipt-print, .receipt-print * { visibility: visible !important; }
+        .receipt-print {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 72.1mm !important;
+          margin: 0 !important;
+          padding: 3mm 2.5mm !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          background: #fff !important;
+          color: #000 !important;
+          box-sizing: border-box !important;
+          font-family: Arial, Helvetica, sans-serif !important;
+        }
+        .receipt-print .receipt-muted { color: #333 !important; }
+        .receipt-print .receipt-line { border-color: #000 !important; }
+        .receipt-actions { display: none !important; }
+      }
+    `}</style>
     <div className="max-w-md mx-auto">
-      <div className="receipt-print rounded-2xl border border-line bg-paper-raised p-6 shadow-sm">
-        <div className="text-center border-b border-line pb-5"><p className="font-display font-semibold text-2xl text-ink">{businessName || 'Shop'}</p><p className="text-xs text-ink-muted mt-1">Sales receipt</p><p className="text-xs font-mono text-ink mt-3">{completed.receiptNumber}</p><p className="text-xs text-ink-muted mt-2">Cashier: {profile?.fullName?.trim() || 'Unknown cashier'}</p></div>
-        <div className="py-5 space-y-3 text-sm">{completedItems.map((line) => <div key={line.product.id} className="flex justify-between gap-4"><div className="min-w-0"><p className="font-medium text-ink">{line.product.name}</p><p className="text-xs text-ink-muted">{formatQuantity(line.quantity)} {line.product.unitType} × {money(line.product.sellingPrice)}</p></div><span className="font-medium text-ink">{money(line.product.sellingPrice * line.quantity)}</span></div>)}</div>
-        <div className="border-t border-line pt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Subtotal</span><span>{money(completed.subtotal)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Discount</span><span>{money(completed.discount)}</span></div><div className="flex justify-between text-base font-semibold"><span>Total</span><span>{money(completed.total)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Payment</span><span>{completed.paymentMethod.toUpperCase()}</span></div><div className="flex justify-between"><span className="text-ink-muted">Paid</span><span>{money(completed.amountPaid)}</span></div><div className="flex justify-between font-semibold"><span>Change</span><span>{money(completed.change)}</span></div></div>
-        <div className="border-t border-line mt-5 pt-4 text-center text-xs text-ink-muted">Thank you for your purchase.</div>
+      <div className="receipt-print rounded-2xl border border-line bg-paper-raised p-6 shadow-sm text-[12px] leading-[1.35]">
+        <div className="text-center border-b border-line receipt-line pb-3">
+          <p className="font-display font-semibold text-xl text-ink">{businessName || 'Shop'}</p>
+          <p className="text-[11px] text-ink-muted receipt-muted mt-0.5">Sales receipt</p>
+          <p className="text-[11px] font-mono text-ink mt-2">{completed.receiptNumber}</p>
+          <p className="text-[11px] text-ink-muted receipt-muted mt-1">Cashier: {profile?.fullName?.trim() || 'Unknown cashier'}</p>
+        </div>
+
+        <div className="py-3 space-y-2">
+          {completedItems.map((line) => (
+            <div key={line.product.id} className="grid grid-cols-[1fr_auto] gap-2 items-start">
+              <div className="min-w-0">
+                <p className="font-semibold text-ink break-words">{line.product.name}</p>
+                <p className="text-[10px] text-ink-muted receipt-muted">{formatQuantity(line.quantity)} {line.product.unitType} × {money(line.product.sellingPrice)}</p>
+              </div>
+              <span className="font-semibold text-ink whitespace-nowrap">{money(line.product.sellingPrice * line.quantity)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-line receipt-line pt-3 space-y-1.5">
+          <div className="flex justify-between"><span className="text-ink-muted receipt-muted">Subtotal</span><span>{money(completed.subtotal)}</span></div>
+          <div className="flex justify-between"><span className="text-ink-muted receipt-muted">Discount</span><span>{money(completed.discount)}</span></div>
+          <div className="flex justify-between text-[14px] font-bold pt-1"><span>Total</span><span>{money(completed.total)}</span></div>
+          <div className="flex justify-between pt-1"><span className="text-ink-muted receipt-muted">Payment</span><span className="uppercase font-semibold">{completed.paymentMethod}</span></div>
+          {completedPaymentReference && <div className="flex justify-between gap-3"><span className="text-ink-muted receipt-muted">Reference</span><span className="font-mono text-right break-all">{completedPaymentReference}</span></div>}
+          <div className="flex justify-between"><span className="text-ink-muted receipt-muted">Paid</span><span>{money(completed.amountPaid)}</span></div>
+          <div className="flex justify-between font-bold"><span>Change</span><span>{money(completed.change)}</span></div>
+        </div>
+
+        <div className="border-t border-line receipt-line mt-3 pt-3 text-center text-[10px] text-ink-muted receipt-muted">
+          Thank you for your purchase.
+        </div>
       </div>
-      <div className="receipt-actions flex flex-wrap justify-center gap-3 mt-6"><button type="button" onClick={() => window.print()} className="rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-paper">Print receipt</button><button type="button" onClick={startNewSale} className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink">New sale</button><Link to="/products" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink-muted">Products</Link><Link to="/" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink-muted">Home</Link></div>
+
+      <div className="receipt-actions flex flex-wrap justify-center gap-3 mt-6">
+        <button type="button" onClick={() => window.print()} className="rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-paper">Print receipt</button>
+        <button type="button" onClick={startNewSale} className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink">New sale</button>
+        <Link to="/products" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink-muted">Products</Link>
+        <Link to="/" className="rounded-xl border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink-muted">Home</Link>
+      </div>
     </div>
   </div>
 
