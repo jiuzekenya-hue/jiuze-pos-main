@@ -44,6 +44,7 @@ export function createSupabaseMock() {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn(async () => profilesQueryResult),
+    single: vi.fn(async () => ({ data: null, error: null })),
   }))
 
   return {
