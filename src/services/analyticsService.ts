@@ -99,7 +99,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
         .lt('created_at', iso(endOfDay(now)))
         .order('created_at', { ascending: true })
         .range(from, from + PAGE_SIZE - 1)
-      if (error) throw error
+      if (error) throw new Error(`Analytics sales query failed: ${error.message}`)
       const page = (data ?? []) as SaleRow[]
       rows.push(...page)
       if (page.length < PAGE_SIZE) break
@@ -118,7 +118,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
         .lt('created_at', iso(endOfDay(now)))
         .order('created_at', { ascending: true })
         .range(from, from + PAGE_SIZE - 1)
-      if (error) throw error
+      if (error) throw new Error(`Analytics returns query failed: ${error.message}`)
       const page = (data ?? []) as ReturnRow[]
       rows.push(...page)
       if (page.length < PAGE_SIZE) break
@@ -132,7 +132,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     fetchReturns(),
   ])
 
-  if (productsResult.error) throw productsResult.error
+  if (productsResult.error) throw new Error(`Analytics products query failed: ${productsResult.error.message}`)
   const products = productsResult.data ?? []
 
   const fetchItemsByIds = async (table: 'sale_items' | 'sales_return_items', ids: string[]) => {
@@ -144,14 +144,14 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
           .from('sale_items')
           .select('sale_id, product_id, product_name, quantity, unit_price, cost_price, discount, subtotal')
           .in('sale_id', chunk)
-        if (error) throw error
+        if (error) throw new Error(`Analytics sale items query failed: ${error.message}`)
         rows.push(...((data ?? []) as ItemRow[]))
       } else {
         const { data, error } = await supabase
           .from('sales_return_items')
           .select('return_id, product_id, product_name, quantity, refund_amount, cost_price')
           .in('return_id', chunk)
-        if (error) throw error
+        if (error) throw new Error(`Analytics return items query failed: ${error.message}`)
         rows.push(...((data ?? []) as ReturnItemRow[]))
       }
     }
