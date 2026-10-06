@@ -313,8 +313,8 @@ export async function getAnalyticsData(businessId: string, selectedMonth?: strin
 
   const monthlyMap = new Map<string, AnalyticsMonth>()
   for (let index = 0; index < 12; index += 1) {
-    const date = new Date(monthStart)
-    date.setMonth(date.getMonth() - (11 - index))
+    const date = new Date(historyStart)
+    date.setMonth(date.getMonth() + index)
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     monthlyMap.set(monthKey, {
       month: monthKey,
