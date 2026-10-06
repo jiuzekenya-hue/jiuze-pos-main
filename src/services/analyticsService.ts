@@ -84,41 +84,82 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   const thirtyDaysAgo = new Date(todayStart)
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
 
-  const [salesResult, productsResult, returnsResult] = await Promise.all([
-    supabase.from('sales').select('id, total, discount, subtotal, created_at').eq('business_id', businessId).eq('status', 'completed').gte('created_at', iso(historyStart)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
+  const PAGE_SIZE = 500
+  const ID_CHUNK_SIZE = 100
+
+  const fetchSales = async (): Promise<SaleRow[]> => {
+    const rows: SaleRow[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('sales')
+        .select('id, total, discount, subtotal, created_at')
+        .eq('business_id', businessId)
+        .eq('status', 'completed')
+        .gte('created_at', iso(historyStart))
+        .lt('created_at', iso(endOfDay(now)))
+        .order('created_at', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
+      if (error) throw error
+      const page = (data ?? []) as SaleRow[]
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
+    return rows
+  }
+
+  const fetchReturns = async (): Promise<ReturnRow[]> => {
+    const rows: ReturnRow[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('sales_returns')
+        .select('id, refund_amount, created_at')
+        .eq('business_id', businessId)
+        .gte('created_at', iso(historyStart))
+        .lt('created_at', iso(endOfDay(now)))
+        .order('created_at', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
+      if (error) throw error
+      const page = (data ?? []) as ReturnRow[]
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
+    return rows
+  }
+
+  const [sales, productsResult, returns] = await Promise.all([
+    fetchSales(),
     supabase.from('products').select('id, name, stock_quantity, cost_price, minimum_stock').eq('business_id', businessId).eq('is_active', true),
-    supabase.from('sales_returns').select('id, refund_amount, created_at').eq('business_id', businessId).gte('created_at', iso(historyStart)).lt('created_at', iso(endOfDay(now))).order('created_at', { ascending: true }),
+    fetchReturns(),
   ])
 
-  if (salesResult.error) throw salesResult.error
   if (productsResult.error) throw productsResult.error
-  if (returnsResult.error) throw returnsResult.error
-
-  const sales = (salesResult.data ?? []) as SaleRow[]
   const products = productsResult.data ?? []
-  const returns = (returnsResult.data ?? []) as ReturnRow[]
 
-  const saleIds = sales.map((sale) => sale.id)
-  let items: ItemRow[] = []
-  if (saleIds.length > 0) {
-    const itemsResult = await supabase
-      .from('sale_items')
-      .select('sale_id, product_id, product_name, quantity, unit_price, cost_price, discount, subtotal')
-      .in('sale_id', saleIds)
-    if (itemsResult.error) throw itemsResult.error
-    items = (itemsResult.data ?? []) as ItemRow[]
+  const fetchItemsByIds = async (table: 'sale_items' | 'sales_return_items', ids: string[]) => {
+    const rows: Array<ItemRow | ReturnItemRow> = []
+    for (let index = 0; index < ids.length; index += ID_CHUNK_SIZE) {
+      const chunk = ids.slice(index, index + ID_CHUNK_SIZE)
+      if (table === 'sale_items') {
+        const { data, error } = await supabase
+          .from('sale_items')
+          .select('sale_id, product_id, product_name, quantity, unit_price, cost_price, discount, subtotal')
+          .in('sale_id', chunk)
+        if (error) throw error
+        rows.push(...((data ?? []) as ItemRow[]))
+      } else {
+        const { data, error } = await supabase
+          .from('sales_return_items')
+          .select('return_id, product_id, product_name, quantity, refund_amount, cost_price')
+          .in('return_id', chunk)
+        if (error) throw error
+        rows.push(...((data ?? []) as ReturnItemRow[]))
+      }
+    }
+    return rows
   }
 
-  const returnIds = returns.map((row) => row.id)
-  let returnItems: ReturnItemRow[] = []
-  if (returnIds.length > 0) {
-    const returnItemsResult = await supabase
-      .from('sales_return_items')
-      .select('return_id, product_id, product_name, quantity, refund_amount, cost_price')
-      .in('return_id', returnIds)
-    if (returnItemsResult.error) throw returnItemsResult.error
-    returnItems = (returnItemsResult.data ?? []) as ReturnItemRow[]
-  }
+  const items = (await fetchItemsByIds('sale_items', sales.map((sale) => sale.id))) as ItemRow[]
+  const returnItems = (await fetchItemsByIds('sales_return_items', returns.map((row) => row.id))) as ReturnItemRow[]
 
   const saleById = new Map(sales.map((sale) => [sale.id, sale]))
   const returnById = new Map(returns.map((row) => [row.id, row]))
