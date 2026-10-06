@@ -255,7 +255,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
   for (let index = 0; index < 12; index += 1) {
     const date = new Date(monthStart)
     date.setMonth(date.getMonth() - (11 - index))
-    const monthKey = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     monthlyMap.set(monthKey, {
       month: monthKey,
       label: date.toLocaleDateString('en-KE', { month: 'short', year: 'numeric' }),
@@ -269,7 +269,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
 
   for (const sale of sales) {
     const date = new Date(sale.created_at)
-    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     const current = monthlyMap.get(key)
     if (current) {
       current.grossRevenue += Number(sale.total)
@@ -279,7 +279,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
 
   for (const returnRow of returns) {
     const date = new Date(returnRow.created_at)
-    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     const current = monthlyMap.get(key)
     if (current) current.returns += Number(returnRow.refund_amount)
   }
@@ -288,7 +288,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     const sale = saleById.get(item.sale_id)
     if (!sale) continue
     const date = new Date(sale.created_at)
-    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     const current = monthlyMap.get(key)
     if (current) current.profit += profitForItems([item])
   }
@@ -297,7 +297,7 @@ export async function getAnalyticsData(businessId: string): Promise<AnalyticsDat
     const returnRow = returnById.get(item.return_id)
     if (!returnRow) continue
     const date = new Date(returnRow.created_at)
-    const key = \`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}\`
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     const current = monthlyMap.get(key)
     if (current) current.profit -= Number(item.refund_amount) - (Number(item.cost_price) * Number(item.quantity))
   }
