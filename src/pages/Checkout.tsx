@@ -91,12 +91,15 @@ export default function Checkout() {
     setError(null)
     setCart((current) => {
       const existing = current.find((line) => line.product.id === product.id)
-      if (!existing) return [...current, { product, quantity: 1 }]
+      if (!existing) {
+        setQuantityInputs((inputs) => ({ ...inputs, [product.id]: formatQuantity(1) }))
+        return [...current, { product, quantity: 1 }]
+      }
       if (existing.quantity >= product.stockQuantity) return current
       const nextQuantity = isFractionalUnit(product.unitType) ? Math.min(product.stockQuantity, existing.quantity + 1) : existing.quantity + 1
+      setQuantityInputs((inputs) => ({ ...inputs, [product.id]: formatQuantity(nextQuantity) }))
       return current.map((line) => line.product.id === product.id ? { ...line, quantity: nextQuantity } : line)
     })
-    setQuantityInputs((current) => ({ ...current, [product.id]: formatQuantity(1) }))
   }
 
   const setQuantity = (productId: string, value: number) => setCart((current) => current.flatMap((line) => {
@@ -194,12 +197,14 @@ export default function Checkout() {
     <style>{`
       @page { size: 80mm auto; margin: 0; }
       @media print {
-        html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+        html, body, #root { width: 80mm !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
         body * { visibility: hidden !important; }
         .receipt-print, .receipt-print * { visibility: visible !important; }
         .receipt-print {
           position: absolute !important;
           left: 0 !important;
+          height: auto !important;
+          min-height: 0 !important;
           top: 0 !important;
           width: 72.1mm !important;
           margin: 0 !important;
@@ -321,12 +326,14 @@ export default function Checkout() {
       <style>{`
         @page { size: 80mm auto; margin: 0; }
         @media print {
-          html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+          html, body, #root { width: 80mm !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
           body * { visibility: hidden !important; }
           .order-print, .order-print * { visibility: visible !important; }
           .order-print {
             position: absolute !important;
             left: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
             top: 0 !important;
             width: 72.1mm !important;
             margin: 0 !important;
