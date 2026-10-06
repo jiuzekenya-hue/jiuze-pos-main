@@ -81,10 +81,7 @@ export async function getAnalyticsData(businessId: string, selectedMonth?: strin
   const monthStart = new Date(selectedYear, selectedMonthNumber - 1, 1)
   const monthEnd = new Date(selectedYear, selectedMonthNumber, 1)
   const selectedMonthIsCurrent = monthKey === currentMonthKey
-  const twelveMonthsAgo = new Date(monthStart)
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11)
-  const historyStart = new Date(twelveMonthsAgo)
-  historyStart.setDate(historyStart.getDate() - 1)
+  const historyStart = new Date(now.getFullYear(), now.getMonth() - 11, 1)
   const trendDays = selectedMonthIsCurrent ? Math.min(now.getDate(), new Date(selectedYear, selectedMonthNumber, 0).getDate()) : new Date(selectedYear, selectedMonthNumber, 0).getDate()
   const trendStart = new Date(monthStart)
   const trendEnd = selectedMonthIsCurrent ? new Date(now) : new Date(monthEnd)
@@ -169,9 +166,12 @@ export async function getAnalyticsData(businessId: string, selectedMonth?: strin
 
   const saleById = new Map(sales.map((sale) => [sale.id, sale]))
   const returnById = new Map(returns.map((row) => [row.id, row]))
-  const inRange = (createdAt: string, start: Date) => new Date(createdAt) >= start
-  const salesInPeriod = (start: Date) => sales.filter((sale) => inRange(sale.created_at, start))
-  const returnsInPeriod = (start: Date) => returns.filter((row) => inRange(row.created_at, start))
+  const inRange = (createdAt: string, start: Date, end: Date) => {
+    const date = new Date(createdAt)
+    return date >= start && date < end
+  }
+  const salesInPeriod = (start: Date, end: Date) => sales.filter((sale) => inRange(sale.created_at, start, end))
+  const returnsInPeriod = (start: Date, end: Date) => returns.filter((row) => inRange(row.created_at, start, end))
   const revenue = (rows: SaleRow[]) => rows.reduce((sum, row) => sum + Number(row.total), 0)
   const returnValue = (rows: ReturnRow[]) => rows.reduce((sum, row) => sum + Number(row.refund_amount), 0)
 
@@ -200,12 +200,15 @@ export async function getAnalyticsData(businessId: string, selectedMonth?: strin
     return returnItems.filter((item) => ids.has(item.return_id))
   }
 
-  const todaySales = salesInPeriod(todayStart)
-  const weekSales = salesInPeriod(weekStart)
-  const monthSales = salesInPeriod(monthStart)
-  const todayReturns = returnsInPeriod(todayStart)
-  const weekReturns = returnsInPeriod(weekStart)
-  const monthReturns = returnsInPeriod(monthStart)
+  const todayEnd = endOfDay(now)
+  const weekEnd = endOfDay(now)
+  const selectedMonthEnd = selectedMonthIsCurrent ? todayEnd : monthEnd
+  const todaySales = salesInPeriod(todayStart, todayEnd)
+  const weekSales = salesInPeriod(weekStart, weekEnd)
+  const monthSales = salesInPeriod(monthStart, selectedMonthEnd)
+  const todayReturns = returnsInPeriod(todayStart, todayEnd)
+  const weekReturns = returnsInPeriod(weekStart, weekEnd)
+  const monthReturns = returnsInPeriod(monthStart, selectedMonthEnd)
   const todayItems = itemsForSales(todaySales)
   const weekItems = itemsForSales(weekSales)
   const monthItems = itemsForSales(monthSales)
