@@ -103,7 +103,7 @@ export default function Analytics() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {[...data.monthlyHistory].reverse().map((month, index) => (
+              {[...data.monthlyHistory].reverse().map((month) => (
                 <tr key={month.month} className={month.month === selectedMonth ? 'bg-market-50/40' : ''}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
