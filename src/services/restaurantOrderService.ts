@@ -52,6 +52,28 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
   }))
 }
 
+export type RestaurantLocationStatus = {
+  locationType: 'table' | 'takeaway'
+  tableNumber: number | null
+  occupied: boolean
+  canManage: boolean
+  orderNumber: string | null
+}
+
+export async function listRestaurantLocationStatus(): Promise<RestaurantLocationStatus[]> {
+  const { data, error } = await supabase.rpc('list_restaurant_location_status')
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    locationType: row.location_type,
+    tableNumber: row.table_number,
+    occupied: Boolean(row.occupied),
+    canManage: Boolean(row.can_manage),
+    orderNumber: row.order_number ?? null,
+  }))
+}
+
 export async function saveRestaurantOrder(input: {
   orderId: string | null
   location: RestaurantLocation
