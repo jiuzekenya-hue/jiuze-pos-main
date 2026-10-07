@@ -606,7 +606,8 @@ export default function RestaurantCheckout() {
 
     } catch (err) {
 
-      setError(err instanceof Error ? err.message : 'Unable to complete sale.')
+      const message = err instanceof Error ? err.message : 'Unable to complete sale.'
+      setError('Unable to complete sale: ' + message)
 
     } finally {
 
