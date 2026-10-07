@@ -27,6 +27,10 @@ create index restaurant_orders_business_status_idx
 create index restaurant_order_items_order_idx
   on public.restaurant_order_items(order_id);
 
+create unique index restaurant_orders_one_open_table
+  on public.restaurant_orders(business_id, table_number)
+  where status = 'open' and table_number is not null;
+
 alter table public.restaurant_orders enable row level security;
 alter table public.restaurant_order_items enable row level security;
 
@@ -102,6 +106,8 @@ begin
         updated_at = now()
     where id = v_order_id;
   end if;
+
+  delete from public.restaurant_order_items where order_id = v_order_id;
 
   for v_item in select * from jsonb_array_elements(p_items)
   loop
