@@ -54,7 +54,7 @@ create policy restaurant_orders_select_own_business
   to authenticated
   using (
     business_id = public.auth_business_id()
-    and (public.is_owner() or created_by = auth.uid())
+    and business_id = public.auth_business_id()
   );
 
 drop policy if exists restaurant_order_items_select_scoped on public.restaurant_order_items;
