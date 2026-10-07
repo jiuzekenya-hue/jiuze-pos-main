@@ -5,6 +5,7 @@ import { listCategories } from '../services/categoryService'
 import { completeSale, type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
 import { directPrint } from '../services/printerService'
+import { listOpenRestaurantOrders, saveRestaurantOrder, type OpenRestaurantOrder } from '../services/restaurantOrderService'
 import type { Category, Product } from '../types/products'
 
 type CartLine = { product: Product; quantity: number }
@@ -24,6 +25,8 @@ export default function RestaurantCheckout() {
   const [business, setBusiness] = useState<Business | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [openOrders, setOpenOrders] = useState<OpenRestaurantOrder[]>([])
+  const [customerName, setCustomerName] = useState('')
   const [selectedTable, setSelectedTable] = useState<number | 'takeaway'>(1)
   const [department, setDepartment] = useState('All')
   const [search, setSearch] = useState('')
@@ -42,14 +45,16 @@ export default function RestaurantCheckout() {
     setLoading(true)
     setError('')
     try {
-      const [businessData, productRows, categoryRows] = await Promise.all([
+      const [businessData, productRows, categoryRows, orderRows] = await Promise.all([
         getBusiness(profile.businessId),
         listProducts(profile.businessId),
         listCategories(profile.businessId),
+        listOpenRestaurantOrders(profile.businessId),
       ])
       setBusiness(businessData)
       setProducts(productRows)
       setCategories(categoryRows)
+      setOpenOrders(orderRows)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load restaurant POS.')
     } finally {
@@ -92,6 +97,28 @@ export default function RestaurantCheckout() {
       const next = Math.min(line.product.stockQuantity, line.quantity + delta)
       return next <= 0 ? [] : [{ ...line, quantity: next }]
     }))
+  }
+
+  const saveOpenOrder = async () => {
+    if (!cart.length || !profile?.businessId) { setError('Add items to the order first.'); return }
+    if (selectedTable === 'takeaway') { setError('Select a table before saving an open order.'); return }
+    setSaving(true)
+    setError('')
+    try {
+      await saveRestaurantOrder({
+        tableNumber: selectedTable,
+        customerName,
+        items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+      })
+      setMessage(`Table ${selectedTable} saved as an open order.`)
+      setCart([])
+      setCustomerName('')
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save open order.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const takePayment = async () => {
@@ -161,7 +188,15 @@ export default function RestaurantCheckout() {
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Locations</p>
             <button type="button" onClick={() => setSelectedTable('takeaway')} className={`mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ${selectedTable === 'takeaway' ? 'bg-slate-800 text-white' : 'hover:bg-slate-100'}`}>Takeaway</button>
             <div className="grid grid-cols-2 gap-1">
-              {tables.map((table) => <button key={table} type="button" onClick={() => setSelectedTable(table)} className={`rounded-lg px-2 py-3 text-sm font-semibold ${selectedTable === table ? 'bg-market-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Table {table}</button>)}
+              {tables.map((table) => {
+  const open = openOrders.find((item) => item.tableNumber === table)
+  return <button key={table} type="button" onClick={() => open ? (setSelectedTable(table), setCustomerName(open.customerName || ''), setCart(open.items.map((item) => {
+    const product = products.find((candidate) => candidate.id === item.productId)
+    return product ? { product, quantity: item.quantity } : null
+  }).filter(Boolean) as CartLine[])) : setSelectedTable(table)} className={`relative rounded-lg px-2 py-3 text-sm font-semibold ${selectedTable === table ? 'bg-market-600 text-white' : open ? 'bg-amber-100 text-amber-900 hover:bg-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+    Table {table}{open && <span className="mt-1 block text-[9px] uppercase tracking-wide">Open</span>}
+  </button>
+})} className={`rounded-lg px-2 py-3 text-sm font-semibold ${selectedTable === table ? 'bg-market-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Table {table}</button>)}
             </div>
           </aside>
 
@@ -199,6 +234,7 @@ export default function RestaurantCheckout() {
               </div>)}
             </div>
             <div className="border-t border-slate-300 p-4 space-y-3">
+              {selectedTable !== 'takeaway' && <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Guest / customer name (optional)" className="field w-full"/>}
               <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><b>{money(subtotal)}</b></div>
               <div className="flex items-center justify-between gap-3"><label className="text-sm text-slate-500">Discount</label><input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} className="h-9 w-28 rounded border border-slate-300 px-2 text-right text-sm"/></div>
               <div className="flex justify-between border-t border-slate-200 pt-3"><span className="font-semibold">TOTAL</span><span className="font-mono text-xl font-bold">{money(total)}</span></div>
@@ -206,6 +242,7 @@ export default function RestaurantCheckout() {
               <input type="number" min="0" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Amount paid" className="field w-full"/>
               {paymentMethod !== 'cash' && <input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Payment reference" className="field w-full"/>}
               {paymentMethod === 'cash' && <div className="flex justify-between rounded bg-slate-100 px-3 py-2 text-sm"><span className="text-slate-500">Change</span><b>{money(change)}</b></div>}
+              <button type="button" onClick={() => void saveOpenOrder()} disabled={saving || !cart.length || selectedTable === 'takeaway'} className="w-full rounded-lg border border-slate-300 py-3 text-sm font-semibold text-slate-700 disabled:opacity-40">SAVE / HOLD ORDER</button>
               <button type="button" onClick={() => void takePayment()} disabled={saving || !cart.length} className="w-full rounded-lg bg-market-600 py-3.5 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Processing…' : `PAY ${money(total)}`}</button>
               <button type="button" onClick={() => setCart([])} disabled={!cart.length || saving} className="w-full rounded-lg border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40">Clear order</button>
             </div>
