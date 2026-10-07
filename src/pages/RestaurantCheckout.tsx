@@ -6,6 +6,7 @@ import { type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
 import { directPrint } from '../services/printerService'
 import {
+  clearRestaurantOrder,
   completeRestaurantOrder,
   listOpenRestaurantOrders,
   listRecentRestaurantOrders,
@@ -1005,27 +1006,48 @@ export default function RestaurantCheckout() {
     }
   }
 
-  const clearOrder = () => {
+  const clearOrder = async () => {
     const location = selectedLocation(
       selectedTableRef.current,
     )
 
-    const existingId =
-      orderIdsRef.current[locationKey(location)]
+    const key = locationKey(location)
+    const existingId = orderIdsRef.current[key]
 
-    // If this is stale UI state without a current user's
-    // order ID, clear locally only. Never attempt to delete
-    // another user's order.
-    setCart([])
-    setDiscount('')
-    setOrderNumber(null)
+    if (!existingId) {
+      setCart([])
+      setDiscount('')
+      setOrderNumber(null)
+      return
+    }
 
-    if (!existingId) return
+    const reason = window.prompt(
+      'Reason for clearing this order:',
+    )?.trim()
 
-    void persistOrder(location, [], 0)
-      .then(() => {
-        delete orderIdsRef.current[locationKey(location)]
+    if (!reason) {
+      setMessage('Order was not cleared. A reason is required.')
+      return
+    }
 
+    setError('')
+    setMessage('Clearing order…')
+
+    try {
+      // Clearing never deletes the order. It records the user,
+      // timestamp and reason so a printed unpaid order cannot
+      // disappear without an audit trail.
+      await clearRestaurantOrder(existingId, reason)
+
+      delete orderIdsRef.current[key]
+
+      setCart([])
+      setDiscount('')
+      setOrderNumber(null)
+      setPaymentAmount('')
+      setPaymentReference('')
+
+      if (location.type !== 'takeaway') {
         setLocationStatuses((current) =>
           current.map((status) =>
             locationKey(
@@ -1033,7 +1055,7 @@ export default function RestaurantCheckout() {
                 status.locationType,
                 status.tableNumber,
               ),
-            ) === locationKey(location)
+            ) === key
               ? {
                   ...status,
                   occupied: false,
@@ -1043,14 +1065,19 @@ export default function RestaurantCheckout() {
               : status,
           ),
         )
-      })
-      .catch((err) =>
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Unable to clear order.',
-        ),
+      }
+
+      setMessage('Order cleared and recorded in the audit trail.')
+      await load()
+      await refreshRecentOrders()
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to clear order.',
       )
+      setMessage('')
+    }
   }
 
   return (
@@ -1199,6 +1226,18 @@ export default function RestaurantCheckout() {
                                   <p>
                                     Paid by: <span className="font-semibold text-slate-700">{order.paidByName || 'Unknown user'}</span>
                                   </p>
+                                )}
+                                {order.status === 'cancelled' && (
+                                  <>
+                                    <p>
+                                      Cleared by: <span className="font-semibold text-slate-700">{order.clearedByName || 'Unknown user'}</span>
+                                    </p>
+                                    {order.clearReason && (
+                                      <p>
+                                        Reason: <span className="font-semibold text-slate-700">{order.clearReason}</span>
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -1727,7 +1766,7 @@ export default function RestaurantCheckout() {
 
               <button
                 type="button"
-                onClick={clearOrder}
+                onClick={() => void clearOrder()}
                 disabled={
                   !cart.length ||
                   savingOrder ||
