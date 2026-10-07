@@ -30,6 +30,10 @@ const toRestaurantLocation = (locationType: RestaurantOpenOrder['locationType'],
 
   locationType === 'takeaway' ? { type: 'takeaway', tableNumber: null } : { type: 'table', tableNumber: tableNumber as number }
 
+const statusLocation = (locationType: RestaurantOpenOrder['locationType'], tableNumber: RestaurantOpenOrder['tableNumber']): RestaurantLocation =>
+
+  locationType === 'takeaway' ? { type: 'takeaway', tableNumber: null } : { type: 'table', tableNumber: tableNumber as number }
+
 function Icon({ name }: { name: 'search' | 'plus' | 'minus' | 'close' }) {
 
   if (name === 'search') return <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="m16 16 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
@@ -113,6 +117,12 @@ export default function RestaurantCheckout() {
   const paid = Number(paymentAmount) || 0
 
   const change = Math.max(0, paid - total)
+
+  const selectedLocationStatus = locationStatuses.find((status) =>
+    locationKey(statusLocation(status.locationType, status.tableNumber)) === locationKey(selectedLocation(selectedTable))
+  )
+
+  const selectedLocationBlocked = Boolean(selectedLocationStatus?.occupied && !selectedLocationStatus.canManage)
 
   const hydrateOrder = useCallback((order: RestaurantOpenOrder | undefined, productRows: Product[]) => {
 
@@ -242,7 +252,6 @@ export default function RestaurantCheckout() {
     setCart([])
     setDiscount('')
     setOrderNumber(null)
-    setOpenOrders([])
     setPaymentAmount('')
     setPaymentReference('')
     setMessage('')
@@ -284,52 +293,6 @@ export default function RestaurantCheckout() {
 
           orderIdsRef.current[key] = savedOrderId
 
-          setOpenOrders((current) => {
-
-            const existing = current.find((order) => order.id === savedOrderId)
-
-            const itemSnapshot = items.map((line) => ({
-
-              id: 'local-' + line.product.id,
-
-              productId: line.product.id,
-
-              productName: line.product.name,
-
-              quantity: line.quantity,
-
-              unitPrice: line.product.sellingPrice,
-
-              subtotal: line.product.sellingPrice * line.quantity,
-
-            }))
-
-            if (existing) return current.map((order) => order.id === savedOrderId ? { ...order, discount: nextDiscount, items: itemSnapshot, updatedAt: new Date().toISOString() } : order)
-
-            return [...current, {
-
-              id: savedOrderId,
-
-              orderNumber: savedOrderNumber,
-
-              locationType: location.type,
-
-              tableNumber: location.tableNumber,
-
-              status: 'open',
-
-              discount: nextDiscount,
-
-              createdBy: profile?.id || '',
-
-              updatedAt: new Date().toISOString(),
-
-              items: itemSnapshot,
-
-            }]
-
-          })
-
           if (locationKey(selectedLocation(selectedTableRef.current)) === key) {
 
             setOrderNumber(savedOrderNumber)
@@ -339,8 +302,6 @@ export default function RestaurantCheckout() {
         } else {
 
           delete orderIdsRef.current[key]
-
-          setOpenOrders((current) => current.filter((order) => locationKey(toRestaurantLocation(order.locationType, order.tableNumber)) !== key))
 
           if (locationKey(selectedLocation(selectedTableRef.current)) === key) {
 
@@ -398,7 +359,7 @@ export default function RestaurantCheckout() {
 
       const targetStatus = statuses.find((status) =>
 
-        locationKey({ type: status.locationType, tableNumber: status.tableNumber }) === locationKey(selectedLocation(nextTable))
+        locationKey(statusLocation(status.locationType, status.tableNumber)) === locationKey(selectedLocation(nextTable))
 
       )
 
@@ -426,7 +387,6 @@ export default function RestaurantCheckout() {
 
       setSelectedTable(nextTable)
 
-      setOpenOrders(orders)
 
       const hydrated = hydrateOrder(target, products)
 
@@ -693,7 +653,6 @@ export default function RestaurantCheckout() {
 
         delete orderIdsRef.current[locationKey(location)]
 
-        setOpenOrders((current) => current.filter((order) => order.id !== existingId))
 
       })
 
