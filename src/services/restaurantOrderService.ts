@@ -208,6 +208,21 @@ export async function saveRestaurantOrder(input: {
   }
 }
 
+export async function recordRestaurantOrderPrint(
+  orderId: string,
+  printType: 'order_slip' | 'sales_receipt',
+): Promise<void> {
+  const { error } = await supabase.rpc(
+    'record_restaurant_order_print',
+    {
+      p_order_id: orderId,
+      p_print_type: printType,
+    },
+  )
+
+  if (error) throw error
+}
+
 export async function clearRestaurantOrder(
   orderId: string,
   reason: string,
