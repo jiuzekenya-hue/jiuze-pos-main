@@ -12,7 +12,7 @@ import { listProducts } from '../services/productService'
 
 import { directPrint } from '../services/printerService'
 
-import { completeRestaurantOrder, listOpenRestaurantOrders, listRestaurantLocationStatus, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation, type RestaurantLocationStatus } from '../services/restaurantOrderService'
+import { completeRestaurantOrder, listOpenRestaurantOrders, listRestaurantLocationStatus, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation } from '../services/restaurantOrderService'
 
 import type { Category, Product } from '../types/products'
 
@@ -78,7 +78,7 @@ export default function RestaurantCheckout() {
 
   const [error, setError] = useState('')
 
-  const [openOrders, setOpenOrders] = useState<RestaurantOpenOrder[]>([])
+  const [locationStatuses, setLocationStatuses] = useState<Array<{ locationType: 'table' | 'takeaway'; tableNumber: number | null; occupied: boolean; canManage: boolean; orderNumber: string | null }>>([])
 
   const [orderNumber, setOrderNumber] = useState<string | null>(null)
 
@@ -140,8 +140,6 @@ export default function RestaurantCheckout() {
 
   const applyOpenOrders = useCallback((orders: RestaurantOpenOrder[], productRows: Product[], selected: number | 'takeaway') => {
 
-    setOpenOrders(orders)
-
     orderIdsRef.current = {}
 
     orders.forEach((order) => {
@@ -198,7 +196,7 @@ export default function RestaurantCheckout() {
 
       const preferredStatus = statuses.find((status) =>
 
-        locationKey({ type: status.locationType, tableNumber: status.tableNumber }) === locationKey(selectedLocation(preferred))
+        locationKey(statusLocation(status.locationType, status.tableNumber)) === locationKey(selectedLocation(preferred))
 
       )
 
