@@ -7,6 +7,8 @@ export type DirectPrintItem = {
 
 export type DirectPrintPayload = {
   businessName: string
+  serviceType?: 'retail' | 'restaurant'
+  location?: string
   title: 'ORDER SLIP' | 'SALES RECEIPT'
   status: 'unpaid' | 'paid'
   receiptNumber?: string
