@@ -19,6 +19,7 @@ export type RestaurantOpenOrder = {
   status: 'open'
   discount: number
   createdBy: string
+  createdByName: string
   updatedAt: string
   items: RestaurantOrderItem[]
 }
@@ -26,7 +27,7 @@ export type RestaurantOpenOrder = {
 export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]> {
   const { data, error } = await supabase
     .from('restaurant_orders')
-    .select('id, order_number, location_type, table_number, status, discount, created_by, updated_at, restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)')
+    .select('id, order_number, location_type, table_number, status, discount, created_by, updated_at, profiles(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)')
     .eq('status', 'open')
     .order('updated_at', { ascending: false })
 
@@ -40,6 +41,10 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
     status: 'open',
     discount: Number(row.discount ?? 0),
     createdBy: row.created_by,
+    createdByName:
+      (Array.isArray(row.profiles)
+        ? row.profiles[0]?.full_name
+        : row.profiles?.full_name) || 'Unknown cashier',
     updatedAt: row.updated_at,
     items: (row.restaurant_order_items ?? []).map((item) => ({
       id: item.id,
