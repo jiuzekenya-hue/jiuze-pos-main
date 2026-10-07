@@ -2,14 +2,25 @@ import http from 'node:http'
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { readFile } from 'node:fs/promises'
 
 const PORT = Number(process.env.JIUZE_PRINT_PORT || 38100)
-const PRINTER_NAME = process.env.JIUZE_PRINTER_NAME || 'POS-80C'
-const ALLOWED_ORIGIN = process.env.JIUZE_ALLOWED_ORIGIN || ''
+const runtimeDir = process.pkg ? path.dirname(process.execPath) : __dirname
+const configPath = path.join(runtimeDir, 'config.json')
+
+let fileConfig = {}
+try {
+  fileConfig = JSON.parse(await readFile(configPath, 'utf8'))
+} catch {
+  fileConfig = {}
+}
+
+const PRINTER_NAME = process.env.JIUZE_PRINTER_NAME || fileConfig.printerName || 'XP-80C'
+const ALLOWED_ORIGIN = process.env.JIUZE_ALLOWED_ORIGIN || fileConfig.allowedOrigin || 'https://jiuze-pos.netlify.app'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const powershellScript = path.join(__dirname, 'print.ps1')
+const powershellScript = process.env.JIUZE_PRINT_SCRIPT || path.join(runtimeDir, 'print.ps1')
 
 const send = (res, status, body) => {
   res.writeHead(status, {
