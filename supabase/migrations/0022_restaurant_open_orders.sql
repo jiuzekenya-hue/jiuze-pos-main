@@ -52,10 +52,7 @@ drop policy if exists restaurant_orders_select_own_business on public.restaurant
 create policy restaurant_orders_select_own_business
   on public.restaurant_orders for select
   to authenticated
-  using (
-    business_id = public.auth_business_id()
-    and business_id = public.auth_business_id()
-  );
+  using (business_id = public.auth_business_id());
 
 drop policy if exists restaurant_order_items_select_scoped on public.restaurant_order_items;
 create policy restaurant_order_items_select_scoped
