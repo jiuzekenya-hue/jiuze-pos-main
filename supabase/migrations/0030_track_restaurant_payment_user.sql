@@ -126,3 +126,77 @@ revoke all on function public.complete_restaurant_order(uuid, text, numeric, tex
 grant execute on function public.complete_restaurant_order(uuid, text, numeric, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+create or replace function public.list_recent_restaurant_orders(
+  p_limit integer default 30
+)
+returns table (
+  id uuid,
+  order_number text,
+  location_type text,
+  table_number integer,
+  status text,
+  discount numeric,
+  created_by uuid,
+  created_by_name text,
+  paid_by uuid,
+  paid_by_name text,
+  paid_at timestamptz,
+  updated_at timestamptz,
+  subtotal numeric,
+  total numeric
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select
+    o.id,
+    o.order_number,
+    o.location_type,
+    o.table_number,
+    o.status,
+    o.discount,
+    o.created_by,
+    coalesce(cp.full_name, 'Unknown cashier'),
+    o.paid_by,
+    coalesce(pp.full_name, 'Not paid'),
+    o.paid_at,
+    o.updated_at,
+    coalesce(sum(i.subtotal), 0)::numeric(12,2),
+    greatest(
+      0,
+      coalesce(sum(i.subtotal), 0) - o.discount
+    )::numeric(12,2)
+  from public.restaurant_orders o
+  left join public.profiles cp
+    on cp.id = o.created_by
+  left join public.profiles pp
+    on pp.id = o.paid_by
+  left join public.restaurant_order_items i
+    on i.order_id = o.id
+  where o.business_id = public.auth_business_id()
+    and (public.is_owner() or o.created_by = auth.uid())
+  group by
+    o.id,
+    o.order_number,
+    o.location_type,
+    o.table_number,
+    o.status,
+    o.discount,
+    o.created_by,
+    cp.full_name,
+    o.paid_by,
+    pp.full_name,
+    o.paid_at,
+    o.updated_at
+  order by o.updated_at desc
+  limit greatest(1, least(coalesce(p_limit, 30), 100));
+$$;
+
+revoke all on function public.list_recent_restaurant_orders(integer) from public, anon;
+grant execute on function public.list_recent_restaurant_orders(integer) to authenticated;
+
+notify pgrst, 'reload schema';
