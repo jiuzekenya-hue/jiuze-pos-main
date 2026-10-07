@@ -26,6 +26,23 @@ export type RestaurantOpenOrder = {
   items: RestaurantOrderItem[]
 }
 
+export type RestaurantRecentOrder = {
+  id: string
+  orderNumber: string
+  locationType: 'table' | 'takeaway'
+  tableNumber: number | null
+  status: 'open' | 'paid' | 'cancelled'
+  discount: number
+  createdBy: string
+  createdByName: string
+  paidBy: string | null
+  paidByName: string | null
+  paidAt: string | null
+  updatedAt: string
+  subtotal: number
+  total: number
+}
+
 export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]> {
   const { data, error } = await supabase
     .from('restaurant_orders')
@@ -58,6 +75,49 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
       unitPrice: Number(item.unit_price),
       subtotal: Number(item.subtotal),
     })),
+  }))
+}
+
+export async function listRecentRestaurantOrders(
+  limit = 30,
+): Promise<RestaurantRecentOrder[]> {
+  const { data, error } = await supabase.rpc(
+    'list_recent_restaurant_orders',
+    { p_limit: limit },
+  )
+
+  if (error) throw error
+
+  return ((data ?? []) as Array<{
+    id: string
+    order_number: string
+    location_type: 'table' | 'takeaway'
+    table_number: number | null
+    status: 'open' | 'paid' | 'cancelled'
+    discount: number
+    created_by: string
+    created_by_name: string
+    paid_by: string | null
+    paid_by_name: string | null
+    paid_at: string | null
+    updated_at: string
+    subtotal: number
+    total: number
+  }>).map((row) => ({
+    id: row.id,
+    orderNumber: row.order_number,
+    locationType: row.location_type,
+    tableNumber: row.table_number,
+    status: row.status,
+    discount: Number(row.discount ?? 0),
+    createdBy: row.created_by,
+    createdByName: row.created_by_name || 'Unknown cashier',
+    paidBy: row.paid_by,
+    paidByName: row.paid_by_name || null,
+    paidAt: row.paid_at,
+    updatedAt: row.updated_at,
+    subtotal: Number(row.subtotal ?? 0),
+    total: Number(row.total ?? 0),
   }))
 }
 
