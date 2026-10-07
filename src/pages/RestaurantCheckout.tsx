@@ -6,13 +6,13 @@ import { getBusiness, type Business } from '../services/businessService'
 
 import { listCategories } from '../services/categoryService'
 
-import { completeSale, type SalePaymentMethod } from '../services/saleService'
+import { type SalePaymentMethod } from '../services/saleService'
 
 import { listProducts } from '../services/productService'
 
 import { directPrint } from '../services/printerService'
 
-import { closeRestaurantOrder, listOpenRestaurantOrders, listRestaurantLocationStatus, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation, type RestaurantLocationStatus } from '../services/restaurantOrderService'
+import { completeRestaurantOrder, listOpenRestaurantOrders, listRestaurantLocationStatus, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation, type RestaurantLocationStatus } from '../services/restaurantOrderService'
 
 import type { Category, Product } from '../types/products'
 
@@ -592,9 +592,13 @@ export default function RestaurantCheckout() {
 
       const savedOrder = await persistOrder(location, soldItems, discountValue)
 
-      const result = await completeSale({
+      const savedOrderId = savedOrder?.orderId || orderIdsRef.current[locationKey(location)]
 
-        items: soldItems.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+      if (!savedOrderId) throw new Error('Restaurant order could not be saved before payment.')
+
+      const result = await completeRestaurantOrder({
+
+        orderId: savedOrderId,
 
         paymentMethod,
 
@@ -602,15 +606,7 @@ export default function RestaurantCheckout() {
 
         paymentReference,
 
-        discount: discountValue,
-
       })
-
-      const savedOrderId = savedOrder?.orderId || orderIdsRef.current[locationKey(location)]
-
-      if (!savedOrderId) throw new Error('Sale completed but the restaurant order could not be closed.')
-
-      await closeRestaurantOrder(savedOrderId, result.saleId)
 
       const printed = await directPrint({
 
