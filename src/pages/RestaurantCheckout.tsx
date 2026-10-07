@@ -659,16 +659,6 @@ export default function RestaurantCheckout() {
         listRestaurantLocationStatus(),
       ])
 
-      const targetStatus = statuses.find(
-        (status) =>
-          locationKey(
-            statusLocation(
-              status.locationType,
-              status.tableNumber,
-            ),
-          ) === locationKey(selectedLocation(nextTable)),
-      )
-
       orders.forEach((order) => {
         const key = locationKey(
           toRestaurantLocation(
