@@ -104,6 +104,36 @@ export async function saveRestaurantOrder(input: {
   }
 }
 
+export async function completeRestaurantOrder(input: {
+  orderId: string
+  paymentMethod: 'cash' | 'mpesa' | 'card'
+  paymentAmount: number
+  paymentReference?: string
+}): Promise<import('./saleService').CompletedSale> {
+  const { data, error } = await supabase.rpc('complete_restaurant_order', {
+    p_order_id: input.orderId,
+    p_payment_method: input.paymentMethod,
+    p_payment_amount: input.paymentAmount,
+    p_payment_reference: input.paymentReference?.trim() || null,
+  })
+
+  if (error) throw error
+  if (!data) throw new Error('Restaurant sale completed but no result was returned.')
+
+  return {
+    saleId: data.sale_id,
+    receiptNumber: data.receipt_number,
+    businessId: data.business_id,
+    subtotal: Number(data.subtotal),
+    discount: Number(data.discount),
+    total: Number(data.total),
+    paymentMethod: data.payment_method,
+    amountPaid: Number(data.amount_paid),
+    change: Number(data.change),
+    status: data.status,
+  }
+}
+
 export async function closeRestaurantOrder(orderId: string, saleId: string): Promise<void> {
   const { error } = await supabase.rpc('close_restaurant_order', {
     p_order_id: orderId,
