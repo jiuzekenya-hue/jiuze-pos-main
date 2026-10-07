@@ -48,7 +48,7 @@ const line = (left, right, width = 48) => {
   return l.slice(0, available) + ' '.repeat(width - Math.min(r.length, width - available - 1)) + r.slice(0, width - available - 1)
 }
 
-function buildEscPos(payload) {
+function buildRetailEscPos(payload) {
   const out = []
   const push = (value) => out.push(Buffer.from(value, 'ascii'))
   const raw = (bytes) => out.push(Buffer.from(bytes))
@@ -92,6 +92,74 @@ function buildEscPos(payload) {
   return Buffer.concat(out)
 }
 
+function buildRestaurantEscPos(payload) {
+  const out = []
+  const push = (value) => out.push(Buffer.from(value, 'ascii'))
+  const raw = (bytes) => out.push(Buffer.from(bytes))
+
+  const now = new Date()
+  const date = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+
+  raw([0x1b, 0x40])
+  raw([0x1b, 0x61, 0x01])
+  raw([0x1b, 0x45, 0x01])
+  push(cleanText(payload.businessName, 'JIUZE POS') + '\n')
+  raw([0x1b, 0x45, 0x00])
+  push('BAR & RESTAURANT\n')
+  raw([0x1b, 0x45, 0x01])
+  push(cleanText(payload.location, 'Table service') + '\n')
+  raw([0x1b, 0x45, 0x00])
+  push(payload.status === 'unpaid' ? 'NOT PAID\n' : 'PAID\n')
+  push('\n')
+  raw([0x1b, 0x61, 0x00])
+
+  if (payload.receiptNumber) push('Receipt: ' + cleanText(payload.receiptNumber) + '\n')
+  if (payload.cashier) push('Cashier: ' + cleanText(payload.cashier) + '\n')
+  push('Date: ' + date + '  Time: ' + time + '\n')
+  push('-----------------------------------------------\n')
+  push(line('ITEM', 'TOTAL') + '\n')
+  push('-----------------------------------------------\n')
+
+  for (const item of payload.items || []) {
+    push(cleanText(item.name) + '\n')
+    push(line(`${qty(item.quantity)} x ${money(item.unitPrice)}`, money(item.lineTotal)) + '\n')
+  }
+
+  push('-----------------------------------------------\n')
+  push(line('Subtotal', money(payload.subtotal)) + '\n')
+  if (Number(payload.discount || 0) > 0) push(line('Discount', money(payload.discount)) + '\n')
+  push('-----------------------------------------------\n')
+  raw([0x1b, 0x45, 0x01])
+  push(line('TOTAL', money(payload.total)) + '\n')
+  raw([0x1b, 0x45, 0x00])
+
+  if (payload.status === 'paid') {
+    push('\n')
+    push(line('Payment', cleanText(payload.paymentMethod).toUpperCase()) + '\n')
+    if (payload.paymentReference) push('Reference: ' + cleanText(payload.paymentReference) + '\n')
+    push(line('Paid', money(payload.amountPaid)) + '\n')
+    if (cleanText(payload.paymentMethod).toLowerCase() === 'cash') {
+      push(line('Change', money(payload.change)) + '\n')
+    }
+  } else {
+    push('\nNOT PAID - PRESENT AT TILL\n')
+  }
+
+  raw([0x1b, 0x61, 0x01])
+  raw([0x1b, 0x45, 0x01])
+  push('\nTHANK YOU\n')
+  raw([0x1b, 0x45, 0x00])
+  push('PLEASE COME AGAIN\n\n')
+  raw([0x1d, 0x56, 0x00])
+  return Buffer.concat(out)
+}
+
+function buildEscPos(payload) {
+  return payload.serviceType === 'restaurant'
+    ? buildRestaurantEscPos(payload)
+    : buildRetailEscPos(payload)
+}
 const handlePrint = (payload, res) => {
   if (!payload || !Array.isArray(payload.items) || payload.items.length === 0) {
     return send(res, 400, { ok: false, error: 'Receipt items are required.' })
