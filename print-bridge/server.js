@@ -2,13 +2,14 @@ import http from 'node:http'
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { readFile } from 'node:fs/promises'
 
 const PORT = Number(process.env.JIUZE_PRINT_PORT || 38100)
 const configPath = path.join(__dirname, 'config.json')
 
 let fileConfig = {}
 try {
-  fileConfig = JSON.parse(await import('node:fs/promises').then(fs => fs.readFile(configPath, 'utf8')))
+  fileConfig = JSON.parse(await readFile(configPath, 'utf8'))
 } catch {
   fileConfig = {}
 }
