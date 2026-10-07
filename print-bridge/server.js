@@ -5,7 +5,8 @@ import path from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 const PORT = Number(process.env.JIUZE_PRINT_PORT || 38100)
-const configPath = path.join(__dirname, 'config.json')
+const runtimeDir = process.pkg ? path.dirname(process.execPath) : __dirname
+const configPath = path.join(runtimeDir, 'config.json')
 
 let fileConfig = {}
 try {
@@ -19,7 +20,6 @@ const ALLOWED_ORIGIN = process.env.JIUZE_ALLOWED_ORIGIN || fileConfig.allowedOri
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const runtimeDir = process.pkg ? path.dirname(process.execPath) : __dirname
 const powershellScript = process.env.JIUZE_PRINT_SCRIPT || path.join(runtimeDir, 'print.ps1')
 
 const send = (res, status, body) => {
