@@ -155,3 +155,48 @@ revoke all on function public.list_recent_restaurant_orders(integer) from public
 grant execute on function public.list_recent_restaurant_orders(integer) to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- Correct aggregation for item totals when multiple print events exist.
+create or replace function public.list_recent_restaurant_orders(
+  p_limit integer default 30
+)
+returns table (
+  id uuid, order_number text, location_type text, table_number integer,
+  status text, discount numeric, created_by uuid, created_by_name text,
+  paid_by uuid, paid_by_name text, paid_at timestamptz,
+  cleared_by uuid, cleared_by_name text, cleared_at timestamptz,
+  clear_reason text, updated_at timestamptz, subtotal numeric, total numeric,
+  order_slip_print_count bigint, last_order_slip_printed_by uuid,
+  last_order_slip_printed_by_name text, last_order_slip_printed_at timestamptz,
+  sales_receipt_print_count bigint
+)
+language sql security definer stable set search_path = public
+as $$
+  select
+    o.id, o.order_number, o.location_type, o.table_number, o.status,
+    o.discount, o.created_by, coalesce(cp.full_name, 'Unknown cashier'),
+    o.paid_by, coalesce(pp.full_name, 'Not paid'), o.paid_at,
+    o.cleared_by, coalesce(clp.full_name, 'Unknown user'), o.cleared_at,
+    o.clear_reason, o.updated_at,
+    coalesce((select sum(i.subtotal) from public.restaurant_order_items i where i.order_id = o.id), 0)::numeric(12,2),
+    greatest(0, coalesce((select sum(i.subtotal) from public.restaurant_order_items i where i.order_id = o.id), 0) - o.discount)::numeric(12,2),
+    (select count(*) from public.restaurant_order_prints pr where pr.order_id = o.id and pr.print_type = 'order_slip'),
+    (select pr.printed_by from public.restaurant_order_prints pr where pr.order_id = o.id and pr.print_type = 'order_slip' order by pr.printed_at desc limit 1),
+    (select p.full_name from public.restaurant_order_prints pr join public.profiles p on p.id = pr.printed_by where pr.order_id = o.id and pr.print_type = 'order_slip' order by pr.printed_at desc limit 1),
+    (select max(pr.printed_at) from public.restaurant_order_prints pr where pr.order_id = o.id and pr.print_type = 'order_slip'),
+    (select count(*) from public.restaurant_order_prints pr where pr.order_id = o.id and pr.print_type = 'sales_receipt')
+  from public.restaurant_orders o
+  left join public.profiles cp on cp.id = o.created_by
+  left join public.profiles pp on pp.id = o.paid_by
+  left join public.profiles clp on clp.id = o.cleared_by
+  where o.business_id = public.auth_business_id()
+    and (public.is_owner() or o.created_by = auth.uid())
+  order by o.updated_at desc
+  limit greatest(1, least(coalesce(p_limit, 30), 100));
+$$;
+
+revoke all on function public.list_recent_restaurant_orders(integer) from public, anon;
+grant execute on function public.list_recent_restaurant_orders(integer) to authenticated;
+
+notify pgrst, 'reload schema';
