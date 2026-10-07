@@ -57,7 +57,7 @@ export async function saveRestaurantOrder(input: {
   location: RestaurantLocation
   items: Array<{ productId: string; quantity: number }>
   discount: number
-}): Promise<{ orderId: string; orderNumber: string }> {
+}): Promise<{ orderId: string | null; orderNumber: string | null }> {
   const { data, error } = await supabase.rpc('save_restaurant_order', {
     p_order_id: input.orderId,
     p_location_type: input.location.type,
@@ -67,7 +67,7 @@ export async function saveRestaurantOrder(input: {
   })
 
   if (error) throw error
-  if (!data?.length) throw new Error('Order was empty and was not saved.')
+  if (!data?.length) return { orderId: null, orderNumber: null }
 
   return {
     orderId: data[0].order_id,
