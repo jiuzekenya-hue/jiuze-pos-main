@@ -152,6 +152,8 @@ export default function RestaurantCheckout() {
   const [savingOrder, setSavingOrder] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [openOrders, setOpenOrders] = useState<RestaurantOpenOrder[]>([])
+  const [showOpenOrders, setShowOpenOrders] = useState(false)
 
   const [locationStatuses, setLocationStatuses] = useState<
     Array<{
@@ -336,6 +338,7 @@ export default function RestaurantCheckout() {
       setProducts(productRows)
       setCategories(categoryRows)
       setLocationStatuses(statuses)
+      setOpenOrders(orders)
 
       const preferred = selectedTableRef.current
 
@@ -519,6 +522,134 @@ export default function RestaurantCheckout() {
     },
     [profile?.id],
   )
+
+  const refreshOpenOrders = useCallback(async () => {
+    try {
+      const orders = await listOpenRestaurantOrders()
+      setOpenOrders(orders)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load open orders.',
+      )
+    }
+  }, [])
+
+  const selectOpenOrder = async (orderId: string) => {
+    setError('')
+    setMessage('')
+
+    try {
+      const currentLocation = selectedLocation(
+        selectedTableRef.current,
+      )
+      const currentKey = locationKey(currentLocation)
+      const currentOrderId = orderIdsRef.current[currentKey]
+
+      if (currentOrderId || (cart.length > 0 && !orderNumber)) {
+        await persistOrder(
+          currentLocation,
+          cart,
+          discountValue,
+        )
+      }
+
+      const orders = await listOpenRestaurantOrders()
+      const target = orders.find((order) => order.id === orderId)
+
+      if (!target) {
+        throw new Error('That open order is no longer available.')
+      }
+
+      const targetLocation = toRestaurantLocation(
+        target.locationType,
+        target.tableNumber,
+      )
+      const targetKey = locationKey(targetLocation)
+
+      if (target.locationType === 'table') {
+        const status = locationStatuses.find(
+          (item) =>
+            locationKey(
+              statusLocation(
+                item.locationType,
+                item.tableNumber,
+              ),
+            ) === targetKey,
+        )
+
+        if (status?.occupied && !status.canManage) {
+          throw new Error(
+            'This order belongs to another cashier.',
+          )
+        }
+      }
+
+      orderIdsRef.current[targetKey] = target.id
+
+      const hydrated = hydrateOrder(target, products)
+
+      selectedTableRef.current =
+        target.locationType === 'takeaway'
+          ? 'takeaway'
+          : (target.tableNumber as number)
+
+      setSelectedTable(selectedTableRef.current)
+      setOrderNumber(hydrated.number)
+      setCart(hydrated.cart)
+      setDiscount(hydrated.discount)
+      setPaymentAmount('')
+      setPaymentReference('')
+      setOpenOrders(orders)
+      setShowOpenOrders(false)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to open order.',
+      )
+    }
+  }
+
+  const startNewTakeaway = async () => {
+    setError('')
+    setMessage('')
+
+    try {
+      const currentLocation = selectedLocation(
+        selectedTableRef.current,
+      )
+      const currentKey = locationKey(currentLocation)
+      const currentOrderId = orderIdsRef.current[currentKey]
+
+      if (currentOrderId || (cart.length > 0 && !orderNumber)) {
+        await persistOrder(
+          currentLocation,
+          cart,
+          discountValue,
+        )
+      }
+
+      selectedTableRef.current = 'takeaway'
+      setSelectedTable('takeaway')
+      delete orderIdsRef.current['takeaway']
+      setOrderNumber(null)
+      setCart([])
+      setDiscount('')
+      setPaymentAmount('')
+      setPaymentReference('')
+      setMessage('New takeaway order ready.')
+      setShowOpenOrders(false)
+      await refreshOpenOrders()
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to start a new takeaway order.',
+      )
+    }
+  }
 
   const selectLocation = async (
     nextTable: number | 'takeaway',
@@ -991,6 +1122,16 @@ export default function RestaurantCheckout() {
 
             <p>Table service</p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowOpenOrders(true)
+              void refreshOpenOrders()
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Open Orders
+          </button>
         </header>
 
         {error && (
@@ -1008,6 +1149,132 @@ export default function RestaurantCheckout() {
             className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
           >
             {message}
+          </div>
+        )}
+
+        {showOpenOrders && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/40 p-4 sm:p-8"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setShowOpenOrders(false)
+              }
+            }}
+          >
+            <section className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Restaurant POS
+                  </p>
+                  <h2 className="font-display text-xl font-semibold text-slate-900">
+                    Open Orders
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Select an unpaid order to continue.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOpenOrders(false)}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close open orders"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <div className="max-h-[65vh] overflow-y-auto p-4">
+                {openOrders.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <p className="text-sm font-semibold text-slate-700">
+                      No open orders
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Start a table or takeaway order to see it here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {openOrders.map((order) => {
+                      const orderTotal = Math.max(
+                        0,
+                        order.items.reduce(
+                          (sum, item) => sum + item.subtotal,
+                          0,
+                        ) - order.discount,
+                      )
+                      const orderLocation =
+                        order.locationType === 'takeaway'
+                          ? 'Takeaway'
+                          : 'Table ' + order.tableNumber
+                      const isCurrent =
+                        order.id ===
+                        orderIdsRef.current[
+                          locationKey(
+                            toRestaurantLocation(
+                              order.locationType,
+                              order.tableNumber,
+                            ),
+                          )
+                        ]
+
+                      return (
+                        <button
+                          key={order.id}
+                          type="button"
+                          onClick={() => void selectOpenOrder(order.id)}
+                          className={
+                            'w-full rounded-xl border p-4 text-left transition-colors ' +
+                            (isCurrent
+                              ? 'border-market-500 bg-market-50'
+                              : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50')
+                          }
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-900">
+                                  {orderLocation}
+                                </span>
+                                {isCurrent && (
+                                  <span className="rounded-full bg-market-100 px-2 py-0.5 text-[9px] font-bold uppercase text-market-700">
+                                    Current
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 font-mono text-[11px] text-slate-500">
+                                {order.orderNumber}
+                              </p>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="font-mono text-sm font-bold text-slate-900">
+                                {money(orderTotal)}
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                {order.items.length} item{order.items.length === 1 ? '' : 's'}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 bg-slate-50 p-4">
+                <button
+                  type="button"
+                  onClick={() => void startNewTakeaway()}
+                  className="w-full rounded-lg bg-market-600 py-3 text-sm font-bold text-white hover:bg-market-700"
+                >
+                  + New Takeaway Order
+                </button>
+              </div>
+            </section>
           </div>
         )}
 
