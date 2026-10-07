@@ -222,12 +222,9 @@ export default function RestaurantCheckout() {
       ) === locationKey(selectedLocation(selectedTable)),
   )
 
-  const selectedLocationBlocked =
-    selectedTable !== 'takeaway' &&
-    Boolean(
-      selectedLocationStatus?.occupied &&
-        !selectedLocationStatus.canManage,
-    )
+  // Tables are shared by the restaurant team. Occupancy does not block
+  // another cashier; each cashier sees and manages only their own order.
+  const selectedLocationBlocked = false
 
   const hydrateOrder = useCallback(
     (
@@ -568,24 +565,6 @@ export default function RestaurantCheckout() {
       )
       const targetKey = locationKey(targetLocation)
 
-      if (target.locationType === 'table') {
-        const status = locationStatuses.find(
-          (item) =>
-            locationKey(
-              statusLocation(
-                item.locationType,
-                item.tableNumber,
-              ),
-            ) === targetKey,
-        )
-
-        if (status?.occupied && !status.canManage) {
-          throw new Error(
-            'This order belongs to another cashier.',
-          )
-        }
-      }
-
       orderIdsRef.current[targetKey] = target.id
 
       const hydrated = hydrateOrder(target, products)
@@ -697,23 +676,6 @@ export default function RestaurantCheckout() {
             ),
           ) === locationKey(selectedLocation(nextTable)),
       )
-
-      if (
-        targetStatus?.occupied &&
-        !targetStatus.canManage
-      ) {
-        setLocationStatuses(statuses)
-
-        setError(
-          nextTable === 'takeaway'
-            ? 'Takeaway is occupied by another cashier.'
-            : 'Table ' +
-                nextTable +
-                ' is occupied by another cashier.',
-        )
-
-        return
-      }
 
       orders.forEach((order) => {
         const key = locationKey(
@@ -1311,9 +1273,7 @@ export default function RestaurantCheckout() {
                 const isOpen = Boolean(status?.occupied)
 
                 const label = status?.occupied
-                  ? status.canManage
-                    ? 'My order'
-                    : 'Occupied'
+                  ? 'Occupied'
                   : 'Available'
 
                 return (
@@ -1327,10 +1287,7 @@ export default function RestaurantCheckout() {
                       'rounded-lg px-2 py-3 text-sm font-semibold ' +
                       (selectedTable === table
                         ? 'bg-market-600 text-white'
-                        : status?.occupied &&
-                            !status.canManage
-                          ? 'bg-slate-200 text-slate-500'
-                          : isOpen
+                        : isOpen
                             ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
                     }
@@ -1619,7 +1576,6 @@ export default function RestaurantCheckout() {
                 disabled={
                   saving ||
                   savingOrder ||
-                  selectedLocationBlocked ||
                   !cart.length
                 }
                 className="w-full rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40"
@@ -1635,7 +1591,6 @@ export default function RestaurantCheckout() {
                 disabled={
                   saving ||
                   savingOrder ||
-                  selectedLocationBlocked ||
                   !cart.length
                 }
                 className="w-full rounded-lg bg-market-600 py-3.5 text-sm font-bold text-white disabled:opacity-50"
@@ -1651,8 +1606,7 @@ export default function RestaurantCheckout() {
                 disabled={
                   !cart.length ||
                   savingOrder ||
-                  saving ||
-                  selectedLocationBlocked
+                  saving
                 }
                 className="w-full rounded-lg border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40"
               >
