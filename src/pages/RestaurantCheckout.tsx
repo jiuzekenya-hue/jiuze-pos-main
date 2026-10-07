@@ -11,6 +11,7 @@ import {
   listOpenRestaurantOrders,
   listRecentRestaurantOrders,
   listRestaurantLocationStatus,
+  recordRestaurantOrderPrint,
   saveRestaurantOrder,
   type RestaurantOpenOrder,
   type RestaurantRecentOrder,
@@ -816,11 +817,21 @@ export default function RestaurantCheckout() {
     setError('')
 
     try {
-      await persistOrder(
+      const savedOrder = await persistOrder(
         selectedLocation(selectedTableRef.current),
         cart,
         discountValue,
       )
+
+      const printOrderId =
+        savedOrder?.orderId ||
+        orderIdsRef.current[
+          locationKey(selectedLocation(selectedTableRef.current))
+        ]
+
+      if (!printOrderId) {
+        throw new Error('Order could not be identified for print audit.')
+      }
 
       setMessage('Order saved. Printing order…')
 
@@ -847,9 +858,16 @@ export default function RestaurantCheckout() {
         total,
       })
 
+      if (printed) {
+        await recordRestaurantOrderPrint(
+          printOrderId,
+          'order_slip',
+        )
+      }
+
       setMessage(
         printed
-          ? 'Order printed · ' +
+          ? 'Order printed and audit recorded · ' +
               (selectedTable === 'takeaway'
                 ? 'Takeaway'
                 : 'Table ' + selectedTable) +
@@ -950,6 +968,13 @@ export default function RestaurantCheckout() {
         amountPaid: result.amountPaid,
         change: result.change,
       })
+
+      if (printed) {
+        await recordRestaurantOrderPrint(
+          savedOrderId,
+          'sales_receipt',
+        )
+      }
 
       delete orderIdsRef.current[
         locationKey(location)
@@ -1238,6 +1263,19 @@ export default function RestaurantCheckout() {
                                       </p>
                                     )}
                                   </>
+                                )}
+                                {order.orderSlipPrintCount > 0 && (
+                                  <p>
+                                    Order slip printed: <span className="font-semibold text-slate-700">{order.orderSlipPrintCount}×</span>
+                                    {order.lastOrderSlipPrintedByName
+                                      ? ' · Last by ' + order.lastOrderSlipPrintedByName
+                                      : ''}
+                                  </p>
+                                )}
+                                {order.salesReceiptPrintCount > 0 && (
+                                  <p>
+                                    Sales receipt printed: <span className="font-semibold text-slate-700">{order.salesReceiptPrintCount}×</span>
+                                  </p>
                                 )}
                               </div>
                             </div>
