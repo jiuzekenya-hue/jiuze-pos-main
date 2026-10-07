@@ -38,6 +38,10 @@ export type RestaurantRecentOrder = {
   paidBy: string | null
   paidByName: string | null
   paidAt: string | null
+  clearedBy: string | null
+  clearedByName: string | null
+  clearedAt: string | null
+  clearReason: string | null
   updatedAt: string
   subtotal: number
   total: number
@@ -100,6 +104,10 @@ export async function listRecentRestaurantOrders(
     paid_by: string | null
     paid_by_name: string | null
     paid_at: string | null
+    cleared_by: string | null
+    cleared_by_name: string | null
+    cleared_at: string | null
+    clear_reason: string | null
     updated_at: string
     subtotal: number
     total: number
@@ -115,6 +123,10 @@ export async function listRecentRestaurantOrders(
     paidBy: row.paid_by,
     paidByName: row.paid_by_name || null,
     paidAt: row.paid_at,
+    clearedBy: row.cleared_by,
+    clearedByName: row.cleared_by_name || null,
+    clearedAt: row.cleared_at,
+    clearReason: row.clear_reason,
     updatedAt: row.updated_at,
     subtotal: Number(row.subtotal ?? 0),
     total: Number(row.total ?? 0),
@@ -194,6 +206,27 @@ export async function saveRestaurantOrder(input: {
     orderId: data[0].order_id,
     orderNumber: data[0].order_number,
   }
+}
+
+export async function clearRestaurantOrder(
+  orderId: string,
+  reason: string,
+): Promise<void> {
+  const trimmedReason = reason.trim()
+
+  if (!trimmedReason) {
+    throw new Error('A reason is required when clearing an order.')
+  }
+
+  const { error } = await supabase.rpc(
+    'clear_restaurant_order',
+    {
+      p_order_id: orderId,
+      p_reason: trimmedReason,
+    },
+  )
+
+  if (error) throw error
 }
 
 export async function completeRestaurantOrder(input: {
