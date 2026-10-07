@@ -67,7 +67,7 @@ create policy restaurant_order_items_select_scoped
       from public.restaurant_orders o
       where o.id = restaurant_order_items.order_id
         and o.business_id = public.auth_business_id()
-        and (public.is_owner() or o.created_by = auth.uid())
+        and o.business_id = public.auth_business_id()
     )
   );
 
@@ -147,7 +147,7 @@ begin
      where o.id = p_order_id
        and o.business_id = v_business_id
        and o.status = 'open'
-       and (public.is_owner() or o.created_by = v_user_id)
+       and o.business_id = v_business_id
      for update;
 
     if v_order_id is null then
