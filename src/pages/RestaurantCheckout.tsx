@@ -1181,6 +1181,9 @@ export default function RestaurantCheckout() {
                               <p className="mt-1 font-mono text-[11px] text-slate-500">
                                 {order.orderNumber}
                               </p>
+                              <p className="mt-1 text-[10px] font-medium text-slate-500">
+                                Cashier: {order.createdByName}
+                              </p>
                             </div>
 
                             <div className="text-right">
@@ -1370,6 +1373,18 @@ export default function RestaurantCheckout() {
                     {orderNumber}
                   </p>
                 )}
+                {(() => {
+                  const currentOrder = openOrders.find(
+                    (order) => order.id === orderIdsRef.current[
+                      locationKey(selectedLocation(selectedTable))
+                    ],
+                  )
+                  return currentOrder ? (
+                    <p className="text-[10px] font-medium text-slate-500">
+                      Cashier: {currentOrder.createdByName}
+                    </p>
+                  ) : null
+                })()}
               </div>
 
               <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-500">
