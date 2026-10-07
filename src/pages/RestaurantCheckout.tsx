@@ -215,16 +215,8 @@ export default function RestaurantCheckout() {
 
   const change = Math.max(0, paid - total)
 
-  const selectedLocationStatus = locationStatuses.find(
-    (status) =>
-      locationKey(
-        statusLocation(status.locationType, status.tableNumber),
-      ) === locationKey(selectedLocation(selectedTable)),
-  )
-
   // Tables are shared by the restaurant team. Occupancy does not block
   // another cashier; each cashier sees and manages only their own order.
-  const selectedLocationBlocked = false
 
   const hydrateOrder = useCallback(
     (
@@ -740,16 +732,6 @@ export default function RestaurantCheckout() {
   const addProduct = (product: Product) => {
     setMessage('')
     setError('')
-
-    if (selectedLocationBlocked) {
-      setError(
-        'Table ' +
-          selectedTable +
-          ' is occupied by another cashier.',
-      )
-
-      return
-    }
 
     const existing = cart.find(
       (line) => line.product.id === product.id,
