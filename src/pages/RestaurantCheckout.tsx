@@ -873,25 +873,23 @@ export default function RestaurantCheckout() {
       ]
 
       if (location.type !== 'takeaway') {
-        if (location.type !== 'takeaway') {
-          setLocationStatuses((current) =>
-            current.map((status) =>
-              locationKey(
-                statusLocation(
-                  status.locationType,
-                  status.tableNumber,
-                ),
-              ) === locationKey(location)
-                ? {
-                    ...status,
-                    occupied: false,
-                    canManage: false,
-                    orderNumber: null,
-                  }
-                : status,
-            ),
-          )
-        }
+        setLocationStatuses((current) =>
+          current.map((status) =>
+            locationKey(
+              statusLocation(
+                status.locationType,
+                status.tableNumber,
+              ),
+            ) === locationKey(location)
+              ? {
+                  ...status,
+                  occupied: false,
+                  canManage: false,
+                  orderNumber: null,
+                }
+              : status,
+          ),
+        )
       }
 
       setMessage(
