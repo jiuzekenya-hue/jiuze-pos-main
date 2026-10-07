@@ -8,9 +8,11 @@ import { directPrint } from '../services/printerService'
 import {
   completeRestaurantOrder,
   listOpenRestaurantOrders,
+  listRecentRestaurantOrders,
   listRestaurantLocationStatus,
   saveRestaurantOrder,
   type RestaurantOpenOrder,
+  type RestaurantRecentOrder,
   type RestaurantLocation,
 } from '../services/restaurantOrderService'
 import type { Category, Product } from '../types/products'
@@ -153,7 +155,9 @@ export default function RestaurantCheckout() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [openOrders, setOpenOrders] = useState<RestaurantOpenOrder[]>([])
+  const [recentOrders, setRecentOrders] = useState<RestaurantRecentOrder[]>([])
   const [showOpenOrders, setShowOpenOrders] = useState(false)
+  const [showRecentOrders, setShowRecentOrders] = useState(false)
 
   const [locationStatuses, setLocationStatuses] = useState<
     Array<{
@@ -521,6 +525,19 @@ export default function RestaurantCheckout() {
         err instanceof Error
           ? err.message
           : 'Unable to load open orders.',
+      )
+    }
+  }, [])
+
+  const refreshRecentOrders = useCallback(async () => {
+    try {
+      const orders = await listRecentRestaurantOrders(30)
+      setRecentOrders(orders)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load recent orders.',
       )
     }
   }, [])
@@ -975,6 +992,7 @@ export default function RestaurantCheckout() {
       setDiscount('')
 
       await load()
+      await refreshRecentOrders()
     } catch (err) {
       const message =
         err instanceof Error
@@ -1066,6 +1084,16 @@ export default function RestaurantCheckout() {
           >
             Open Orders
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowRecentOrders(true)
+              void refreshRecentOrders()
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Recent Orders
+          </button>
         </header>
 
         {error && (
@@ -1083,6 +1111,116 @@ export default function RestaurantCheckout() {
             className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
           >
             {message}
+          </div>
+        )}
+
+        {showRecentOrders && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/40 p-4 sm:p-8"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setShowRecentOrders(false)
+              }
+            }}
+          >
+            <section className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Restaurant POS
+                  </p>
+                  <h2 className="font-display text-xl font-semibold text-slate-900">
+                    Recent Orders
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    See who opened each order and who processed the payment.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRecentOrders(false)}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close recent orders"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <div className="max-h-[65vh] overflow-y-auto p-4">
+                {recentOrders.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <p className="text-sm font-semibold text-slate-700">
+                      No recent orders
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recentOrders.map((order) => {
+                      const orderLocation =
+                        order.locationType === 'takeaway'
+                          ? 'Takeaway'
+                          : 'Table ' + order.tableNumber
+
+                      return (
+                        <div
+                          key={order.id}
+                          className="rounded-xl border border-slate-200 bg-white p-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-900">
+                                  {orderLocation}
+                                </span>
+                                <span
+                                  className={
+                                    'rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ' +
+                                    (order.status === 'paid'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : order.status === 'cancelled'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-amber-100 text-amber-700')
+                                  }
+                                >
+                                  {order.status}
+                                </span>
+                              </div>
+
+                              <p className="mt-1 font-mono text-[11px] text-slate-500">
+                                {order.orderNumber}
+                              </p>
+
+                              <div className="mt-2 space-y-0.5 text-[10px] text-slate-500">
+                                <p>
+                                  Cashier: <span className="font-semibold text-slate-700">{order.createdByName}</span>
+                                </p>
+                                {order.status === 'paid' && (
+                                  <p>
+                                    Paid by: <span className="font-semibold text-slate-700">{order.paidByName || 'Unknown user'}</span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="font-mono text-sm font-bold text-slate-900">
+                                {money(order.total)}
+                              </p>
+                              {order.paidAt && (
+                                <p className="mt-1 text-[10px] text-slate-500">
+                                  {new Date(order.paidAt).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         )}
 
