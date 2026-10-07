@@ -275,9 +275,11 @@ export default function RestaurantCheckout() {
           ),
         )
 
-        if (
-          order.locationType === 'table' ||
-          order.createdBy === profile?.id
+        if (order.locationType === 'table') {
+          orderIdsRef.current[key] = order.id
+        } else if (
+          order.createdBy === profile?.id &&
+          !orderIdsRef.current[key]
         ) {
           orderIdsRef.current[key] = order.id
         }
@@ -590,9 +592,11 @@ export default function RestaurantCheckout() {
           ),
         )
 
-        if (
-          order.locationType === 'table' ||
-          order.createdBy === profile?.id
+        if (order.locationType === 'table') {
+          orderIdsRef.current[key] = order.id
+        } else if (
+          order.createdBy === profile?.id &&
+          !orderIdsRef.current[key]
         ) {
           orderIdsRef.current[key] = order.id
         }
@@ -603,6 +607,10 @@ export default function RestaurantCheckout() {
       const target =
         nextTable === 'takeaway'
           ? orders.find(
+              (order) =>
+                order.id === orderIdsRef.current['takeaway'],
+            ) ||
+            orders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
                 order.createdBy === profile?.id,
