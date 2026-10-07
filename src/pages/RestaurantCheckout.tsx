@@ -116,6 +116,8 @@ export default function RestaurantCheckout() {
       })
       const printed = await directPrint({
         businessName: business?.name || 'Restaurant',
+        serviceType: 'restaurant',
+        location: selectedTable === 'takeaway' ? 'Takeaway' : `Table ${selectedTable}`,
         title: 'SALES RECEIPT',
         status: 'paid',
         receiptNumber: result.receiptNumber,
