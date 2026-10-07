@@ -6,6 +6,7 @@ import { listCategories } from '../services/categoryService'
 import { completeSale, type CompletedSale, type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
 import { isFractionalUnit, type Category, type Product } from '../types/products'
+import { directPrint } from '../services/printerService'
 
 type CartLine = { product: Product; quantity: number }
 
@@ -148,13 +149,31 @@ export default function Checkout() {
     })
   }
 
-  const printOrder = () => {
+  const printOrder = async () => {
     if (!cart.length) {
       setError('Add at least one product to print an order.')
       return
     }
+
     setError(null)
-    setPrintMode('order')
+
+    const printedDirectly = await directPrint({
+      businessName: businessName || 'Shop',
+      title: 'ORDER SLIP',
+      status: 'unpaid',
+      cashier: profile?.fullName?.trim() || 'Unknown cashier',
+      items: cart.map((line) => ({
+        name: line.product.name,
+        quantity: line.quantity,
+        unitPrice: line.product.sellingPrice,
+        lineTotal: line.product.sellingPrice * line.quantity,
+      })),
+      subtotal,
+      discount: discountValue,
+      total,
+    })
+
+    if (!printedDirectly) setPrintMode('order')
   }
 
   const submit = async () => {
@@ -170,7 +189,29 @@ export default function Checkout() {
       setCompleted(result)
       setCompletedItems(soldItems)
       setCompletedPaymentReference(paymentReference.trim())
-      setPrintMode('receipt')
+
+      const printedDirectly = await directPrint({
+        businessName: businessName || 'Shop',
+        title: 'SALES RECEIPT',
+        status: 'paid',
+        receiptNumber: result.receiptNumber,
+        cashier: profile?.fullName?.trim() || 'Unknown cashier',
+        items: soldItems.map((line) => ({
+          name: line.product.name,
+          quantity: line.quantity,
+          unitPrice: line.product.sellingPrice,
+          lineTotal: line.product.sellingPrice * line.quantity,
+        })),
+        subtotal: result.subtotal,
+        discount: result.discount,
+        total: result.total,
+        paymentMethod: result.paymentMethod,
+        paymentReference: paymentReference.trim(),
+        amountPaid: result.amountPaid,
+        change: result.change,
+      })
+
+      if (!printedDirectly) setPrintMode('receipt')
       setCart([])
       setQuantityInputs({})
       setCartOpen(false)
