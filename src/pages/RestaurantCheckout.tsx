@@ -220,10 +220,12 @@ export default function RestaurantCheckout() {
       ) === locationKey(selectedLocation(selectedTable)),
   )
 
-  const selectedLocationBlocked = Boolean(
-    selectedLocationStatus?.occupied &&
-      !selectedLocationStatus.canManage,
-  )
+  const selectedLocationBlocked =
+    selectedTable !== 'takeaway' &&
+    Boolean(
+      selectedLocationStatus?.occupied &&
+        !selectedLocationStatus.canManage,
+    )
 
   const hydrateOrder = useCallback(
     (
@@ -266,25 +268,37 @@ export default function RestaurantCheckout() {
       orderIdsRef.current = {}
 
       orders.forEach((order) => {
-        orderIdsRef.current[
-          locationKey(
-            toRestaurantLocation(
-              order.locationType,
-              order.tableNumber,
-            ),
-          )
-        ] = order.id
+        const key = locationKey(
+          toRestaurantLocation(
+            order.locationType,
+            order.tableNumber,
+          ),
+        )
+
+        if (
+          order.locationType === 'table' ||
+          order.createdBy === profile?.id
+        ) {
+          orderIdsRef.current[key] = order.id
+        }
       })
 
-      const target = orders.find(
-        (order) =>
-          locationKey(
-            toRestaurantLocation(
-              order.locationType,
-              order.tableNumber,
-            ),
-          ) === locationKey(selectedLocation(selected)),
-      )
+      const target =
+        selected === 'takeaway'
+          ? orders.find(
+              (order) =>
+                order.locationType === 'takeaway' &&
+                order.createdBy === profile?.id,
+            )
+          : orders.find(
+              (order) =>
+                locationKey(
+                  toRestaurantLocation(
+                    order.locationType,
+                    order.tableNumber,
+                  ),
+                ) === locationKey(selectedLocation(selected)),
+            )
 
       const hydrated = hydrateOrder(target, productRows)
 
@@ -292,7 +306,7 @@ export default function RestaurantCheckout() {
       setCart(hydrated.cart)
       setDiscount(hydrated.discount)
     },
-    [hydrateOrder],
+    [hydrateOrder, profile?.id],
   )
 
   const load = useCallback(async () => {
@@ -422,29 +436,31 @@ export default function RestaurantCheckout() {
               discount: nextDiscount,
             })
 
-            if (saved.orderId && saved.orderNumber) {
+                  if (saved.orderId && saved.orderNumber) {
               const savedOrderId = saved.orderId
               const savedOrderNumber = saved.orderNumber
 
               orderIdsRef.current[key] = savedOrderId
 
-              setLocationStatuses((current) =>
-                current.map((status) =>
-                  locationKey(
-                    statusLocation(
-                      status.locationType,
-                      status.tableNumber,
-                    ),
-                  ) === key
-                    ? {
-                        ...status,
-                        occupied: true,
-                        canManage: true,
-                        orderNumber: savedOrderNumber,
-                      }
-                    : status,
-                ),
-              )
+              if (location.type !== 'takeaway') {
+                setLocationStatuses((current) =>
+                  current.map((status) =>
+                    locationKey(
+                      statusLocation(
+                        status.locationType,
+                        status.tableNumber,
+                      ),
+                    ) === key
+                      ? {
+                          ...status,
+                          occupied: true,
+                          canManage: true,
+                          orderNumber: savedOrderNumber,
+                        }
+                      : status,
+                  ),
+                )
+              }
 
               if (
                 locationKey(
@@ -458,23 +474,25 @@ export default function RestaurantCheckout() {
             } else {
               delete orderIdsRef.current[key]
 
-              setLocationStatuses((current) =>
-                current.map((status) =>
-                  locationKey(
-                    statusLocation(
-                      status.locationType,
-                      status.tableNumber,
-                    ),
-                  ) === key
-                    ? {
-                        ...status,
-                        occupied: false,
-                        canManage: false,
-                        orderNumber: null,
-                      }
-                    : status,
-                ),
-              )
+              if (location.type !== 'takeaway') {
+                setLocationStatuses((current) =>
+                  current.map((status) =>
+                    locationKey(
+                      statusLocation(
+                        status.locationType,
+                        status.tableNumber,
+                      ),
+                    ) === key
+                      ? {
+                          ...status,
+                          occupied: false,
+                          canManage: false,
+                          orderNumber: null,
+                        }
+                      : status,
+                  ),
+                )
+              }
 
               if (
                 locationKey(
@@ -565,27 +583,39 @@ export default function RestaurantCheckout() {
       }
 
       orders.forEach((order) => {
-        orderIdsRef.current[
-          locationKey(
-            toRestaurantLocation(
-              order.locationType,
-              order.tableNumber,
-            ),
-          )
-        ] = order.id
+        const key = locationKey(
+          toRestaurantLocation(
+            order.locationType,
+            order.tableNumber,
+          ),
+        )
+
+        if (
+          order.locationType === 'table' ||
+          order.createdBy === profile?.id
+        ) {
+          orderIdsRef.current[key] = order.id
+        }
       })
 
       setLocationStatuses(statuses)
 
-      const target = orders.find(
-        (order) =>
-          locationKey(
-            toRestaurantLocation(
-              order.locationType,
-              order.tableNumber,
-            ),
-          ) === locationKey(selectedLocation(nextTable)),
-      )
+      const target =
+        nextTable === 'takeaway'
+          ? orders.find(
+              (order) =>
+                order.locationType === 'takeaway' &&
+                order.createdBy === profile?.id,
+            )
+          : orders.find(
+              (order) =>
+                locationKey(
+                  toRestaurantLocation(
+                    order.locationType,
+                    order.tableNumber,
+                  ),
+                ) === locationKey(selectedLocation(nextTable)),
+            )
 
       selectedTableRef.current = nextTable
       setSelectedTable(nextTable)
@@ -612,11 +642,9 @@ export default function RestaurantCheckout() {
 
     if (selectedLocationBlocked) {
       setError(
-        selectedTable === 'takeaway'
-          ? 'Takeaway is occupied by another cashier.'
-          : 'Table ' +
-              selectedTable +
-              ' is occupied by another cashier.',
+        'Table ' +
+          selectedTable +
+          ' is occupied by another cashier.',
       )
 
       return
@@ -836,6 +864,28 @@ export default function RestaurantCheckout() {
         locationKey(location)
       ]
 
+      if (location.type !== 'takeaway') {
+        if (location.type !== 'takeaway') {
+          setLocationStatuses((current) =>
+            current.map((status) =>
+              locationKey(
+                statusLocation(
+                  status.locationType,
+                  status.tableNumber,
+                ),
+              ) === locationKey(location)
+                ? {
+                    ...status,
+                    occupied: false,
+                    canManage: false,
+                    orderNumber: null,
+                  }
+                : status,
+            ),
+          )
+        }
+      }
+
       setMessage(
         (location.type === 'takeaway'
           ? 'Takeaway'
@@ -961,44 +1011,21 @@ export default function RestaurantCheckout() {
               Locations
             </p>
 
-            {(() => {
-              const status = locationStatuses.find(
-                (item) =>
-                  item.locationType === 'takeaway' &&
-                  item.tableNumber === null,
-              )
-
-              const label = status?.occupied
-                ? status.canManage
-                  ? 'My order'
-                  : 'Occupied'
-                : 'Available'
-
-              return (
-                <button
-                  type="button"
-                  onClick={() =>
-                    void selectLocation('takeaway')
-                  }
-                  className={
-                    'mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ' +
-                    (selectedTable === 'takeaway'
-                      ? 'bg-slate-800 text-white'
-                      : status?.occupied &&
-                          !status.canManage
-                        ? 'bg-slate-200 text-slate-500'
-                        : status?.occupied
-                          ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
-                          : 'hover:bg-slate-100')
-                  }
-                >
-                  Takeaway
-                  <span className="float-right text-[10px] font-normal">
-                    {label}
-                  </span>
-                </button>
-              )
-            })()}
+            <button
+              type="button"
+              onClick={() => void selectLocation('takeaway')}
+              className={
+                'mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ' +
+                (selectedTable === 'takeaway'
+                  ? 'bg-slate-800 text-white'
+                  : 'hover:bg-slate-100')
+              }
+            >
+              Takeaway
+              <span className="float-right text-[10px] font-normal">
+                Available
+              </span>
+            </button>
 
             <div className="grid grid-cols-2 gap-1">
               {tables.map((table) => {
