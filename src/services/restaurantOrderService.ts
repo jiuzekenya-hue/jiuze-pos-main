@@ -42,6 +42,11 @@ export type RestaurantRecentOrder = {
   clearedByName: string | null
   clearedAt: string | null
   clearReason: string | null
+  orderSlipPrintCount: number
+  lastOrderSlipPrintedBy: string | null
+  lastOrderSlipPrintedByName: string | null
+  lastOrderSlipPrintedAt: string | null
+  salesReceiptPrintCount: number
   updatedAt: string
   subtotal: number
   total: number
@@ -108,6 +113,11 @@ export async function listRecentRestaurantOrders(
     cleared_by_name: string | null
     cleared_at: string | null
     clear_reason: string | null
+    order_slip_print_count: number
+    last_order_slip_printed_by: string | null
+    last_order_slip_printed_by_name: string | null
+    last_order_slip_printed_at: string | null
+    sales_receipt_print_count: number
     updated_at: string
     subtotal: number
     total: number
@@ -127,6 +137,12 @@ export async function listRecentRestaurantOrders(
     clearedByName: row.cleared_by_name || null,
     clearedAt: row.cleared_at,
     clearReason: row.clear_reason,
+    orderSlipPrintCount: Number(row.order_slip_print_count ?? 0),
+    lastOrderSlipPrintedBy: row.last_order_slip_printed_by,
+    lastOrderSlipPrintedByName:
+      row.last_order_slip_printed_by_name || null,
+    lastOrderSlipPrintedAt: row.last_order_slip_printed_at,
+    salesReceiptPrintCount: Number(row.sales_receipt_print_count ?? 0),
     updatedAt: row.updated_at,
     subtotal: Number(row.subtotal ?? 0),
     total: Number(row.total ?? 0),
