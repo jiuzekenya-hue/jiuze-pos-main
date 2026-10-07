@@ -98,7 +98,7 @@ export default function RestaurantCheckout() {
     if (!cart.length) { setError('Add items to the order first.'); return }
     if (paid < total) { setError('Payment amount is less than the total due.'); return }
     if (paymentMethod !== 'cash' && (!paymentReference.trim() || paid !== total)) {
-      setError(paymentMethod === 'cash' ? 'Invalid payment.' : 'M-Pesa and card payments must equal the total and include a reference.')
+      setError('M-Pesa and card payments must equal the total and include a reference.')
       return
     }
     if (!profile?.businessId) return
