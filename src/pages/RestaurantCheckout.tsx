@@ -46,7 +46,7 @@ export default function RestaurantCheckout() {
 
   const selectedTableRef = useRef<number | 'takeaway'>(1)
   const orderIdsRef = useRef<Record<string, string>>({})
-  const saveQueuesRef = useRef<Record<string, Promise<void>>>({})
+  const saveQueuesRef = useRef<Record<string, Promise<unknown>>>({})
 
   const departments = useMemo(() => ['All', ...categories.map((category) => category.name)], [categories])
   const visibleProducts = useMemo(() => {
@@ -279,7 +279,9 @@ export default function RestaurantCheckout() {
         paymentReference,
         discount: discountValue,
       })
-      await closeRestaurantOrder(savedOrder?.orderId || orderIdsRef.current[locationKey(location)], result.saleId)
+      const savedOrderId = savedOrder?.orderId || orderIdsRef.current[locationKey(location)]
+      if (!savedOrderId) throw new Error('Sale completed but the restaurant order could not be closed.')
+      await closeRestaurantOrder(savedOrderId, result.saleId)
       const printed = await directPrint({
         businessName: business?.name || 'Restaurant',
         serviceType: 'restaurant',
