@@ -65,7 +65,15 @@ export async function listRestaurantLocationStatus(): Promise<RestaurantLocation
 
   if (error) throw error
 
-  return (data ?? []).map((row) => ({
+  const rows = (data ?? []) as Array<{
+    location_type: 'table' | 'takeaway'
+    table_number: number | null
+    occupied: boolean
+    can_manage: boolean
+    order_number: string | null
+  }>
+
+  return rows.map((row) => ({
     locationType: row.location_type,
     tableNumber: row.table_number,
     occupied: Boolean(row.occupied),
