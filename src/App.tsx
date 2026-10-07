@@ -11,6 +11,7 @@ import Categories from './pages/Categories'
 import Products from './pages/Products'
 import StockMovements from './pages/StockMovements'
 import Checkout from './pages/Checkout'
+import ModeAwareCheckout from './pages/ModeAwareCheckout'
 import SalesHistory from './pages/SalesHistory'
 import Users from './pages/Users'
 import Analytics from './pages/Analytics'
@@ -43,13 +44,13 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-        <Route path="/" element={<Checkout />} />
+        <Route path="/" element={<ModeAwareCheckout />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/products" element={<Products />} />
         <Route path="/stock-movements" element={<StockMovements />} />
-        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/checkout" element={<ModeAwareCheckout />} />
         <Route path="/sales" element={<SalesHistory />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
