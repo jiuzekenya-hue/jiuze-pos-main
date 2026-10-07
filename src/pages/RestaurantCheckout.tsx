@@ -88,6 +88,8 @@ export default function RestaurantCheckout() {
 
   const saveQueuesRef = useRef<Record<string, Promise<unknown>>>({})
 
+  const activeProfileKeyRef = useRef<string | null>(null)
+
   const departments = useMemo(() => ['All', ...categories.map((category) => category.name)], [categories])
 
   const visibleProducts = useMemo(() => {
@@ -202,7 +204,25 @@ export default function RestaurantCheckout() {
 
   }, [applyOpenOrders, profile?.businessId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const profileKey = profile?.id && profile.businessId ? profile.id + ':' + profile.businessId : null
+    if (!profileKey || activeProfileKeyRef.current === profileKey) return
+
+    activeProfileKeyRef.current = profileKey
+    selectedTableRef.current = 1
+    orderIdsRef.current = {}
+    saveQueuesRef.current = {}
+    setSelectedTable(1)
+    setCart([])
+    setDiscount('')
+    setOrderNumber(null)
+    setOpenOrders([])
+    setPaymentAmount('')
+    setPaymentReference('')
+    setMessage('')
+    setError('')
+    void load()
+  }, [load, profile?.id, profile?.businessId])
 
   const persistOrder = useCallback((location: RestaurantLocation, items: CartLine[], nextDiscount: number) => {
 
@@ -332,7 +352,15 @@ export default function RestaurantCheckout() {
 
     try {
 
-      await persistOrder(currentLocation, cart, discountValue)
+      const currentKey = locationKey(currentLocation)
+      const currentOrderId = orderIdsRef.current[currentKey]
+
+      // Only persist an existing order or a genuinely new cart. If the
+      // current order is stale from another account, do not send its ID
+      // back to Supabase and let the database correctly reject ownership.
+      if (currentOrderId || (cart.length > 0 && !orderNumber)) {
+        await persistOrder(currentLocation, cart, discountValue)
+      }
 
       const orders = await listOpenRestaurantOrders()
 
@@ -594,6 +622,8 @@ export default function RestaurantCheckout() {
 
     const existingId = orderIdsRef.current[locationKey(location)]
 
+    // If this is stale UI state without a current user's order ID,
+    // clear locally only. Never attempt to delete another user's order.
     setCart([])
 
     setDiscount('')
