@@ -12,7 +12,7 @@ import { listProducts } from '../services/productService'
 
 import { directPrint } from '../services/printerService'
 
-import { closeRestaurantOrder, listOpenRestaurantOrders, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation } from '../services/restaurantOrderService'
+import { closeRestaurantOrder, listOpenRestaurantOrders, listRestaurantLocationStatus, saveRestaurantOrder, type RestaurantOpenOrder, type RestaurantLocation, type RestaurantLocationStatus } from '../services/restaurantOrderService'
 
 import type { Category, Product } from '../types/products'
 
@@ -172,7 +172,7 @@ export default function RestaurantCheckout() {
 
     try {
 
-      const [businessData, productRows, categoryRows, orders] = await Promise.all([
+      const [businessData, productRows, categoryRows, orders, statuses] = await Promise.all([
 
         getBusiness(profile.businessId),
 
@@ -182,6 +182,8 @@ export default function RestaurantCheckout() {
 
         listOpenRestaurantOrders(),
 
+        listRestaurantLocationStatus(),
+
       ])
 
       setBusiness(businessData)
@@ -190,7 +192,33 @@ export default function RestaurantCheckout() {
 
       setCategories(categoryRows)
 
-      applyOpenOrders(orders, productRows, selectedTableRef.current)
+      setLocationStatuses(statuses)
+
+      const preferred = selectedTableRef.current
+
+      const preferredStatus = statuses.find((status) =>
+
+        locationKey({ type: status.locationType, tableNumber: status.tableNumber }) === locationKey(selectedLocation(preferred))
+
+      )
+
+      const firstUsable = statuses.find((status) => !status.occupied || status.canManage)
+
+      const nextSelected = preferredStatus && (!preferredStatus.occupied || preferredStatus.canManage)
+
+        ? preferred
+
+        : firstUsable
+
+          ? (firstUsable.locationType === 'takeaway' ? 'takeaway' : firstUsable.tableNumber as number)
+
+          : preferred
+
+      selectedTableRef.current = nextSelected
+
+      setSelectedTable(nextSelected)
+
+      applyOpenOrders(orders, productRows, nextSelected)
 
     } catch (err) {
 
@@ -362,13 +390,37 @@ export default function RestaurantCheckout() {
         await persistOrder(currentLocation, cart, discountValue)
       }
 
-      const orders = await listOpenRestaurantOrders()
+      const [orders, statuses] = await Promise.all([
+
+        listOpenRestaurantOrders(),
+
+        listRestaurantLocationStatus(),
+
+      ])
+
+      const targetStatus = statuses.find((status) =>
+
+        locationKey({ type: status.locationType, tableNumber: status.tableNumber }) === locationKey(selectedLocation(nextTable))
+
+      )
+
+      if (targetStatus?.occupied && !targetStatus.canManage) {
+
+        setLocationStatuses(statuses)
+
+        setError(nextTable === 'takeaway' ? 'Takeaway is occupied by another cashier.' : 'Table ' + nextTable + ' is occupied by another cashier.')
+
+        return
+
+      }
 
       orders.forEach((order) => {
 
         orderIdsRef.current[locationKey(toRestaurantLocation(order.locationType, order.tableNumber))] = order.id
 
       })
+
+      setLocationStatuses(statuses)
 
       const target = orders.find((order) => locationKey(toRestaurantLocation(order.locationType, order.tableNumber)) === locationKey(selectedLocation(nextTable)))
 
@@ -403,6 +455,14 @@ export default function RestaurantCheckout() {
     setMessage('')
 
     setError('')
+
+    if (selectedLocationBlocked) {
+
+      setError(selectedTable === 'takeaway' ? 'Takeaway is occupied by another cashier.' : 'Table ' + selectedTable + ' is occupied by another cashier.')
+
+      return
+
+    }
 
     const existing = cart.find((line) => line.product.id === product.id)
 
@@ -677,15 +737,27 @@ export default function RestaurantCheckout() {
 
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Locations</p>
 
-            <button type="button" onClick={() => void selectLocation('takeaway')} className={'mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ' + (selectedTable === 'takeaway' ? 'bg-slate-800 text-white' : 'hover:bg-slate-100')}>Takeaway</button>
+            {(() => {
+
+              const status = locationStatuses.find((item) => item.locationType === 'takeaway' && item.tableNumber === null)
+
+              const label = status?.occupied ? (status.canManage ? 'My order' : 'Occupied') : 'Available'
+
+              return <button type="button" onClick={() => void selectLocation('takeaway')} className={'mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ' + (selectedTable === 'takeaway' ? 'bg-slate-800 text-white' : status?.occupied && !status.canManage ? 'bg-slate-200 text-slate-500' : status?.occupied ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'hover:bg-slate-100')}>Takeaway <span className="float-right text-[10px] font-normal">{label}</span></button>
+
+            })()}
 
             <div className="grid grid-cols-2 gap-1">
 
               {tables.map((table) => {
 
-                const isOpen = openOrders.some((order) => order.locationType === 'table' && order.tableNumber === table && order.status === 'open')
+                const status = locationStatuses.find((item) => item.locationType === 'table' && item.tableNumber === table)
 
-                return <button key={table} type="button" onClick={() => void selectLocation(table)} className={'rounded-lg px-2 py-3 text-sm font-semibold ' + (selectedTable === table ? 'bg-market-600 text-white' : isOpen ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')}>Table {table}{isOpen && selectedTable !== table ? ' · Open' : ''}</button>
+                const isOpen = Boolean(status?.occupied)
+
+                const label = status?.occupied ? (status.canManage ? 'My order' : 'Occupied') : 'Available'
+
+                return <button key={table} type="button" onClick={() => void selectLocation(table)} className={'rounded-lg px-2 py-3 text-sm font-semibold ' + (selectedTable === table ? 'bg-market-600 text-white' : status?.occupied && !status.canManage ? 'bg-slate-200 text-slate-500' : isOpen ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')}><span className="block">Table {table}</span><span className="block text-[9px] font-normal opacity-80">{label}</span></button>
 
               })}
 
@@ -781,11 +853,11 @@ export default function RestaurantCheckout() {
 
               {paymentMethod === 'cash' && <div className="flex justify-between rounded bg-slate-100 px-3 py-2 text-sm"><span className="text-slate-500">Change</span><b>{money(change)}</b></div>}
 
-              <button type="button" onClick={() => void printOrder()} disabled={saving || savingOrder || !cart.length} className="w-full rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40">{savingOrder ? 'Saving order…' : 'Print order'}</button>
+              <button type="button" onClick={() => void printOrder()} disabled={saving || savingOrder || selectedLocationBlocked || !cart.length} className="w-full rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40">{savingOrder ? 'Saving order…' : 'Print order'}</button>
 
-              <button type="button" onClick={() => void takePayment()} disabled={saving || savingOrder || !cart.length} className="w-full rounded-lg bg-market-600 py-3.5 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Processing…' : 'PAY ' + money(total)}</button>
+              <button type="button" onClick={() => void takePayment()} disabled={saving || savingOrder || selectedLocationBlocked || !cart.length} className="w-full rounded-lg bg-market-600 py-3.5 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Processing…' : 'PAY ' + money(total)}</button>
 
-              <button type="button" onClick={clearOrder} disabled={!cart.length || savingOrder || saving} className="w-full rounded-lg border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40">Clear order</button>
+              <button type="button" onClick={clearOrder} disabled={!cart.length || savingOrder || saving || selectedLocationBlocked} className="w-full rounded-lg border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40">Clear order</button>
 
             </div>
 
