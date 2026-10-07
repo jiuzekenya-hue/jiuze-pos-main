@@ -1,0 +1,42 @@
+name: Build JIUZE Print Bridge
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "print-bridge/**"
+      - "installer/**"
+      - ".github/workflows/build-print-bridge.yml"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build standalone bridge
+        shell: pwsh
+        run: |
+          npx --yes @yao-pkg/pkg@6.6.0 print-bridge/server.js --targets node20-win-x64 --output dist/JIUZE-Print-Bridge.exe
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/JIUZE-Print-Bridge.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: JIUZE-Print-Bridge-Windows
+          path: installer/output/JIUZE-Print-Bridge-Setup.exe
