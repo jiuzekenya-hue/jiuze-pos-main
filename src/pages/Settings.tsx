@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { can } from '../lib/permissions'
 import { supabase } from '../lib/supabase'
-import { getBusiness, type Business } from '../services/businessService'
+import { getBusiness, updateBusinessMode, type Business, type BusinessMode } from '../services/businessService'
 
 export default function Settings() {
   const { role, profile, user } = useAuth()
@@ -13,6 +13,8 @@ export default function Settings() {
   const [savingSecurity, setSavingSecurity] = useState(false)
   const [lowStockThreshold, setLowStockThreshold] = useState('5')
   const [businessForm, setBusinessForm] = useState({ name: '', phone: '', location: '' })
+  const [businessMode, setBusinessMode] = useState<BusinessMode>('retail')
+  const [savingMode, setSavingMode] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ current: '', password: '', confirm: '' })
   const [showPasswords, setShowPasswords] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,6 +39,7 @@ export default function Settings() {
         ])
         if (settingsResult.error) throw new Error(settingsResult.error.message)
         setBusiness(businessData)
+        setBusinessMode(businessData.businessMode)
         setBusinessForm({ name: businessData.name, phone: businessData.phone ?? '', location: businessData.location ?? '' })
         setLowStockThreshold(String(settingsResult.data?.low_stock_threshold ?? 5))
         setAllowNegativeStock(Boolean(settingsResult.data?.allow_negative_stock ?? false))
@@ -187,6 +190,48 @@ export default function Settings() {
           <div className="rounded-2xl border border-line bg-paper-raised p-14 text-center text-sm text-ink-muted">Loading settings…</div>
         ) : (
           <div className="space-y-5">
+            <section className="overflow-hidden rounded-2xl border border-line bg-paper-raised">
+              <div className="border-b border-line p-5 sm:p-6">
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-market-600">POS experience</p>
+                <h2 className="mt-2 font-display text-xl font-semibold text-ink">Business mode</h2>
+                <p className="mt-1 max-w-2xl text-sm text-ink-muted">Choose the workflow JIUZE POS should prioritize for this business. You can change this later without creating a new account.</p>
+              </div>
+              <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
+                <button type="button" onClick={() => setBusinessMode('bar_restaurant')} className={`rounded-2xl border p-5 text-left transition ${businessMode === 'bar_restaurant' ? 'border-market-500 bg-market-50 ring-1 ring-market-500/20' : 'border-line bg-paper hover:border-ink-muted'}`}>
+                  <span className="text-2xl">🍽</span>
+                  <span className="mt-3 block font-display text-lg font-semibold text-ink">Bar & Restaurant</span>
+                  <span className="mt-1 block text-sm leading-5 text-ink-muted">Tables, open orders, bar and kitchen workflows, tabs and restaurant-focused checkout.</span>
+                  <span className={`mt-4 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${businessMode === 'bar_restaurant' ? 'bg-market-100 text-market-700' : 'bg-paper-raised text-ink-muted'}`}>{businessMode === 'bar_restaurant' ? 'Selected' : 'Select mode'}</span>
+                </button>
+                <button type="button" onClick={() => setBusinessMode('retail')} className={`rounded-2xl border p-5 text-left transition ${businessMode === 'retail' ? 'border-market-500 bg-market-50 ring-1 ring-market-500/20' : 'border-line bg-paper hover:border-ink-muted'}`}>
+                  <span className="text-2xl">🛒</span>
+                  <span className="mt-3 block font-display text-lg font-semibold text-ink">Groceries / Retail</span>
+                  <span className="mt-1 block text-sm leading-5 text-ink-muted">Fast checkout, products, stock, barcode-friendly selling and retail inventory control.</span>
+                  <span className={`mt-4 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${businessMode === 'retail' ? 'bg-market-100 text-market-700' : 'bg-paper-raised text-ink-muted'}`}>{businessMode === 'retail' ? 'Selected' : 'Select mode'}</span>
+                </button>
+              </div>
+              <div className="flex flex-col gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-xs text-ink-muted">The selected mode will control the restaurant/retail interface as those workflows are introduced.</p>
+                <button type="button" disabled={savingMode} onClick={async () => {
+                  if (!profile?.businessId) return
+                  setSavingMode(true)
+                  setError('')
+                  setMessage('')
+                  try {
+                    await updateBusinessMode(profile.businessId, businessMode)
+                    setBusiness((current) => current ? { ...current, businessMode } : current)
+                    setMessage('Business mode saved successfully.')
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Unable to save business mode.')
+                  } finally {
+                    setSavingMode(false)
+                  }
+                }} className="min-h-11 shrink-0 rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-paper transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+                  {savingMode ? 'Saving…' : 'Save business mode'}
+                </button>
+              </div>
+            </section>
+
             <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
               <form onSubmit={saveBusiness} className="overflow-hidden rounded-2xl border border-line bg-paper-raised">
                 <div className="border-b border-line p-5 sm:p-6">
