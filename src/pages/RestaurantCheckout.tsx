@@ -16,11 +16,7 @@ import { closeRestaurantOrder, listOpenRestaurantOrders, saveRestaurantOrder, ty
 
 import type { Category, Product } from '../types/products'
 
-
-
 type CartLine = { product: Product; quantity: number }
-
-
 
 const money = (value: number) => 'KES ' + value.toFixed(2)
 
@@ -31,9 +27,8 @@ const locationKey = (location: RestaurantLocation) => location.type === 'takeawa
 const selectedLocation = (value: number | 'takeaway'): RestaurantLocation => value === 'takeaway' ? { type: 'takeaway', tableNumber: null } : { type: 'table', tableNumber: value }
 
 const toRestaurantLocation = (locationType: RestaurantOpenOrder['locationType'], tableNumber: RestaurantOpenOrder['tableNumber']): RestaurantLocation =>
+
   locationType === 'takeaway' ? { type: 'takeaway', tableNumber: null } : { type: 'table', tableNumber: tableNumber as number }
-
-
 
 function Icon({ name }: { name: 'search' | 'plus' | 'minus' | 'close' }) {
 
@@ -46,8 +41,6 @@ function Icon({ name }: { name: 'search' | 'plus' | 'minus' | 'close' }) {
   return <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
 
 }
-
-
 
 export default function RestaurantCheckout() {
 
@@ -89,15 +82,11 @@ export default function RestaurantCheckout() {
 
   const [orderNumber, setOrderNumber] = useState<string | null>(null)
 
-
-
   const selectedTableRef = useRef<number | 'takeaway'>(1)
 
   const orderIdsRef = useRef<Record<string, string>>({})
 
   const saveQueuesRef = useRef<Record<string, Promise<unknown>>>({})
-
-
 
   const departments = useMemo(() => ['All', ...categories.map((category) => category.name)], [categories])
 
@@ -113,8 +102,6 @@ export default function RestaurantCheckout() {
 
   }, [products, categories, department, search])
 
-
-
   const subtotal = useMemo(() => cart.reduce((sum, line) => sum + line.product.sellingPrice * line.quantity, 0), [cart])
 
   const discountValue = Math.max(0, Number(discount) || 0)
@@ -124,8 +111,6 @@ export default function RestaurantCheckout() {
   const paid = Number(paymentAmount) || 0
 
   const change = Math.max(0, paid - total)
-
-
 
   const hydrateOrder = useCallback((order: RestaurantOpenOrder | undefined, productRows: Product[]) => {
 
@@ -151,8 +136,6 @@ export default function RestaurantCheckout() {
 
   }, [])
 
-
-
   const applyOpenOrders = useCallback((orders: RestaurantOpenOrder[], productRows: Product[], selected: number | 'takeaway') => {
 
     setOpenOrders(orders)
@@ -176,8 +159,6 @@ export default function RestaurantCheckout() {
     setDiscount(hydrated.discount)
 
   }, [hydrateOrder])
-
-
 
   const load = useCallback(async () => {
 
@@ -221,19 +202,13 @@ export default function RestaurantCheckout() {
 
   }, [applyOpenOrders, profile?.businessId])
 
-
-
   useEffect(() => { void load() }, [load])
-
-
 
   const persistOrder = useCallback((location: RestaurantLocation, items: CartLine[], nextDiscount: number) => {
 
     const key = locationKey(location)
 
     if (!items.length && !orderIdsRef.current[key]) return Promise.resolve(null)
-
-
 
     const previous = saveQueuesRef.current[key] || Promise.resolve()
 
@@ -254,8 +229,6 @@ export default function RestaurantCheckout() {
           discount: nextDiscount,
 
         })
-
-
 
         if (saved.orderId && saved.orderNumber) {
 
@@ -347,8 +320,6 @@ export default function RestaurantCheckout() {
 
   }, [profile?.id])
 
-
-
   const selectLocation = async (nextTable: number | 'takeaway') => {
 
     if (nextTable === selectedTableRef.current) return
@@ -399,8 +370,6 @@ export default function RestaurantCheckout() {
 
   }
 
-
-
   const addProduct = (product: Product) => {
 
     setMessage('')
@@ -421,11 +390,9 @@ export default function RestaurantCheckout() {
 
     setCart(nextCart)
 
-    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch((err) => setError(err instanceof Error ? err.message : 'Unable to save order.'))
+    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch(() => undefined)
 
   }
-
-
 
   const changeQuantity = (productId: string, delta: number) => {
 
@@ -441,11 +408,9 @@ export default function RestaurantCheckout() {
 
     setCart(nextCart)
 
-    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch((err) => setError(err instanceof Error ? err.message : 'Unable to save order.'))
+    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch(() => undefined)
 
   }
-
-
 
   const removeItem = (productId: string) => {
 
@@ -453,11 +418,9 @@ export default function RestaurantCheckout() {
 
     setCart(nextCart)
 
-    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch((err) => setError(err instanceof Error ? err.message : 'Unable to save order.'))
+    void persistOrder(selectedLocation(selectedTableRef.current), nextCart, discountValue).catch(() => undefined)
 
   }
-
-
 
   const printOrder = async () => {
 
@@ -475,7 +438,7 @@ export default function RestaurantCheckout() {
 
       await persistOrder(selectedLocation(selectedTableRef.current), cart, discountValue)
 
-      setMessage('Printing order…')
+      setMessage('Order saved. Printing order…')
 
       const printed = await directPrint({
 
@@ -505,13 +468,11 @@ export default function RestaurantCheckout() {
 
     } catch (err) {
 
-      setError(err instanceof Error ? err.message : 'Unable to save or print order.')
+      setError(err instanceof Error ? 'Unable to save order: ' + err.message : 'Unable to save order.')
 
     }
 
   }
-
-
 
   const takePayment = async () => {
 
@@ -627,8 +588,6 @@ export default function RestaurantCheckout() {
 
   }
 
-
-
   const clearOrder = () => {
 
     const location = selectedLocation(selectedTableRef.current)
@@ -657,8 +616,6 @@ export default function RestaurantCheckout() {
 
   }
 
-
-
   return (
 
     <main className="min-h-screen bg-[#eef0f5] text-ink px-3 py-3 sm:px-5 lg:px-7">
@@ -679,13 +636,9 @@ export default function RestaurantCheckout() {
 
         </header>
 
-
-
         {error && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         {message && <div role="status" className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
-
-
 
         <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)_390px]">
 
@@ -708,8 +661,6 @@ export default function RestaurantCheckout() {
             </div>
 
           </aside>
-
-
 
           <section className="min-w-0 rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden">
 
@@ -752,8 +703,6 @@ export default function RestaurantCheckout() {
             </div>
 
           </section>
-
-
 
           <aside className="rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden">
 
