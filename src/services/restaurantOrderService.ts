@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
 
-export type RestaurantLocation = { type: 'table'; tableNumber: number } | { type: 'takeaway'; tableNumber: null }
+export type RestaurantLocation =
+  | { type: 'table'; tableNumber: number }
+  | { type: 'takeaway'; tableNumber: null }
 
 export type RestaurantOrderItem = {
   id: string
@@ -27,7 +29,9 @@ export type RestaurantOpenOrder = {
 export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]> {
   const { data, error } = await supabase
     .from('restaurant_orders')
-    .select('id, order_number, location_type, table_number, status, discount, created_by, updated_at, profiles(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)')
+    .select(
+      'id, order_number, location_type, table_number, status, discount, created_by, updated_at, profiles(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)',
+    )
     .eq('status', 'open')
     .order('updated_at', { ascending: false })
 
@@ -44,7 +48,7 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
     createdByName:
       (Array.isArray(row.profiles)
         ? row.profiles[0]?.full_name
-        : row.profiles?.full_name) || 'Unknown cashier',
+        : undefined) || 'Unknown cashier',
     updatedAt: row.updated_at,
     items: (row.restaurant_order_items ?? []).map((item) => ({
       id: item.id,
@@ -65,8 +69,12 @@ export type RestaurantLocationStatus = {
   orderNumber: string | null
 }
 
-export async function listRestaurantLocationStatus(): Promise<RestaurantLocationStatus[]> {
-  const { data, error } = await supabase.rpc('list_restaurant_location_status')
+export async function listRestaurantLocationStatus(): Promise<
+  RestaurantLocationStatus[]
+> {
+  const { data, error } = await supabase.rpc(
+    'list_restaurant_location_status',
+  )
 
   if (error) throw error
 
@@ -90,9 +98,15 @@ export async function listRestaurantLocationStatus(): Promise<RestaurantLocation
 export async function saveRestaurantOrder(input: {
   orderId: string | null
   location: RestaurantLocation
-  items: Array<{ productId: string; quantity: number }>
+  items: Array<{
+    productId: string
+    quantity: number
+  }>
   discount: number
-}): Promise<{ orderId: string | null; orderNumber: string | null }> {
+}): Promise<{
+  orderId: string | null
+  orderNumber: string | null
+}> {
   // The database RPC reads p_items with snake_case keys (product_id).
   // The React cart uses camelCase (productId), so normalize before sending.
   const rpcItems = input.items.map((item) => ({
@@ -109,7 +123,12 @@ export async function saveRestaurantOrder(input: {
   })
 
   if (error) throw error
-  if (!data?.length) return { orderId: null, orderNumber: null }
+  if (!data?.length) {
+    return {
+      orderId: null,
+      orderNumber: null,
+    }
+  }
 
   return {
     orderId: data[0].order_id,
@@ -123,15 +142,24 @@ export async function completeRestaurantOrder(input: {
   paymentAmount: number
   paymentReference?: string
 }): Promise<import('./saleService').CompletedSale> {
-  const { data, error } = await supabase.rpc('complete_restaurant_order', {
-    p_order_id: input.orderId,
-    p_payment_method: input.paymentMethod,
-    p_payment_amount: input.paymentAmount,
-    p_payment_reference: input.paymentReference?.trim() || null,
-  })
+  const { data, error } = await supabase.rpc(
+    'complete_restaurant_order',
+    {
+      p_order_id: input.orderId,
+      p_payment_method: input.paymentMethod,
+      p_payment_amount: input.paymentAmount,
+      p_payment_reference:
+        input.paymentReference?.trim() || null,
+    },
+  )
 
   if (error) throw error
-  if (!data) throw new Error('Restaurant sale completed but no result was returned.')
+
+  if (!data) {
+    throw new Error(
+      'Restaurant sale completed but no result was returned.',
+    )
+  }
 
   return {
     saleId: data.sale_id,
@@ -147,10 +175,17 @@ export async function completeRestaurantOrder(input: {
   }
 }
 
-export async function closeRestaurantOrder(orderId: string, saleId: string): Promise<void> {
-  const { error } = await supabase.rpc('close_restaurant_order', {
-    p_order_id: orderId,
-    p_sale_id: saleId,
-  })
+export async function closeRestaurantOrder(
+  orderId: string,
+  saleId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc(
+    'close_restaurant_order',
+    {
+      p_order_id: orderId,
+      p_sale_id: saleId,
+    },
+  )
+
   if (error) throw error
 }
