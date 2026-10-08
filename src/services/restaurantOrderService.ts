@@ -58,11 +58,18 @@ export async function saveRestaurantOrder(input: {
   items: Array<{ productId: string; quantity: number }>
   discount: number
 }): Promise<{ orderId: string | null; orderNumber: string | null }> {
+  // The database RPC reads p_items with snake_case keys (product_id).
+  // The React cart uses camelCase (productId), so normalize before sending.
+  const rpcItems = input.items.map((item) => ({
+    product_id: item.productId,
+    quantity: item.quantity,
+  }))
+
   const { data, error } = await supabase.rpc('save_restaurant_order', {
     p_order_id: input.orderId,
     p_location_type: input.location.type,
     p_table_number: input.location.tableNumber,
-    p_items: input.items,
+    p_items: rpcItems,
     p_discount: input.discount,
   })
 
