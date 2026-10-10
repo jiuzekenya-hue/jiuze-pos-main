@@ -72,9 +72,7 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
     discount: Number(row.discount ?? 0),
     createdBy: row.created_by,
     createdByName:
-      (Array.isArray(row.created_by_profile)
-        ? row.created_by_profile[0]?.full_name
-        : row.created_by_profile?.full_name) || 'Unknown cashier',
+      row.created_by_profile?.[0]?.full_name || 'Unknown cashier',
     updatedAt: row.updated_at,
     items: (row.restaurant_order_items ?? []).map((item) => ({
       id: item.id,
