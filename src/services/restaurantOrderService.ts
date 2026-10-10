@@ -56,7 +56,7 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
   const { data, error } = await supabase
     .from('restaurant_orders')
     .select(
-      'id, order_number, location_type, table_number, status, discount, created_by, updated_at, profiles(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)',
+      'id, order_number, location_type, table_number, status, discount, created_by, updated_at, created_by_profile:profiles!restaurant_orders_created_by_fkey(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)',
     )
     .eq('status', 'open')
     .order('updated_at', { ascending: false })
@@ -72,9 +72,9 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
     discount: Number(row.discount ?? 0),
     createdBy: row.created_by,
     createdByName:
-      (Array.isArray(row.profiles)
-        ? row.profiles[0]?.full_name
-        : undefined) || 'Unknown cashier',
+      (Array.isArray(row.created_by_profile)
+        ? row.created_by_profile[0]?.full_name
+        : row.created_by_profile?.full_name) || 'Unknown cashier',
     updatedAt: row.updated_at,
     items: (row.restaurant_order_items ?? []).map((item) => ({
       id: item.id,
