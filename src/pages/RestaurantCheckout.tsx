@@ -4,7 +4,7 @@ import { getBusiness, type Business } from '../services/businessService'
 import { listCategories } from '../services/categoryService'
 import { type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
-import { directPrint } from '../services/printerService'
+import { browserPrint } from '../services/printerService'
 import {
   clearRestaurantOrder,
   completeRestaurantOrder,
@@ -835,7 +835,7 @@ export default function RestaurantCheckout() {
 
       setMessage('Order saved. Printing order…')
 
-      const printed = await directPrint({
+      const printed = await browserPrint({
         businessName: business?.name || 'Restaurant',
         serviceType: 'restaurant',
         location:
@@ -941,7 +941,7 @@ export default function RestaurantCheckout() {
         paymentReference,
       })
 
-      const printed = await directPrint({
+      const printed = await browserPrint({
         businessName: business?.name || 'Restaurant',
         serviceType: 'restaurant',
         location:
