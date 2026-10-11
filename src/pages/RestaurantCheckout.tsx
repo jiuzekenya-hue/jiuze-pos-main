@@ -12,6 +12,7 @@ import {
   listRecentRestaurantOrders,
   listRestaurantLocationStatus,
   recordRestaurantOrderPrint,
+  finishRestaurantOrderPrint,
   saveRestaurantOrder,
   type RestaurantOpenOrder,
   type RestaurantRecentOrder,
@@ -833,37 +834,52 @@ export default function RestaurantCheckout() {
         throw new Error('Order could not be identified for print audit.')
       }
 
-      setMessage('Order saved. Printing order…')
+      setMessage('Recording order print…')
 
-      const printed = await directPrint({
-        businessName: business?.name || 'Restaurant',
-        serviceType: 'restaurant',
-        location:
-          selectedTable === 'takeaway'
-            ? 'Takeaway'
-            : 'Table ' + selectedTable,
-        title: 'ORDER SLIP',
-        status: 'unpaid',
-        cashier:
-          profile?.fullName?.trim() || 'Unknown cashier',
-        items: cart.map((line) => ({
-          name: line.product.name,
-          quantity: line.quantity,
-          unitPrice: line.product.sellingPrice,
-          lineTotal:
-            line.product.sellingPrice * line.quantity,
-        })),
-        subtotal,
-        discount: discountValue,
-        total,
-      })
+      // Create the immutable snapshot before invoking the printer.
+      const printAuditId = await recordRestaurantOrderPrint(
+        printOrderId,
+        'order_slip',
+      )
 
-      if (printed) {
-        await recordRestaurantOrderPrint(
-          printOrderId,
-          'order_slip',
+      let printed = false
+      try {
+        printed = await directPrint({
+          businessName: business?.name || 'Restaurant',
+          serviceType: 'restaurant',
+          location:
+            selectedTable === 'takeaway'
+              ? 'Takeaway'
+              : 'Table ' + selectedTable,
+          title: 'ORDER SLIP',
+          status: 'unpaid',
+          cashier:
+            profile?.fullName?.trim() || 'Unknown cashier',
+          items: cart.map((line) => ({
+            name: line.product.name,
+            quantity: line.quantity,
+            unitPrice: line.product.sellingPrice,
+            lineTotal:
+              line.product.sellingPrice * line.quantity,
+          })),
+          subtotal,
+          discount: discountValue,
+          total,
+        })
+      } catch (printError) {
+        await finishRestaurantOrderPrint(
+          printAuditId,
+          'failed',
+          printError instanceof Error ? printError.message : 'Print bridge failed',
         )
+        throw printError
       }
+
+      await finishRestaurantOrderPrint(
+        printAuditId,
+        printed ? 'printed' : 'failed',
+        printed ? undefined : 'Print Bridge unavailable',
+      )
 
       setMessage(
         printed
@@ -941,40 +957,54 @@ export default function RestaurantCheckout() {
         paymentReference,
       })
 
-      const printed = await directPrint({
-        businessName: business?.name || 'Restaurant',
-        serviceType: 'restaurant',
-        location:
-          location.type === 'takeaway'
-            ? 'Takeaway'
-            : 'Table ' + location.tableNumber,
-        title: 'SALES RECEIPT',
-        status: 'paid',
-        receiptNumber: result.receiptNumber,
-        cashier:
-          profile.fullName?.trim() || 'Unknown cashier',
-        items: soldItems.map((line) => ({
-          name: line.product.name,
-          quantity: line.quantity,
-          unitPrice: line.product.sellingPrice,
-          lineTotal:
-            line.product.sellingPrice * line.quantity,
-        })),
-        subtotal: result.subtotal,
-        discount: result.discount,
-        total: result.total,
-        paymentMethod: result.paymentMethod,
-        paymentReference: paymentReference.trim(),
-        amountPaid: result.amountPaid,
-        change: result.change,
-      })
+      const receiptAuditId = await recordRestaurantOrderPrint(
+        savedOrderId,
+        'sales_receipt',
+      )
 
-      if (printed) {
-        await recordRestaurantOrderPrint(
-          savedOrderId,
-          'sales_receipt',
+      let printed = false
+      try {
+        printed = await directPrint({
+          businessName: business?.name || 'Restaurant',
+          serviceType: 'restaurant',
+          location:
+            location.type === 'takeaway'
+              ? 'Takeaway'
+              : 'Table ' + location.tableNumber,
+          title: 'SALES RECEIPT',
+          status: 'paid',
+          receiptNumber: result.receiptNumber,
+          cashier:
+            profile.fullName?.trim() || 'Unknown cashier',
+          items: soldItems.map((line) => ({
+            name: line.product.name,
+            quantity: line.quantity,
+            unitPrice: line.product.sellingPrice,
+            lineTotal:
+              line.product.sellingPrice * line.quantity,
+          })),
+          subtotal: result.subtotal,
+          discount: result.discount,
+          total: result.total,
+          paymentMethod: result.paymentMethod,
+          paymentReference: paymentReference.trim(),
+          amountPaid: result.amountPaid,
+          change: result.change,
+        })
+      } catch (printError) {
+        await finishRestaurantOrderPrint(
+          receiptAuditId,
+          'failed',
+          printError instanceof Error ? printError.message : 'Print Bridge failed',
         )
+        throw printError
       }
+
+      await finishRestaurantOrderPrint(
+        receiptAuditId,
+        printed ? 'printed' : 'failed',
+        printed ? undefined : 'Print Bridge unavailable',
+      )
 
       delete orderIdsRef.current[
         locationKey(location)

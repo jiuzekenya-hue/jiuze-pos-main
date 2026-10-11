@@ -225,14 +225,30 @@ export async function saveRestaurantOrder(input: {
 export async function recordRestaurantOrderPrint(
   orderId: string,
   printType: 'order_slip' | 'sales_receipt',
-): Promise<void> {
-  const { error } = await supabase.rpc(
+): Promise<string> {
+  const { data, error } = await supabase.rpc(
     'record_restaurant_order_print',
     {
       p_order_id: orderId,
       p_print_type: printType,
     },
   )
+
+  if (error) throw error
+  if (!data) throw new Error('Print audit record was not created.')
+  return data as string
+}
+
+export async function finishRestaurantOrderPrint(
+  printId: string,
+  status: 'printed' | 'failed',
+  errorMessage?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('finish_restaurant_order_print', {
+    p_print_id: printId,
+    p_print_status: status,
+    p_error: errorMessage?.slice(0, 500) ?? null,
+  })
 
   if (error) throw error
 }
