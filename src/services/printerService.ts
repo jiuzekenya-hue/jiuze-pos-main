@@ -23,21 +23,140 @@ export type DirectPrintPayload = {
   change?: number
 }
 
-const BRIDGE_URL = import.meta.env.VITE_PRINT_BRIDGE_URL || 'http://127.0.0.1:38100'
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
-export async function directPrint(payload: DirectPrintPayload): Promise<boolean> {
+const money = (value: number): string =>
+  'KES ' + Number(value || 0).toFixed(2)
+
+/**
+ * Opens the browser's standard print dialog using a temporary print-only
+ * iframe. This does not require the local Print Bridge or a printer service.
+ */
+export async function browserPrint(
+  payload: DirectPrintPayload,
+): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return false
+  }
+
+  const rows = payload.items
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(item.name)}</td>
+          <td class="number">${escapeHtml(item.quantity)}</td>
+          <td class="number">${escapeHtml(money(item.unitPrice))}</td>
+          <td class="number">${escapeHtml(money(item.lineTotal))}</td>
+        </tr>`,
+    )
+    .join('')
+
+  const paymentDetails =
+    payload.status === 'paid'
+      ? `
+        <div class="row"><span>Payment method</span><strong>${escapeHtml(payload.paymentMethod || '—')}</strong></div>
+        ${payload.paymentReference ? `<div class="row"><span>Reference</span><strong>${escapeHtml(payload.paymentReference)}</strong></div>` : ''}
+        <div class="row"><span>Amount paid</span><strong>${escapeHtml(money(payload.amountPaid ?? payload.total))}</strong></div>
+        ${payload.change !== undefined ? `<div class="row"><span>Change</span><strong>${escapeHtml(money(payload.change))}</strong></div>` : ''}
+      `
+      : ''
+
+  const html = `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(payload.title)}</title>
+        <style>
+          @page { size: auto; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body { font: 12px/1.4 Arial, Helvetica, sans-serif; color: #111; margin: 0; }
+          .receipt { max-width: 78mm; margin: 0 auto; }
+          h1 { font-size: 18px; text-align: center; margin: 0 0 4px; }
+          .center { text-align: center; }
+          .muted { color: #444; }
+          .rule { border-top: 1px dashed #555; margin: 10px 0; }
+          .row { display: flex; justify-content: space-between; gap: 10px; margin: 4px 0; }
+          .row strong { text-align: right; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th, td { padding: 5px 2px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; }
+          th { border-bottom: 1px solid #111; }
+          .number { text-align: right; white-space: nowrap; }
+          .total { font-size: 15px; font-weight: bold; }
+          .status { text-align: center; font-weight: bold; margin-top: 10px; }
+          .footer { text-align: center; margin-top: 14px; font-size: 10px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <main class="receipt">
+          <h1>${escapeHtml(payload.businessName || 'Restaurant')}</h1>
+          <div class="center">${escapeHtml(payload.title)}</div>
+          <div class="center muted">${escapeHtml(payload.location || '')}</div>
+          ${payload.receiptNumber ? `<div class="center">Receipt: ${escapeHtml(payload.receiptNumber)}</div>` : ''}
+          <div class="row"><span>Cashier</span><strong>${escapeHtml(payload.cashier || 'Cashier')}</strong></div>
+          <div class="row"><span>Date</span><strong>${escapeHtml(new Date().toLocaleString())}</strong></div>
+          <div class="rule"></div>
+          <table>
+            <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Price</th><th class="number">Total</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="rule"></div>
+          <div class="row"><span>Subtotal</span><strong>${escapeHtml(money(payload.subtotal))}</strong></div>
+          <div class="row"><span>Discount</span><strong>${escapeHtml(money(payload.discount))}</strong></div>
+          <div class="row total"><span>Total</span><strong>${escapeHtml(money(payload.total))}</strong></div>
+          ${paymentDetails}
+          <div class="status">${payload.status === 'paid' ? 'PAID' : 'UNPAID — ORDER SLIP'}</div>
+          <div class="footer">Thank you</div>
+        </main>
+      </body>
+    </html>`
+
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-hidden', 'true')
+  iframe.title = 'Print document'
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
+
   try {
-    const response = await fetch(`${BRIDGE_URL}/print`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(5000),
+    const printDocument = iframe.contentWindow?.document
+    const printWindow = iframe.contentWindow
+    if (!printDocument || !printWindow) {
+      iframe.remove()
+      return false
+    }
+
+    printDocument.open()
+    printDocument.write(html)
+    printDocument.close()
+
+    await new Promise<void>((resolve) => {
+      if (printDocument.readyState === 'complete') {
+        resolve()
+      } else {
+        iframe.onload = () => resolve()
+      }
     })
 
-    if (!response.ok) return false
-    const result = await response.json().catch(() => null)
-    return result?.ok === true
+    printWindow.focus()
+    printWindow.print()
+
+    // Keep the iframe alive while the print dialog is open.
+    printWindow.onafterprint = () => iframe.remove()
+    window.setTimeout(() => iframe.remove(), 60000)
+    return true
   } catch {
+    iframe.remove()
     return false
   }
 }
