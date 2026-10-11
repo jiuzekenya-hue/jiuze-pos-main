@@ -51,7 +51,6 @@ export async function browserPrint(
         <tr>
           <td>${escapeHtml(item.name)}</td>
           <td class="number">${escapeHtml(item.quantity)}</td>
-          <td class="number">${escapeHtml(money(item.unitPrice))}</td>
           <td class="number">${escapeHtml(money(item.lineTotal))}</td>
         </tr>`,
     )
@@ -81,6 +80,7 @@ export async function browserPrint(
           h1 { font-size: 19px; line-height: 1.2; text-align: center; margin: 0 0 5px; }
           .center { text-align: center; }
           .muted { color: #333; }
+          .till { text-align: center; font-size: 16px; font-weight: 900; letter-spacing: .4px; margin: 5px 0 7px; border: 1.5px solid #111; padding: 4px 2px; }
           .rule { border-top: 1px dashed #333; margin: 7px 0; }
           .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 7px; margin: 4px 0; }
           .row span { flex: 1 1 auto; }
@@ -88,10 +88,9 @@ export async function browserPrint(
           table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
           th, td { padding: 4px 1px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
           th { border-bottom: 1px solid #111; }
-          th:first-child, td:first-child { width: 43%; }
-          th:nth-child(2), td:nth-child(2) { width: 10%; }
-          th:nth-child(3), td:nth-child(3) { width: 23%; }
-          th:nth-child(4), td:nth-child(4) { width: 24%; }
+          th:first-child, td:first-child { width: 70%; }
+          th:nth-child(2), td:nth-child(2) { width: 12%; }
+          th:nth-child(3), td:nth-child(3) { width: 18%; }
           .number { text-align: right; white-space: normal; }
           .total { font-size: 16px; font-weight: bold; margin-top: 6px; }
           .status { text-align: center; font-weight: bold; margin-top: 9px; }
@@ -107,12 +106,13 @@ export async function browserPrint(
           <h1>${escapeHtml(payload.businessName || 'Restaurant')}</h1>
           <div class="center">${escapeHtml(payload.title)}</div>
           <div class="center muted">${escapeHtml(payload.location || '')}</div>
+          <div class="till">M-PESA TILL: 8082684</div>
           ${payload.receiptNumber ? `<div class="center">Receipt: ${escapeHtml(payload.receiptNumber)}</div>` : ''}
           <div class="row"><span>Cashier</span><strong>${escapeHtml(payload.cashier || 'Cashier')}</strong></div>
           <div class="row"><span>Date</span><strong>${escapeHtml(new Date().toLocaleString())}</strong></div>
           <div class="rule"></div>
           <table>
-            <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Price</th><th class="number">Total</th></tr></thead>
+            <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Amount</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="rule"></div>
