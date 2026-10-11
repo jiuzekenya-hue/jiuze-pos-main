@@ -44,17 +44,17 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<ModeAwareCheckout />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<OwnerOnlyRoute><Dashboard /></OwnerOnlyRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/stock-movements" element={<StockMovements />} />
+        <Route path="/categories" element={<OwnerOnlyRoute><Categories /></OwnerOnlyRoute>} />
+        <Route path="/products" element={<OwnerOnlyRoute><Products /></OwnerOnlyRoute>} />
+        <Route path="/stock-movements" element={<OwnerOnlyRoute><StockMovements /></OwnerOnlyRoute>} />
         <Route path="/checkout" element={<ModeAwareCheckout />} />
         <Route path="/sales" element={<SalesHistory />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/users" element={<Users />} />
+        <Route path="/analytics" element={<OwnerOnlyRoute><Analytics /></OwnerOnlyRoute>} />
+        <Route path="/users" element={<OwnerOnlyRoute><Users /></OwnerOnlyRoute>} />
         <Route path="/subscription" element={<OwnerOnlyRoute><Subscription /></OwnerOnlyRoute>} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<OwnerOnlyRoute><Settings /></OwnerOnlyRoute>} />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
