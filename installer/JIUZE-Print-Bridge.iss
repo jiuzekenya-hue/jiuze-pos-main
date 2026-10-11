@@ -1,6 +1,6 @@
 ; JIUZE Print Bridge Windows installer
 #define MyAppName "JIUZE Print Bridge"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "JIUZE Kenya"
 #define MyAppExeName "JIUZE-Print-Bridge.exe"
 
