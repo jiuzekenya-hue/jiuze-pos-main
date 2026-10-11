@@ -80,6 +80,7 @@ export async function browserPrint(
           h1 { font-size: 19px; line-height: 1.2; text-align: center; margin: 0 0 5px; }
           .center { text-align: center; }
           .muted { color: #333; }
+          .till { text-align: center; font-size: 16px; font-weight: 900; letter-spacing: .4px; margin: 5px 0 7px; border: 1.5px solid #111; padding: 4px 2px; }
           .rule { border-top: 1px dashed #333; margin: 7px 0; }
           .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 7px; margin: 4px 0; }
           .row span { flex: 1 1 auto; }
@@ -105,6 +106,7 @@ export async function browserPrint(
           <h1>${escapeHtml(payload.businessName || 'Restaurant')}</h1>
           <div class="center">${escapeHtml(payload.title)}</div>
           <div class="center muted">${escapeHtml(payload.location || '')}</div>
+          <div class="till">M-PESA TILL: 8082684</div>
           ${payload.receiptNumber ? `<div class="center">Receipt: ${escapeHtml(payload.receiptNumber)}</div>` : ''}
           <div class="row"><span>Cashier</span><strong>${escapeHtml(payload.cashier || 'Cashier')}</strong></div>
           <div class="row"><span>Date</span><strong>${escapeHtml(new Date().toLocaleString())}</strong></div>
