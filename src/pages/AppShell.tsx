@@ -5,12 +5,12 @@ import { can } from '../lib/permissions'
 import { useOnlineStatus } from '../lib/useOnlineStatus'
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: 'grid' },
+  { to: '/dashboard', label: 'Dashboard', icon: 'grid', ownerOnly: true },
   { to: '/checkout', label: 'New sale', icon: 'cart' },
   { to: '/sales', label: 'Sales', icon: 'receipt' },
-  { to: '/products', label: 'Products', icon: 'tag' },
-  { to: '/categories', label: 'Categories', icon: 'folder' },
-  { to: '/stock-movements', label: 'Stock history', icon: 'box' },
+  { to: '/products', label: 'Products', icon: 'tag', ownerOnly: true },
+  { to: '/categories', label: 'Categories', icon: 'folder', ownerOnly: true },
+  { to: '/stock-movements', label: 'Stock history', icon: 'box', ownerOnly: true },
   { to: '/analytics', label: 'Analytics', icon: 'chart', ownerOnly: true },
   { to: '/users', label: 'Users', icon: 'users', ownerOnly: true },
   { to: '/subscription', label: 'Subscription', icon: 'card', ownerOnly: true },
@@ -39,7 +39,7 @@ export default function AppShell() {
   const isOnline = useOnlineStatus()
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
-  const visibleItems = navItems.filter((item) => !item.ownerOnly || can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings'))
+  const visibleItems = navItems.filter((item) => !item.ownerOnly || role === 'owner')
   const activeLabel = visibleItems.find((item) => item.to === location.pathname)?.label ?? 'JIUZE POS'
 
   useEffect(() => {
@@ -72,8 +72,8 @@ export default function AppShell() {
         <div className="grid grid-cols-4 max-w-lg mx-auto">
           {[
             { to: '/', label: 'Sell', icon: 'cart' },
-            { to: '/sales', label: 'Sales', icon: 'receipt' },
-            { to: '/products', label: 'Products', icon: 'tag' },
+            { to: '/sales', label: role === 'cashier' ? 'My Sales' : 'Sales', icon: 'receipt' },
+            ...(role === 'owner' ? [{ to: '/products', label: 'Products', icon: 'tag' }] : []),
           ].map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] text-[10px] font-medium ${isActive ? 'text-market-700' : 'text-ink-muted'}`}>
               <Icon name={item.icon} />
