@@ -73,24 +73,33 @@ export async function browserPrint(
         <meta charset="utf-8">
         <title>${escapeHtml(payload.title)}</title>
         <style>
-          @page { size: auto; margin: 8mm; }
+          @page { size: 80mm auto; margin: 3mm; }
           * { box-sizing: border-box; }
-          body { font: 12px/1.4 Arial, Helvetica, sans-serif; color: #111; margin: 0; }
-          .receipt { max-width: 78mm; margin: 0 auto; }
-          h1 { font-size: 18px; text-align: center; margin: 0 0 4px; }
+          html, body { width: 74mm; margin: 0; padding: 0; }
+          body { font: 13px/1.35 Arial, Helvetica, sans-serif; color: #111; }
+          .receipt { width: 100%; margin: 0 auto; overflow-wrap: anywhere; }
+          h1 { font-size: 19px; line-height: 1.2; text-align: center; margin: 0 0 5px; }
           .center { text-align: center; }
-          .muted { color: #444; }
-          .rule { border-top: 1px dashed #555; margin: 10px 0; }
-          .row { display: flex; justify-content: space-between; gap: 10px; margin: 4px 0; }
-          .row strong { text-align: right; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          th, td { padding: 5px 2px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; }
+          .muted { color: #333; }
+          .rule { border-top: 1px dashed #333; margin: 7px 0; }
+          .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 7px; margin: 4px 0; }
+          .row span { flex: 1 1 auto; }
+          .row strong { flex: 0 1 auto; text-align: right; overflow-wrap: anywhere; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+          th, td { padding: 4px 1px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
           th { border-bottom: 1px solid #111; }
-          .number { text-align: right; white-space: nowrap; }
-          .total { font-size: 15px; font-weight: bold; }
-          .status { text-align: center; font-weight: bold; margin-top: 10px; }
-          .footer { text-align: center; margin-top: 14px; font-size: 10px; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+          th:first-child, td:first-child { width: 43%; }
+          th:nth-child(2), td:nth-child(2) { width: 10%; }
+          th:nth-child(3), td:nth-child(3) { width: 23%; }
+          th:nth-child(4), td:nth-child(4) { width: 24%; }
+          .number { text-align: right; white-space: normal; }
+          .total { font-size: 16px; font-weight: bold; margin-top: 6px; }
+          .status { text-align: center; font-weight: bold; margin-top: 9px; }
+          .footer { text-align: center; margin-top: 10px; font-size: 11px; }
+          @media print {
+            html, body { width: 74mm; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
         </style>
       </head>
       <body>
