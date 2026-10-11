@@ -5,6 +5,8 @@ import path from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 const PORT = Number(process.env.JIUZE_PRINT_PORT || 38100)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 const runtimeDir = process.pkg ? path.dirname(process.execPath) : __dirname
 const configPath = path.join(runtimeDir, 'config.json')
 
@@ -18,8 +20,6 @@ try {
 const PRINTER_NAME = process.env.JIUZE_PRINTER_NAME || fileConfig.printerName || 'XP-80C'
 const ALLOWED_ORIGIN = process.env.JIUZE_ALLOWED_ORIGIN || fileConfig.allowedOrigin || 'https://jiuze-pos.netlify.app'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 const powershellScript = process.env.JIUZE_PRINT_SCRIPT || path.join(runtimeDir, 'print.ps1')
 
 const send = (res, status, body) => {
@@ -33,12 +33,12 @@ const send = (res, status, body) => {
 }
 
 const cleanText = (value, fallback = '') =>
-  String(value ?? fallback).replace(/[^\\x20-\\x7E]/g, '').trim()
+  String(value ?? fallback).replace(/[^\x20-\x7E]/g, '').trim()
 
 const money = (value) => `KES ${Number(value || 0).toFixed(2)}`
 const qty = (value) => Number.isInteger(Number(value))
   ? String(value)
-  : Number(value).toFixed(3).replace(/0+$/, '').replace(/\\.$/, '')
+  : Number(value).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
 
 const line = (left, right, width = 48) => {
   const l = cleanText(left)
