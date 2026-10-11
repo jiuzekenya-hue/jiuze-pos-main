@@ -160,3 +160,28 @@ export async function browserPrint(
     return false
   }
 }
+
+
+/**
+ * Legacy Print Bridge entry point retained for retail checkout compatibility.
+ * Restaurant checkout uses browserPrint directly.
+ */
+export async function directPrint(payload: DirectPrintPayload): Promise<boolean> {
+  const bridgeUrl =
+    import.meta.env.VITE_PRINT_BRIDGE_URL || 'http://127.0.0.1:38100'
+
+  try {
+    const response = await fetch(`${bridgeUrl}/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),
+    })
+
+    if (!response.ok) return false
+    const result = await response.json().catch(() => null)
+    return result?.ok === true
+  } catch {
+    return false
+  }
+}
