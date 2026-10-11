@@ -51,7 +51,6 @@ export async function browserPrint(
         <tr>
           <td>${escapeHtml(item.name)}</td>
           <td class="number">${escapeHtml(item.quantity)}</td>
-          <td class="number">${escapeHtml(money(item.unitPrice))}</td>
           <td class="number">${escapeHtml(money(item.lineTotal))}</td>
         </tr>`,
     )
@@ -88,10 +87,9 @@ export async function browserPrint(
           table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
           th, td { padding: 4px 1px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
           th { border-bottom: 1px solid #111; }
-          th:first-child, td:first-child { width: 43%; }
-          th:nth-child(2), td:nth-child(2) { width: 10%; }
-          th:nth-child(3), td:nth-child(3) { width: 23%; }
-          th:nth-child(4), td:nth-child(4) { width: 24%; }
+          th:first-child, td:first-child { width: 70%; }
+          th:nth-child(2), td:nth-child(2) { width: 12%; }
+          th:nth-child(3), td:nth-child(3) { width: 18%; }
           .number { text-align: right; white-space: normal; }
           .total { font-size: 16px; font-weight: bold; margin-top: 6px; }
           .status { text-align: center; font-weight: bold; margin-top: 9px; }
@@ -112,7 +110,7 @@ export async function browserPrint(
           <div class="row"><span>Date</span><strong>${escapeHtml(new Date().toLocaleString())}</strong></div>
           <div class="rule"></div>
           <table>
-            <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Price</th><th class="number">Total</th></tr></thead>
+            <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Amount</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="rule"></div>
