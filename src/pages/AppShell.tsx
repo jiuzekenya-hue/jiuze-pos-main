@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/auth-context'
-import { can } from '../lib/permissions'
 import { useOnlineStatus } from '../lib/useOnlineStatus'
 
 const navItems = [
