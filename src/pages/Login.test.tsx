@@ -85,7 +85,7 @@ describe('Login', () => {
     renderLogin()
 
     await screen.findByRole('option', { name: 'Test Cashier' })
-    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/enter your password/i)
   })
@@ -96,10 +96,10 @@ describe('Login', () => {
 
     await screen.findByRole('option', { name: 'Test Cashier' })
     await user.type(screen.getByLabelText('Password'), 'wrong-password')
-    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/incorrect email or password/i)
-    expect(screen.getByRole('button', { name: /^sign in$/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeEnabled()
   })
 
   it('submits the selected business, cashier, and password', async () => {
@@ -108,7 +108,7 @@ describe('Login', () => {
 
     await screen.findByRole('option', { name: 'Test Cashier' })
     await user.type(screen.getByLabelText('Password'), 'wrong-password')
-    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => {
       expect(mock.supabase.functions.invoke).toHaveBeenCalledWith(

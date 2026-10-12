@@ -60,3 +60,68 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
 
 @media (max-width: 1023px) { body { overflow-x: hidden; } }
 @media (max-width: 639px) { div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.25rem; } }
+
+/* JIUZE POS login animations */
+@keyframes jiuze-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes jiuze-slow-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.jiuze-enter {
+  animation: jiuze-fade-up 650ms ease-out both;
+}
+
+.jiuze-enter-delay-1 {
+  animation-delay: 120ms;
+}
+
+.jiuze-enter-delay-2 {
+  animation-delay: 240ms;
+}
+
+.jiuze-enter-delay-3 {
+  animation-delay: 360ms;
+}
+
+.jiuze-hero-image {
+  animation: jiuze-slow-zoom 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.jiuze-login-button {
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.jiuze-login-button:hover {
+  filter: brightness(1.08);
+}
+
+.jiuze-login-button:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jiuze-enter,
+  .jiuze-hero-image {
+    animation: none;
+  }
+
+  .jiuze-login-button {
+    transition: none;
+  }
+}
