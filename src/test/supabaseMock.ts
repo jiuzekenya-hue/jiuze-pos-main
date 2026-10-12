@@ -40,6 +40,15 @@ export function createSupabaseMock() {
     }),
   }
 
+  
+  const functions = {
+    invoke: vi.fn(async () => ({
+      data: { businesses: [] },
+      error: null,
+    })),
+  }
+
+   
   const from = vi.fn(() => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -47,8 +56,9 @@ export function createSupabaseMock() {
     single: vi.fn(async () => ({ data: null, error: null })),
   }))
 
+
   return {
-    supabase: { auth, from },
+    supabase: { auth, from, functions },
     // Test-only helpers to script behavior:
     __setInitialSession: (session: { user: { id: string; email: string } } | null) => {
       currentSession = session
