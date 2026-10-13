@@ -1,8 +1,10 @@
+import { getBusiness } from '../services/businessService'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { listCategories } from '../services/categoryService'
 import { adjustStock } from '../services/inventoryService'
+import { browserPrintStockList } from '../services/dailyStockPrintService'
 import { activateProduct, createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
 import { isFractionalUnit, PRODUCT_UNITS, type Category, type Product, type ProductUnitType } from '../types/products'
 
@@ -144,6 +146,30 @@ function Icon({
 export default function Products() {
   const { profile, role } = useAuth()
   const isOwner = role === 'owner'
+
+  const printDailyStock = async () => {
+  if (!profile?.businessId) return
+
+  try {
+    const business = await getBusiness(profile.businessId)
+
+    const items = products
+      .filter((product) => product.isActive)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((product) => ({
+        name: product.name,
+        quantity: `${formatQuantity(product.stockQuantity)} ${product.unitType}`,
+      }))
+
+    const printed = browserPrintStockList(business.name, items)
+
+    if (!printed) {
+      setError('Unable to open the stock print dialog. Allow pop-ups and try again.')
+    }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Unable to prepare the stock list.')
+  }
+}
 
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -456,6 +482,15 @@ export default function Products() {
             >
               Dashboard
             </Link>
+
+            <button
+              type="button"
+              onClick={() => void printDailyStock()}
+              disabled={loading || products.filter((product) => product.isActive).length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-paper disabled:opacity-50"
+            >
+              Print Daily Stock
+            </button>
 
             {isOwner && (
               <button
