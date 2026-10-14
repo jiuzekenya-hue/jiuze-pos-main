@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabase'
 
 export type RestaurantLocation =
@@ -55,9 +56,25 @@ export type RestaurantRecentOrder = {
 export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]> {
   const { data, error } = await supabase
     .from('restaurant_orders')
-    .select(
-      'id, order_number, location_type, table_number, status, discount, created_by, updated_at, created_by_profile:profiles!restaurant_orders_created_by_fkey(full_name), restaurant_order_items(id, product_id, product_name, quantity, unit_price, subtotal)',
-    )
+    .select(`
+      id,
+      order_number,
+      location_type,
+      table_number,
+      status,
+      discount,
+      created_by,
+      updated_at,
+      created_by_profile:profiles!restaurant_orders_created_by_fkey(full_name),
+      restaurant_order_items!restaurant_order_items_order_id_fkey(
+        id,
+        product_id,
+        product_name,
+        quantity,
+        unit_price,
+        subtotal
+      )
+    `)
     .eq('status', 'open')
     .order('updated_at', { ascending: false })
 
@@ -68,7 +85,7 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
     orderNumber: row.order_number,
     locationType: row.location_type,
     tableNumber: row.table_number,
-    status: 'open',
+    status: 'open' as const,
     discount: Number(row.discount ?? 0),
     createdBy: row.created_by,
     createdByName:
@@ -193,8 +210,6 @@ export async function saveRestaurantOrder(input: {
   orderId: string | null
   orderNumber: string | null
 }> {
-  // The database RPC reads p_items with snake_case keys (product_id).
-  // The React cart uses camelCase (productId), so normalize before sending.
   const rpcItems = input.items.map((item) => ({
     product_id: item.productId,
     quantity: item.quantity,
@@ -209,6 +224,7 @@ export async function saveRestaurantOrder(input: {
   })
 
   if (error) throw error
+
   if (!data?.length) {
     return {
       orderId: null,
@@ -236,7 +252,18 @@ export async function recordRestaurantOrderPrint(
 
   if (error) throw error
 }
+export async function reserveRestaurantOrderPrint(
+  orderId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc(
+    'reserve_restaurant_order_print',
+    {
+      p_order_id: orderId,
+    },
+  )
 
+  if (error) throw error
+}
 export async function clearRestaurantOrder(
   orderId: string,
   reason: string,
@@ -310,4 +337,74 @@ export async function closeRestaurantOrder(
   )
 
   if (error) throw error
+}
+
+export type RestaurantOpenBill = {
+  id: string
+  orderNumber: string
+  locationType: 'table' | 'takeaway'
+  tableNumber: number | null
+  discount: number
+  createdBy: string
+  createdByName: string
+  updatedAt: string
+  printedAt: string
+  subtotal: number
+  total: number
+  items: RestaurantOrderItem[]
+}
+
+export async function listRestaurantOpenBills(
+  cashierId: string | null = null,
+): Promise<RestaurantOpenBill[]> {
+  const { data, error } = await supabase.rpc(
+    'list_restaurant_open_bills',
+    { p_cashier_id: cashierId },
+  )
+
+  if (error) throw error
+
+  const rows = (data ?? []) as Array<{
+    id: string
+    order_number: string
+    location_type: 'table' | 'takeaway'
+    table_number: number | null
+    discount: number
+    created_by: string
+    created_by_name: string
+    updated_at: string
+    printed_at: string
+    subtotal: number
+    total: number
+    items: Array<{
+      id: string
+      product_id: string | null
+      product_name: string
+      quantity: number
+      unit_price: number
+      subtotal: number
+    }> | null
+  }>
+
+  return rows.map((row) => ({
+    id: row.id,
+    orderNumber: row.order_number,
+    locationType: row.location_type,
+    tableNumber: row.table_number,
+    discount: Number(row.discount ?? 0),
+    createdBy: row.created_by,
+    createdByName: row.created_by_name || 'Unknown cashier',
+    updatedAt: row.updated_at,
+    printedAt: row.printed_at,
+    subtotal: Number(row.subtotal ?? 0),
+    total: Number(row.total ?? 0),
+    items: (row.items ?? []).map((item) => ({
+      id: item.id,
+      productId: item.product_id,
+      productName: item.product_name,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unit_price),
+      subtotal: Number(item.subtotal),
+    })),
+  }))
 }

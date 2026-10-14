@@ -17,6 +17,7 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
 import Referral from './pages/Referral'
+import OpenBills from './pages/OpenBills'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
@@ -51,6 +52,7 @@ function App() {
         <Route path="/stock-movements" element={<StockMovements />} />
         <Route path="/checkout" element={<ModeAwareCheckout />} />
         <Route path="/sales" element={<SalesHistory />} />
+        <Route path="/open-bills" element={<OwnerOnlyRoute><OpenBills /></OwnerOnlyRoute>} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
         <Route path="/subscription" element={<OwnerOnlyRoute><Subscription /></OwnerOnlyRoute>} />

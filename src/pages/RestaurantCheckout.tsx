@@ -2,16 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/auth-context'
 import { getBusiness, type Business } from '../services/businessService'
 import { listCategories } from '../services/categoryService'
-import { type SalePaymentMethod } from '../services/saleService'
 import { listProducts } from '../services/productService'
 import { browserPrint } from '../services/printerService'
 import {
-  clearRestaurantOrder,
-  completeRestaurantOrder,
   listOpenRestaurantOrders,
   listRecentRestaurantOrders,
   listRestaurantLocationStatus,
   recordRestaurantOrderPrint,
+  reserveRestaurantOrderPrint,
   saveRestaurantOrder,
   type RestaurantOpenOrder,
   type RestaurantRecentOrder,
@@ -146,13 +144,8 @@ export default function RestaurantCheckout() {
   const [department, setDepartment] = useState('All')
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
-  const [paymentMethod, setPaymentMethod] =
-    useState<SalePaymentMethod>('cash')
-  const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentReference, setPaymentReference] = useState('')
   const [discount, setDiscount] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [savingOrder, setSavingOrder] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -216,10 +209,6 @@ export default function RestaurantCheckout() {
   const discountValue = Math.max(0, Number(discount) || 0)
 
   const total = Math.max(0, subtotal - discountValue)
-
-  const paid = Number(paymentAmount) || 0
-
-  const change = Math.max(0, paid - total)
 
   // Tables are shared by the restaurant team. Occupancy does not block
   // another cashier; each cashier sees and manages only their own order.
@@ -397,8 +386,6 @@ export default function RestaurantCheckout() {
     setCart([])
     setDiscount('')
     setOrderNumber(null)
-    setPaymentAmount('')
-    setPaymentReference('')
     setMessage('')
     setError('')
 
@@ -589,8 +576,6 @@ export default function RestaurantCheckout() {
       setOrderNumber(hydrated.number)
       setCart(hydrated.cart)
       setDiscount(hydrated.discount)
-      setPaymentAmount('')
-      setPaymentReference('')
       setOpenOrders(orders)
       setShowOpenOrders(false)
     } catch (err) {
@@ -627,8 +612,6 @@ export default function RestaurantCheckout() {
       setOrderNumber(null)
       setCart([])
       setDiscount('')
-      setPaymentAmount('')
-      setPaymentReference('')
       setMessage('New takeaway order ready.')
       setShowOpenOrders(false)
       await refreshOpenOrders()
@@ -727,8 +710,6 @@ export default function RestaurantCheckout() {
       setOrderNumber(hydrated.number)
       setCart(hydrated.cart)
       setDiscount(hydrated.discount)
-      setPaymentAmount('')
-      setPaymentReference('')
     } catch (err) {
       setError(
         err instanceof Error
@@ -832,7 +813,7 @@ export default function RestaurantCheckout() {
       if (!printOrderId) {
         throw new Error('Order could not be identified for print audit.')
       }
-
+await reserveRestaurantOrderPrint(printOrderId)
       setMessage('Order saved. Printing order…')
 
       const printed = await browserPrint({
@@ -883,227 +864,6 @@ export default function RestaurantCheckout() {
     }
   }
 
-  const takePayment = async () => {
-    if (!cart.length) {
-      setError('Add items to the order first.')
-      return
-    }
-
-    if (paid < total) {
-      setError('Payment amount is less than the total due.')
-      return
-    }
-
-    if (
-      paymentMethod !== 'cash' &&
-      (!paymentReference.trim() || paid !== total)
-    ) {
-      setError(
-        'M-Pesa and card payments must equal the total and include a reference.',
-      )
-
-      return
-    }
-
-    if (!profile?.businessId) return
-
-    setSaving(true)
-    setError('')
-    setMessage('')
-
-    const soldItems = cart.map((line) => ({ ...line }))
-
-    const location = selectedLocation(
-      selectedTableRef.current,
-    )
-
-    try {
-      const savedOrder = await persistOrder(
-        location,
-        soldItems,
-        discountValue,
-      )
-
-      const savedOrderId =
-        savedOrder?.orderId ||
-        orderIdsRef.current[locationKey(location)]
-
-      if (!savedOrderId) {
-        throw new Error(
-          'Restaurant order could not be saved before payment.',
-        )
-      }
-
-      const result = await completeRestaurantOrder({
-        orderId: savedOrderId,
-        paymentMethod,
-        paymentAmount: paid,
-        paymentReference,
-      })
-
-      const printed = await browserPrint({
-        businessName: business?.name || 'Restaurant',
-        serviceType: 'restaurant',
-        location:
-          location.type === 'takeaway'
-            ? 'Takeaway'
-            : 'Table ' + location.tableNumber,
-        title: 'SALES RECEIPT',
-        status: 'paid',
-        receiptNumber: result.receiptNumber,
-        cashier:
-          profile.fullName?.trim() || 'Unknown cashier',
-        items: soldItems.map((line) => ({
-          name: line.product.name,
-          quantity: line.quantity,
-          unitPrice: line.product.sellingPrice,
-          lineTotal:
-            line.product.sellingPrice * line.quantity,
-        })),
-        subtotal: result.subtotal,
-        discount: result.discount,
-        total: result.total,
-        paymentMethod: result.paymentMethod,
-        paymentReference: paymentReference.trim(),
-        amountPaid: result.amountPaid,
-        change: result.change,
-      })
-
-      if (printed) {
-        await recordRestaurantOrderPrint(
-          savedOrderId,
-          'sales_receipt',
-        )
-      }
-
-      delete orderIdsRef.current[
-        locationKey(location)
-      ]
-
-      if (location.type !== 'takeaway') {
-        setLocationStatuses((current) =>
-          current.map((status) =>
-            locationKey(
-              statusLocation(
-                status.locationType,
-                status.tableNumber,
-              ),
-            ) === locationKey(location)
-              ? {
-                  ...status,
-                  occupied: false,
-                  canManage: false,
-                  orderNumber: null,
-                }
-              : status,
-          ),
-        )
-      }
-
-      setMessage(
-        (location.type === 'takeaway'
-          ? 'Takeaway'
-          : 'Table ' + location.tableNumber) +
-          ' paid · ' +
-          result.receiptNumber +
-          (printed
-            ? ''
-            : ' · receipt ready for browser printing'),
-      )
-
-      setCart([])
-      setOrderNumber(null)
-      setPaymentAmount('')
-      setPaymentReference('')
-      setDiscount('')
-
-      await load()
-      await refreshRecentOrders()
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Unable to complete sale.'
-
-      setError('Unable to complete sale: ' + message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const clearOrder = async () => {
-    const location = selectedLocation(
-      selectedTableRef.current,
-    )
-
-    const key = locationKey(location)
-    const existingId = orderIdsRef.current[key]
-
-    if (!existingId) {
-      setCart([])
-      setDiscount('')
-      setOrderNumber(null)
-      return
-    }
-
-    const reason = window.prompt(
-      'Reason for clearing this order:',
-    )?.trim()
-
-    if (!reason) {
-      setMessage('Order was not cleared. A reason is required.')
-      return
-    }
-
-    setError('')
-    setMessage('Clearing order…')
-
-    try {
-      // Clearing never deletes the order. It records the user,
-      // timestamp and reason so a printed unpaid order cannot
-      // disappear without an audit trail.
-      await clearRestaurantOrder(existingId, reason)
-
-      delete orderIdsRef.current[key]
-
-      setCart([])
-      setDiscount('')
-      setOrderNumber(null)
-      setPaymentAmount('')
-      setPaymentReference('')
-
-      if (location.type !== 'takeaway') {
-        setLocationStatuses((current) =>
-          current.map((status) =>
-            locationKey(
-              statusLocation(
-                status.locationType,
-                status.tableNumber,
-              ),
-            ) === key
-              ? {
-                  ...status,
-                  occupied: false,
-                  canManage: false,
-                  orderNumber: null,
-                }
-              : status,
-          ),
-        )
-      }
-
-      setMessage('Order cleared and recorded in the audit trail.')
-      await load()
-      await refreshRecentOrders()
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to clear order.',
-      )
-      setMessage('')
-    }
-  }
 
   return (
     <main className="min-h-screen bg-[#eef0f5] text-ink px-3 py-3 sm:px-5 lg:px-7">
@@ -1715,68 +1475,10 @@ export default function RestaurantCheckout() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-1.5">
-                {(
-                  ['cash', 'mpesa', 'card'] as SalePaymentMethod[]
-                ).map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() =>
-                      setPaymentMethod(method)
-                    }
-                    className={
-                      'rounded-md border py-2 text-xs font-semibold capitalize ' +
-                      (paymentMethod === method
-                        ? 'border-slate-800 bg-slate-800 text-white'
-                        : 'border-slate-300')
-                    }
-                  >
-                    {method === 'mpesa'
-                      ? 'M-Pesa'
-                      : method}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={paymentAmount}
-                onChange={(e) =>
-                  setPaymentAmount(e.target.value)
-                }
-                placeholder="Amount paid"
-                className="field w-full"
-              />
-
-              {paymentMethod !== 'cash' && (
-                <input
-                  value={paymentReference}
-                  onChange={(e) =>
-                    setPaymentReference(e.target.value)
-                  }
-                  placeholder="Payment reference"
-                  className="field w-full"
-                />
-              )}
-
-              {paymentMethod === 'cash' && (
-                <div className="flex justify-between rounded bg-slate-100 px-3 py-2 text-sm">
-                  <span className="text-slate-500">
-                    Change
-                  </span>
-
-                  <b>{money(change)}</b>
-                </div>
-              )}
-
               <button
                 type="button"
                 onClick={() => void printOrder()}
                 disabled={
-                  saving ||
                   savingOrder ||
                   !cart.length
                 }
@@ -1785,34 +1487,6 @@ export default function RestaurantCheckout() {
                 {savingOrder
                   ? 'Saving order…'
                   : 'Print order'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void takePayment()}
-                disabled={
-                  saving ||
-                  savingOrder ||
-                  !cart.length
-                }
-                className="w-full rounded-lg bg-market-600 py-3.5 text-sm font-bold text-white disabled:opacity-50"
-              >
-                {saving
-                  ? 'Processing…'
-                  : 'PAY ' + money(total)}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void clearOrder()}
-                disabled={
-                  !cart.length ||
-                  savingOrder ||
-                  saving
-                }
-                className="w-full rounded-lg border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40"
-              >
-                Clear order
               </button>
             </div>
           </aside>
