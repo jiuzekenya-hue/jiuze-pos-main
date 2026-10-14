@@ -2,7 +2,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { getBusiness } from '../services/businessService'
-import { getSale, listSales, type SaleDetail, type SaleSummary } from '../services/salesHistoryService'
+import {
+  getSale,
+  listSales,
+  getSalesReport,
+  type SaleDetail,
+  type SaleSummary,
+  type SalesReport,
+} from '../services/salesHistoryService'
+import {
+  browserPrintSalesReportA4,
+  browserPrintSalesReport80mm,
+  type SalesReportPrintData,
+} from '../services/salesReportPrintService'
 import SaleReturnModal from '../components/SaleReturnModal'
 
 const money = (value: number) => `KES ${value.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -21,6 +33,10 @@ export default function SalesHistory() {
   const { profile } = useAuth()
   const [sales, setSales] = useState<SaleSummary[]>([])
   const [businessName, setBusinessName] = useState('')
+  const [report, setReport] = useState<SalesReport | null>(null)
+  const [reportStartDate, setReportStartDate] = useState('')
+  const [reportEndDate, setReportEndDate] = useState('')
+  const [reportLoading, setReportLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<SaleDetail | null>(null)
   const [returnSale, setReturnSale] = useState<SaleDetail | null>(null)
@@ -63,6 +79,45 @@ export default function SalesHistory() {
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to load sale.') }
   }
 
+const loadSalesReport = async () => {
+  if (!profile?.businessId) return
+
+  setReportLoading(true)
+  setError(null)
+
+  try {
+    const startDate = reportStartDate
+      ? new Date(`${reportStartDate}T00:00:00`).toISOString()
+      : undefined
+
+    const endDate = reportEndDate
+      ? new Date(
+          new Date(`${reportEndDate}T00:00:00`).getTime() +
+            24 * 60 * 60 * 1000,
+        ).toISOString()
+      : undefined
+
+    if (reportStartDate && reportEndDate && reportStartDate > reportEndDate) {
+      throw new Error('Start date must not be after end date.')
+    }
+
+    const result = await getSalesReport(
+      profile.businessId,
+      startDate,
+      endDate,
+    )
+
+    setReport(result)
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : 'Unable to load the sales report.',
+    )
+  } finally {
+    setReportLoading(false)
+  }
+}
+
+
   const printSale = () => {
     if (!selected) return
     const win = window.open('', '_blank', 'width=420,height=720')
@@ -86,6 +141,204 @@ export default function SalesHistory() {
         <Metric label="Sales value" value={money(summary.revenue)} detail="Loaded transaction history" />
         <Metric label="Average sale" value={money(summary.average)} detail="Across loaded transactions" />
       </section>
+
+<section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
+  <h2 className="font-semibold text-ink text-lg mb-3">Sales reports</h2>
+
+  <div className="grid gap-3 sm:grid-cols-2 mb-4">
+    <label className="text-sm text-ink-muted">
+      Start date
+      <input
+        type="date"
+        value={reportStartDate}
+        onChange={(event) => setReportStartDate(event.target.value)}
+        className="field mt-1 w-full"
+      />
+    </label>
+
+    <label className="text-sm text-ink-muted">
+      End date
+      <input
+        type="date"
+        value={reportEndDate}
+        onChange={(event) => setReportEndDate(event.target.value)}
+        className="field mt-1 w-full"
+      />
+    </label>
+  </div>
+  <div className="flex flex-wrap gap-2">
+<button
+  type="button"
+  onClick={async () => {
+    setReportStartDate('')
+    setReportEndDate('')
+
+    if (!profile?.businessId) return
+
+    setReportLoading(true)
+    setError(null)
+
+    try {
+      const result = await getSalesReport(profile.businessId)
+      setReport(result)
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Unable to load the sales report.',
+      )
+    } finally {
+      setReportLoading(false)
+    }
+  }}
+
+      disabled={reportLoading}
+      className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper disabled:opacity-50"
+    >
+      All-time totals
+    </button>
+
+    <button
+      type="button"
+      onClick={() => void loadSalesReport()}
+      disabled={reportLoading}
+      className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink disabled:opacity-50"
+    >
+      {reportLoading ? 'Loading report…' : 'Generate date-range report'}
+    </button>
+  </div>
+</section>
+
+{report && (
+  <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+      <div>
+        <h2 className="font-semibold text-ink text-lg">Report summary</h2>
+        <p className="text-sm text-ink-muted">
+          {reportStartDate || reportEndDate
+            ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
+            : 'All-time sales'}
+        </p>
+      </div>
+      <p className="text-sm text-ink-muted">
+        {report.sales.length} transactions
+      </p>
+    </div>
+
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Metric
+        label="Total sales"
+        value={money(
+          report.sales
+            .filter((sale) => sale.status === 'completed')
+            .reduce((sum, sale) => sum + sale.total, 0),
+        )}
+        detail="Completed sales"
+      />
+      <Metric
+  label="Cash sales"
+  value={money(report.cashSalesTotal)}
+  detail="Completed cash sales"
+/>
+<Metric
+  label="Cash received"
+  value={money(report.cashTotal)}
+  detail="Before change is deducted"
+/>
+<Metric
+  label="Potential change"
+  value={money(report.potentialCashChange)}
+  detail="Estimated change from recorded payments"
+/>
+      <Metric
+        label="M-Pesa payments"
+        value={money(report.mpesaTotal)}
+        detail="Recorded M-Pesa payments"
+      />
+      <Metric
+        label="Other payments"
+        value={money(report.otherPaymentTotal)}
+        detail="Other recorded methods"
+      />
+      <Metric
+  label="Returned sales"
+  value={money(report.returnedTotal)}
+  detail="Returned transactions, reported separately"
+/>
+    </div>
+
+<div className="flex flex-wrap gap-2 mt-4">
+  <button
+    type="button"
+    onClick={() => {
+  if (!report) return
+
+  const printData: SalesReportPrintData = {
+    businessName,
+    title: 'Sales Report',
+    period: reportStartDate || reportEndDate
+      ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
+      : 'All-time sales',
+    transactions: report.sales.map(sale => ({
+      date: sale.createdAt,
+      receiptNumber: sale.receiptNumber,
+      cashierName: sale.cashierName,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod ?? 'Unrecorded',
+      status: sale.status,
+    })),
+    totalSales: report.sales
+      .filter(sale => sale.status === 'completed')
+      .reduce((sum, sale) => sum + sale.total, 0),
+    cashTotal: report.cashTotal,
+    cashSalesTotal: report.cashSalesTotal,
+potentialCashChange: report.potentialCashChange,
+    mpesaTotal: report.mpesaTotal,
+    otherPaymentTotal: report.otherPaymentTotal,
+  }
+
+  browserPrintSalesReportA4(printData)
+}}
+    className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper"
+  >
+    Print A4
+  </button>
+  <button
+    type="button"
+    onClick={() => {
+  if (!report) return
+
+  const printData: SalesReportPrintData = {
+    businessName,
+    title: 'Sales Report',
+    period: reportStartDate || reportEndDate
+      ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
+      : 'All-time sales',
+    transactions: report.sales.map(sale => ({
+      date: sale.createdAt,
+      receiptNumber: sale.receiptNumber,
+      cashierName: sale.cashierName,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod ?? 'Unrecorded',
+      status: sale.status,
+    })),
+    totalSales: report.sales
+      .filter(sale => sale.status === 'completed')
+      .reduce((sum, sale) => sum + sale.total, 0),
+    cashTotal: report.cashTotal,
+cashSalesTotal: report.cashSalesTotal,
+potentialCashChange: report.potentialCashChange,
+mpesaTotal: report.mpesaTotal,
+    otherPaymentTotal: report.otherPaymentTotal,
+  }
+
+  browserPrintSalesReport80mm(printData)
+}}
+    className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink"
+  >
+    Print 80mm
+  </button>
+</div>
+  </section>
+)}
 
       <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
         <label className="relative block max-w-2xl"><span className="sr-only">Search sales</span><span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"><SearchIcon /></span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipt number..." aria-label="Search sales" className="field h-12 w-full pl-12 pr-4" /></label>
