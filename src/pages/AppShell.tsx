@@ -8,6 +8,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: 'grid' },
   { to: '/checkout', label: 'New sale', icon: 'cart' },
   { to: '/sales', label: 'Sales', icon: 'receipt' },
+  { to: '/open-bills', label: 'Open Bills', icon: 'receipt', ownerOnly: true },
   { to: '/products', label: 'Products', icon: 'tag' },
   { to: '/categories', label: 'Categories', icon: 'folder' },
   { to: '/stock-movements', label: 'Stock history', icon: 'box' },

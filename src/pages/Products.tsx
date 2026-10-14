@@ -1,10 +1,10 @@
+import { browserPrintStockList, browserPrintStockList80mm } from '../services/dailyStockPrintService'
 import { getBusiness } from '../services/businessService'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { listCategories } from '../services/categoryService'
 import { adjustStock } from '../services/inventoryService'
-import { browserPrintStockList } from '../services/dailyStockPrintService'
 import { activateProduct, createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
 import { isFractionalUnit, PRODUCT_UNITS, type Category, type Product, type ProductUnitType } from '../types/products'
 
@@ -147,6 +147,23 @@ export default function Products() {
   const { profile, role } = useAuth()
   const isOwner = role === 'owner'
 
+
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [form, setForm] = useState<FormState>(emptyForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null)
+  const [movementType, setMovementType] = useState<MovementType>('purchase')
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState('')
+  const [adjustmentReason, setAdjustmentReason] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [adjusting, setAdjusting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [menuProductId, setMenuProductId] = useState<string | null>(null)
   const printDailyStock = async () => {
   if (!profile?.businessId) return
 
@@ -171,22 +188,31 @@ export default function Products() {
   }
 }
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null)
-  const [movementType, setMovementType] = useState<MovementType>('purchase')
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState('')
-  const [adjustmentReason, setAdjustmentReason] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [adjusting, setAdjusting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [menuProductId, setMenuProductId] = useState<string | null>(null)
+
+const printDailyStock80mm = async () => {
+  if (!profile?.businessId) return
+
+  try {
+    const business = await getBusiness(profile.businessId)
+
+    const items = products
+      .filter((product) => product.isActive)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((product) => ({
+        name: product.name,
+        quantity: `${formatQuantity(product.stockQuantity)} ${product.unitType}`,
+      }))
+
+    const printed = browserPrintStockList80mm(business.name, items)
+
+    if (!printed) {
+      setError('Unable to open the thermal print dialog. Allow pop-ups and try again.')
+    }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Unable to prepare the stock list.')
+  }
+}
+
 
   const load = useCallback(async () => {
     if (!profile?.businessId) return
@@ -482,7 +508,14 @@ export default function Products() {
             >
               Dashboard
             </Link>
-
+<button
+  type="button"
+  onClick={() => void printDailyStock80mm()}
+  disabled={loading || products.filter((product) => product.isActive).length === 0}
+  className="inline-flex items-center gap-2 rounded-lg border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-paper disabled:opacity-50"
+>
+  Print 80mm
+</button>
             <button
               type="button"
               onClick={() => void printDailyStock()}

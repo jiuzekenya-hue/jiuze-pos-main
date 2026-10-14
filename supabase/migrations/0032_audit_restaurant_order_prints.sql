@@ -18,6 +18,9 @@ create index if not exists restaurant_order_prints_business_idx
 
 alter table public.restaurant_order_prints enable row level security;
 
+drop policy if exists restaurant_order_prints_select_scoped
+  on public.restaurant_order_prints;
+
 create policy restaurant_order_prints_select_scoped
   on public.restaurant_order_prints
   for select

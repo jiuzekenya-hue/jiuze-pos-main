@@ -10,6 +10,63 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
+
+export function browserPrintStockList80mm(
+  businessName: string,
+  items: StockListPrintItem[],
+): boolean {
+  const popup = window.open('', '_blank')
+  if (!popup) return false
+
+  const escapeHtml = (value: string) =>
+    value.replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  const rows = items.map((item, index) =>
+    '<div class="item">' +
+      '<div class="name">' + (index + 1) + '. ' +
+      escapeHtml(item.name) + '</div>' +
+      '<div class="qty">' + escapeHtml(item.quantity) + '</div>' +
+    '</div>'
+  ).join('')
+
+  popup.document.open()
+  popup.document.write(
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<title>Daily Stock - Thermal</title><style>' +
+    '@page{size:80mm auto;margin:3mm}' +
+    '*{box-sizing:border-box}' +
+    'html,body{width:74mm;margin:0;padding:0}' +
+    'body{font:12px/1.35 Arial,Helvetica,sans-serif;color:#000}' +
+    '.header{text-align:center;border-bottom:1px dashed #000;' +
+    'padding-bottom:8px;margin-bottom:8px}' +
+    'h1{font-size:16px;margin:0 0 5px;overflow-wrap:anywhere}' +
+    'h2{font-size:13px;margin:0 0 5px}' +
+    '.date{font-size:10px}' +
+    '.item{padding:5px 0;border-bottom:1px dashed #aaa;' +
+    'break-inside:avoid}' +
+    '.name{font-weight:600;overflow-wrap:anywhere}' +
+    '.qty{text-align:right;font-size:11px;margin-top:2px}' +
+    '.footer{text-align:center;font-size:10px;margin-top:10px}' +
+    '</style></head><body>' +
+    '<header class="header"><h1>' +
+    escapeHtml(businessName || 'Shop') +
+    '</h1><h2>DAILY STOCK LIST</h2><div class="date">Printed: ' +
+    escapeHtml(new Date().toLocaleString()) +
+    '</div><div class="date">Products: ' + items.length +
+    '</div></header>' + rows +
+    '<footer class="footer">End of stock list</footer>' +
+    '<script>window.onload=function(){window.focus();window.print()}</script>' +
+    '</body></html>'
+  )
+  popup.document.close()
+
+  return true
+}
+
 export function browserPrintStockList(
   businessName: string,
   items: StockListPrintItem[],
