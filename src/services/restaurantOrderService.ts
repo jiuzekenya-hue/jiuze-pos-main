@@ -408,3 +408,14 @@ export async function listRestaurantOpenBills(
     })),
   }))
 }
+export async function listLockedRestaurantOrderIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc(
+    'list_locked_restaurant_orders',
+  )
+
+  if (error) throw error
+
+  return new Set(
+    (data ?? []).map((row: { order_id: string }) => row.order_id),
+  )
+}

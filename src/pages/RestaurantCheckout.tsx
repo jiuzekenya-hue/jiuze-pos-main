@@ -6,6 +6,7 @@ import { listProducts } from '../services/productService'
 import { browserPrint } from '../services/printerService'
 import {
   listOpenRestaurantOrders,
+  listLockedRestaurantOrderIds,
   listRecentRestaurantOrders,
   listRestaurantLocationStatus,
   recordRestaurantOrderPrint,
@@ -150,6 +151,7 @@ export default function RestaurantCheckout() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [openOrders, setOpenOrders] = useState<RestaurantOpenOrder[]>([])
+  const [lockedOrderIds, setLockedOrderIds] = useState<Set<string>>(new Set())
   const [recentOrders, setRecentOrders] = useState<RestaurantRecentOrder[]>([])
   const [showOpenOrders, setShowOpenOrders] = useState(false)
   const [showRecentOrders, setShowRecentOrders] = useState(false)
@@ -310,12 +312,14 @@ export default function RestaurantCheckout() {
         categoryRows,
         orders,
         statuses,
+        lockedOrderIds,
       ] = await Promise.all([
         getBusiness(profile.businessId),
         listProducts(profile.businessId),
         listCategories(profile.businessId),
         listOpenRestaurantOrders(),
         listRestaurantLocationStatus(),
+        listLockedRestaurantOrderIds(),
       ])
 
       setBusiness(businessData)
@@ -323,6 +327,7 @@ export default function RestaurantCheckout() {
       setCategories(categoryRows)
       setLocationStatuses(statuses)
       setOpenOrders(orders)
+      setLockedOrderIds(lockedOrderIds)
 
       const preferred = selectedTableRef.current
 
@@ -399,6 +404,10 @@ export default function RestaurantCheckout() {
       nextDiscount: number,
     ) => {
       const key = locationKey(location)
+      const existingOrderId = orderIdsRef.current[key]
+      if (existingOrderId && lockedOrderIds.has(existingOrderId)) {
+        return Promise.reject(new Error("This order has been printed and is locked. Use Open Bills to process payment."))
+      }
 
       if (!items.length && !orderIdsRef.current[key]) {
         return Promise.resolve(null)
@@ -502,13 +511,17 @@ export default function RestaurantCheckout() {
 
       return next
     },
-    [profile?.id],
+    [profile?.id, lockedOrderIds],
   )
 
   const refreshOpenOrders = useCallback(async () => {
     try {
-      const orders = await listOpenRestaurantOrders()
+      const [orders, lockedIds] = await Promise.all([
+        listOpenRestaurantOrders(),
+        listLockedRestaurantOrderIds(),
+      ])
       setOpenOrders(orders)
+      setLockedOrderIds(lockedIds)
     } catch (err) {
       setError(
         err instanceof Error
@@ -552,6 +565,10 @@ export default function RestaurantCheckout() {
 
       const orders = await listOpenRestaurantOrders()
       const target = orders.find((order) => order.id === orderId)
+
+      if (lockedOrderIds.has(orderId)) {
+        throw new Error("This order has been printed and is locked. Use Open Bills to process payment.")
+      }
 
       if (!target) {
         throw new Error('That open order is no longer available.')
@@ -705,6 +722,13 @@ export default function RestaurantCheckout() {
       selectedTableRef.current = nextTable
       setSelectedTable(nextTable)
 
+            if (target && lockedOrderIds.has(target.id)) {
+        setError(
+          'This order has been printed and is locked. Use Open Bills to process payment.',
+        )
+        return
+      }
+
       const hydrated = hydrateOrder(target, products)
 
       setOrderNumber(hydrated.number)
@@ -813,8 +837,15 @@ export default function RestaurantCheckout() {
       if (!printOrderId) {
         throw new Error('Order could not be identified for print audit.')
       }
-await reserveRestaurantOrderPrint(printOrderId)
-      setMessage('Order saved. Printing order…')
+      await reserveRestaurantOrderPrint(printOrderId)
+
+      setLockedOrderIds((current) => {
+        const next = new Set(current)
+        next.add(printOrderId)
+        return next
+      })
+
+      setMessage('Order locked. Printing order…')
 
       const printed = await browserPrint({
         businessName: business?.name || 'Restaurant',
@@ -844,6 +875,11 @@ await reserveRestaurantOrderPrint(printOrderId)
           printOrderId,
           'order_slip',
         )
+        setLockedOrderIds((current) => {
+          const next = new Set(current)
+          next.add(printOrderId)
+          return next
+        })
       }
 
       setMessage(
