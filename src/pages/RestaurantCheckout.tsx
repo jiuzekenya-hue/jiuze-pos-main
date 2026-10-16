@@ -516,12 +516,30 @@ export default function RestaurantCheckout() {
 
   const refreshOpenOrders = useCallback(async () => {
     try {
-      const [orders, lockedIds] = await Promise.all([
+      const [orders, lockedIds, statuses] = await Promise.all([
         listOpenRestaurantOrders(),
         listLockedRestaurantOrderIds(),
+        listRestaurantLocationStatus(),
       ])
       setOpenOrders(orders)
       setLockedOrderIds(lockedIds)
+      setLocationStatuses(statuses)
+
+      // If the selected table's order was paid elsewhere, clear the stale
+      // cart/order reference so the cashier cannot continue editing it.
+      const selectedKey = locationKey(
+        selectedLocation(selectedTableRef.current),
+      )
+      const selectedOrderId = orderIdsRef.current[selectedKey]
+      if (
+        selectedOrderId &&
+        !orders.some((order) => order.id === selectedOrderId)
+      ) {
+        delete orderIdsRef.current[selectedKey]
+        setOrderNumber(null)
+        setCart([])
+        setDiscount('')
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -530,6 +548,19 @@ export default function RestaurantCheckout() {
       )
     }
   }, [])
+
+  // Keep the Open Orders panel current when the owner pays an order on
+  // another device. Poll only while the panel is visible.
+  useEffect(() => {
+    if (!showOpenOrders) return
+
+    void refreshOpenOrders()
+    const intervalId = window.setInterval(() => {
+      void refreshOpenOrders()
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [showOpenOrders, refreshOpenOrders])
 
   const refreshRecentOrders = useCallback(async () => {
     try {
