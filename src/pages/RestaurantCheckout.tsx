@@ -404,11 +404,6 @@ export default function RestaurantCheckout() {
       nextDiscount: number,
     ) => {
       const key = locationKey(location)
-      const existingOrderId = orderIdsRef.current[key]
-      if (existingOrderId && lockedOrderIds.has(existingOrderId)) {
-        return Promise.reject(new Error("This order has been printed and is locked. Use Open Bills to process payment."))
-      }
-
       if (!items.length && !orderIdsRef.current[key]) {
         return Promise.resolve(null)
       }
@@ -566,10 +561,6 @@ export default function RestaurantCheckout() {
       const orders = await listOpenRestaurantOrders()
       const target = orders.find((order) => order.id === orderId)
 
-      if (lockedOrderIds.has(orderId)) {
-        throw new Error("This order has been printed and is locked. Use Open Bills to process payment.")
-      }
-
       if (!target) {
         throw new Error('That open order is no longer available.')
       }
@@ -721,13 +712,6 @@ export default function RestaurantCheckout() {
 
       selectedTableRef.current = nextTable
       setSelectedTable(nextTable)
-
-            if (target && lockedOrderIds.has(target.id)) {
-        setError(
-          'This order has been printed and is locked. Use Open Bills to process payment.',
-        )
-        return
-      }
 
       const hydrated = hydrateOrder(target, products)
 
