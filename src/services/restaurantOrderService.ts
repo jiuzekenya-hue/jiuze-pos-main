@@ -348,7 +348,7 @@ export type RestaurantOpenBill = {
   createdBy: string
   createdByName: string
   updatedAt: string
-  printedAt: string
+  printedAt: string | null
   subtotal: number
   total: number
   items: RestaurantOrderItem[]
@@ -373,7 +373,7 @@ export async function listRestaurantOpenBills(
     created_by: string
     created_by_name: string
     updated_at: string
-    printed_at: string
+    printed_at: string | null
     subtotal: number
     total: number
     items: Array<{

@@ -515,21 +515,24 @@ export default function RestaurantCheckout() {
   )
 
   const refreshOpenOrders = useCallback(async () => {
-    try {
-      const [orders, lockedIds] = await Promise.all([
-        listOpenRestaurantOrders(),
-        listLockedRestaurantOrderIds(),
-      ])
-      setOpenOrders(orders)
-      setLockedOrderIds(lockedIds)
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to load open orders.',
-      )
-    }
-  }, [])
+  try {
+    const [orders, lockedIds, statuses] = await Promise.all([
+      listOpenRestaurantOrders(),
+      listLockedRestaurantOrderIds(),
+      listRestaurantLocationStatus(),
+    ])
+
+    setOpenOrders(orders)
+    setLockedOrderIds(lockedIds)
+    setLocationStatuses(statuses)
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'Unable to refresh restaurant orders and tables.',
+    )
+  }
+}, [])
 
   const refreshRecentOrders = useCallback(async () => {
     try {

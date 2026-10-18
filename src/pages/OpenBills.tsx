@@ -112,7 +112,7 @@ export default function OpenBills() {
           <div>
             <h1 className="font-display text-2xl font-semibold">Open Bills</h1>
             <p className="mt-2 text-sm text-ink-muted">
-              Printed restaurant orders awaiting confirmed payment.
+              Open restaurant orders awaiting confirmed payment.
             </p>
           </div>
           <button
@@ -164,7 +164,7 @@ export default function OpenBills() {
           <section className="rounded-xl border border-dashed border-ink/20 p-10 text-center">
             <h2 className="font-medium">No open bills</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Printed, unpaid restaurant orders will appear here.
+              Open restaurant orders with items will appear here.
             </p>
           </section>
         ) : (
@@ -184,8 +184,10 @@ export default function OpenBills() {
                       · Cashier: {bill.createdByName}
                     </p>
                     <p className="mt-1 text-xs text-ink-muted">
-                      Printed {new Date(bill.printedAt).toLocaleString()}
-                    </p>
+  {bill.printedAt
+    ? `Printed ${new Date(bill.printedAt).toLocaleString()}`
+    : 'Not printed yet'}
+</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-ink-muted">Amount due</p>
@@ -224,18 +226,19 @@ export default function OpenBills() {
 
                 <div className="mt-4 flex justify-end">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setPayingId(bill.id)
-                      setAmountReceived(String(bill.total))
-                      setPaymentMethod('cash')
-                      setReference('')
-                      setError('')
-                    }}
-                    className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white"
-                  >
-                    Record payment
-                  </button>
+  type="button"
+  disabled={!bill.printedAt}
+  onClick={() => {
+    setPayingId(bill.id)
+    setAmountReceived(String(bill.total))
+    setPaymentMethod('cash')
+    setReference('')
+    setError('')
+  }}
+  className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+>
+  Record payment
+</button>
                 </div>
 
                 {payingId === bill.id && (
