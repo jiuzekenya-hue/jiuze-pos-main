@@ -404,11 +404,6 @@ export default function RestaurantCheckout() {
       nextDiscount: number,
     ) => {
       const key = locationKey(location)
-      const existingOrderId = orderIdsRef.current[key]
-      if (existingOrderId && lockedOrderIds.has(existingOrderId)) {
-        return Promise.reject(new Error("This order has been printed and is locked. Use Open Bills to process payment."))
-      }
-
       if (!items.length && !orderIdsRef.current[key]) {
         return Promise.resolve(null)
       }
@@ -515,24 +510,52 @@ export default function RestaurantCheckout() {
   )
 
   const refreshOpenOrders = useCallback(async () => {
-  try {
-    const [orders, lockedIds, statuses] = await Promise.all([
-      listOpenRestaurantOrders(),
-      listLockedRestaurantOrderIds(),
-      listRestaurantLocationStatus(),
-    ])
+    try {
+      const [orders, lockedIds, statuses] = await Promise.all([
+        listOpenRestaurantOrders(),
+        listLockedRestaurantOrderIds(),
+        listRestaurantLocationStatus(),
+      ])
+      setOpenOrders(orders)
+      setLockedOrderIds(lockedIds)
+      setLocationStatuses(statuses)
 
-    setOpenOrders(orders)
-    setLockedOrderIds(lockedIds)
-    setLocationStatuses(statuses)
-  } catch (err) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : 'Unable to refresh restaurant orders and tables.',
-    )
-  }
-}, [])
+      // If the selected table's order was paid elsewhere, clear the stale
+      // cart/order reference so the cashier cannot continue editing it.
+      const selectedKey = locationKey(
+        selectedLocation(selectedTableRef.current),
+      )
+      const selectedOrderId = orderIdsRef.current[selectedKey]
+      if (
+        selectedOrderId &&
+        !orders.some((order) => order.id === selectedOrderId)
+      ) {
+        delete orderIdsRef.current[selectedKey]
+        setOrderNumber(null)
+        setCart([])
+        setDiscount('')
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load open orders.',
+      )
+    }
+  }, [])
+
+  // Keep the Open Orders panel current when the owner pays an order on
+  // another device. Poll only while the panel is visible.
+  useEffect(() => {
+    if (!showOpenOrders) return
+
+    void refreshOpenOrders()
+    const intervalId = window.setInterval(() => {
+      void refreshOpenOrders()
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [showOpenOrders, refreshOpenOrders])
 
   const refreshRecentOrders = useCallback(async () => {
     try {
@@ -568,10 +591,6 @@ export default function RestaurantCheckout() {
 
       const orders = await listOpenRestaurantOrders()
       const target = orders.find((order) => order.id === orderId)
-
-      if (lockedOrderIds.has(orderId)) {
-        throw new Error("This order has been printed and is locked. Use Open Bills to process payment.")
-      }
 
       if (!target) {
         throw new Error('That open order is no longer available.')
@@ -724,13 +743,6 @@ export default function RestaurantCheckout() {
 
       selectedTableRef.current = nextTable
       setSelectedTable(nextTable)
-
-            if (target && lockedOrderIds.has(target.id)) {
-        setError(
-          'This order has been printed and is locked. Use Open Bills to process payment.',
-        )
-        return
-      }
 
       const hydrated = hydrateOrder(target, products)
 
