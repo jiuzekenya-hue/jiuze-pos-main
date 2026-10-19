@@ -16,6 +16,13 @@ const money = (value: number) =>
   }).format(value)
 
 export default function OpenBills() {
+    const { role, customPermissions } = useAuth()
+  const isOwner = role === 'owner'
+  const canRecordPayments = can(
+    role,
+    'recordOpenBillPayments',
+    customPermissions,
+  )
   const [bills, setBills] = useState<RestaurantOpenBill[]>([])
   const [cashierId, setCashierId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -107,7 +114,18 @@ export default function OpenBills() {
     }
   }
 
-  if (!can(role, 'openBills', customPermissions)) return <main className="min-h-screen grid place-items-center bg-paper p-6"><section className="rounded-xl border border-ink/10 bg-white p-8 text-center"><h1 className="text-xl font-semibold">Access restricted</h1><p className="mt-2 text-sm text-ink-muted">Ask the business owner to grant Open Bills access.</p></section></main>
+    if (!can(role, 'openBills', customPermissions)) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-paper p-6">
+        <section className="rounded-xl border border-ink/10 bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold">Access restricted</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Ask the business owner to grant Open Bills access.
+          </p>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-paper p-4 text-ink sm:p-6">

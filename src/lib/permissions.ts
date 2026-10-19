@@ -31,7 +31,11 @@ export const CASHIER_FULL_ACCESS_PERMISSIONS: readonly Permission[] = [
 ]
 
 const OWNER_PERMISSIONS: readonly Permission[] = [
-  ...CASHIER_FULL_ACCESS_PERMISSIONS, 'settings', 'userManagement',
+  ...CASHIER_FULL_ACCESS_PERMISSIONS.filter(
+    (permission) => permission !== 'mySales',
+  ),
+  'settings',
+  'userManagement',
 ]
 
 export const CASHIER_PERMISSION_PRESETS: { id: string; label: string; description: string; permissions: readonly Permission[] }[] = [
