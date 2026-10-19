@@ -5,6 +5,8 @@ import {
   type RestaurantOpenBill,
 } from '../services/restaurantOrderService'
 import { completeRestaurantOrder } from '../services/restaurantOrderService'
+import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-KE', {
@@ -14,6 +16,13 @@ const money = (value: number) =>
   }).format(value)
 
 export default function OpenBills() {
+    const { role, customPermissions } = useAuth()
+  const isOwner = role === 'owner'
+  const canRecordPayments = can(
+    role,
+    'recordOpenBillPayments',
+    customPermissions,
+  )
   const [bills, setBills] = useState<RestaurantOpenBill[]>([])
   const [cashierId, setCashierId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -31,7 +40,7 @@ export default function OpenBills() {
     setError('')
 
     try {
-      const result = await listRestaurantOpenBills(cashierId || null)
+      const result = await listRestaurantOpenBills(isOwner ? (cashierId || null) : null)
       setBills(result)
     } catch (err) {
       setError(
@@ -40,7 +49,7 @@ export default function OpenBills() {
     } finally {
       setLoading(false)
     }
-  }, [cashierId])
+  }, [cashierId, isOwner])
 
   useEffect(() => {
     void loadBills()
@@ -105,6 +114,19 @@ export default function OpenBills() {
     }
   }
 
+    if (!can(role, 'openBills', customPermissions)) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-paper p-6">
+        <section className="rounded-xl border border-ink/10 bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold">Access restricted</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Ask the business owner to grant Open Bills access.
+          </p>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-paper p-4 text-ink sm:p-6">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -125,7 +147,7 @@ export default function OpenBills() {
           </button>
         </header>
 
-        <section className="rounded-xl border border-ink/10 bg-white p-4">
+        {isOwner &&         <section className="rounded-xl border border-ink/10 bg-white p-4">
           <label
             htmlFor="cashier-filter"
             className="mb-2 block text-sm font-medium"
@@ -145,7 +167,7 @@ export default function OpenBills() {
               </option>
             ))}
           </select>
-        </section>
+        </section>}
 
         {error && (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -224,7 +246,7 @@ export default function OpenBills() {
                   </p>
                 )}
 
-                <div className="mt-4 flex justify-end">
+                {canRecordPayments && (                <div className="mt-4 flex justify-end">
                   <button
   type="button"
   disabled={!bill.printedAt}
@@ -239,9 +261,9 @@ export default function OpenBills() {
 >
   Record payment
 </button>
-                </div>
+                </div>)}
 
-                {payingId === bill.id && (
+                {payingId === bill.id && canRecordPayments && (
                   <div className="mt-4 space-y-4 rounded-lg border border-ink/10 p-4">
                     <h3 className="font-medium">Confirm payment received</h3>
                     <p className="text-sm text-ink-muted">

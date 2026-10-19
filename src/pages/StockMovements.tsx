@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 import { listStockMovements, type StockMovement } from '../services/stockMovementService'
 
 const labels: Record<StockMovement['type'], string> = { purchase: 'Purchase', sale: 'Sale', adjustment: 'Adjustment', return: 'Return', damage: 'Damage' }
@@ -12,14 +13,14 @@ function TypeIcon({ type }: { type: StockMovement['type'] }) {
 }
 
 export default function StockMovements() {
-  const { profile, role } = useAuth()
+  const { profile, role, customPermissions } = useAuth()
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | StockMovement['type']>('all')
 
-  const load = useCallback(async () => { if (!profile?.businessId || role !== 'owner') return; setLoading(true); setError(null); try { setMovements(await listStockMovements(profile.businessId)) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load stock history.') } finally { setLoading(false) } }, [profile?.businessId, role])
+  const load = useCallback(async () => { if (!profile?.businessId || !can(role, 'inventory', customPermissions)) return; setLoading(true); setError(null); try { setMovements(await listStockMovements(profile.businessId)) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load stock history.') } finally { setLoading(false) } }, [profile?.businessId, role, customPermissions])
   useEffect(() => { void load() }, [load])
 
   const filtered = useMemo(() => { const query = search.trim().toLowerCase(); return movements.filter((movement) => { const matchesSearch = !query || movement.productName.toLowerCase().includes(query) || movement.sku.toLowerCase().includes(query) || (movement.reason ?? '').toLowerCase().includes(query); const matchesType = typeFilter === 'all' || movement.type === typeFilter; return matchesSearch && matchesType }) }, [movements, search, typeFilter])
@@ -27,7 +28,7 @@ export default function StockMovements() {
   const reductions = movements.filter((m) => m.quantity < 0).length
   const damages = movements.filter((m) => m.type === 'damage').length
 
-  if (role !== 'owner') return <div className="min-h-screen bg-paper px-5 py-8 sm:px-6"><div className="max-w-6xl mx-auto"><header className="mb-8"><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Inventory</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink mt-2">Stock history</h1></header><div className="rounded-2xl border border-line bg-paper-raised p-10 text-center"><h2 className="font-display font-semibold text-xl text-ink">Access restricted</h2><p className="text-sm text-ink-muted mt-2">Stock history is available to business owners only.</p></div></div></div>
+  if (!can(role, 'inventory', customPermissions)) return <div className="min-h-screen bg-paper px-5 py-8 sm:px-6"><div className="max-w-6xl mx-auto"><header className="mb-8"><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Inventory</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink mt-2">Stock history</h1></header><div className="rounded-2xl border border-line bg-paper-raised p-10 text-center"><h2 className="font-display font-semibold text-xl text-ink">Access restricted</h2><p className="text-sm text-ink-muted mt-2">Your account does not have permission to view stock history.</p></div></div></div>
 
   return <div className="min-h-screen bg-paper px-5 py-6 sm:px-6 lg:px-8"><div className="max-w-[1500px] mx-auto">
     <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between mb-7"><div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Inventory control</p><h1 className="font-display font-semibold text-3xl sm:text-4xl tracking-tight text-ink mt-2">Stock history</h1><p className="text-sm text-ink-muted mt-2">Track every movement in and out of your inventory.</p></div><Link to="/products" className="inline-flex self-start rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">Manage products</Link></header>
