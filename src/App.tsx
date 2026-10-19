@@ -54,7 +54,7 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-        <Route path="/" element={<ModeAwareCheckout />} />
+        <Route path="/" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
         <Route path="/categories" element={<PermissionRoute permission="products"><Categories /></PermissionRoute>} />
