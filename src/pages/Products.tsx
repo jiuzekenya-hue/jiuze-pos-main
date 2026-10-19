@@ -3,6 +3,7 @@ import { getBusiness } from '../services/businessService'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 import { listCategories } from '../services/categoryService'
 import { adjustStock } from '../services/inventoryService'
 import { activateProduct, createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
@@ -144,8 +145,10 @@ function Icon({
 }
 
 export default function Products() {
-  const { profile, role } = useAuth()
-  const isOwner = role === 'owner'
+  const { profile, role, customPermissions } = useAuth()
+  const canCreate = can(role, 'productCreate', customPermissions)
+  const canEdit = can(role, 'productEdit', customPermissions)
+  const canAdjustStock = can(role, 'stockAdjustments', customPermissions)
 
 
   const [products, setProducts] = useState<Product[]>([])
@@ -269,7 +272,7 @@ const printDailyStock80mm = async () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!profile?.businessId || !isOwner) return
+    if (!profile?.businessId || (editingId ? !canEdit : !canCreate)) return
 
     setSaving(true)
     setError(null)
@@ -355,7 +358,7 @@ const printDailyStock80mm = async () => {
   const deactivate = async (product: Product) => {
     setMenuProductId(null)
 
-    if (!isOwner || !window.confirm(`Deactivate “${product.name}”?`)) {
+    if (!canEdit || !window.confirm(`Deactivate “${product.name}”?`)) {
       return
     }
 
@@ -381,7 +384,7 @@ const printDailyStock80mm = async () => {
   const activate = async (product: Product) => {
     setMenuProductId(null)
 
-    if (!isOwner || !window.confirm(`Activate “${product.name}”?`)) {
+    if (!canEdit || !window.confirm(`Activate “${product.name}”?`)) {
       return
     }
 
@@ -412,7 +415,7 @@ const printDailyStock80mm = async () => {
   const submitAdjustment = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!adjustingProduct || !isOwner) return
+    if (!adjustingProduct || !canAdjustStock) return
 
     setAdjusting(true)
     setError(null)
@@ -525,7 +528,7 @@ const printDailyStock80mm = async () => {
               Print Daily Stock
             </button>
 
-            {isOwner && (
+            {canCreate && (
               <button
                 type="button"
                 onClick={openAdd}
@@ -687,7 +690,7 @@ const printDailyStock80mm = async () => {
                       </div>
                     </div>
 
-                    {isOwner && (
+                    {canEdit && (
                       <div className="grid grid-cols-[1fr_1.45fr_48px] border-t border-line">
                         <button type="button" onClick={() => edit(product)} className="inline-flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium text-ink-muted hover:text-ink hover:bg-paper transition-colors">
                           <Icon name="edit" />
