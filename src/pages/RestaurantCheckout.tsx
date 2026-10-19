@@ -1058,23 +1058,37 @@ export default function RestaurantCheckout() {
                                 <p>
                                   Cashier: <span className="font-semibold text-slate-700">{order.createdByName}</span>
                                 </p>
-                                {order.status === 'paid' && (
-                                  <p>
-                                    Paid by: <span className="font-semibold text-slate-700">{order.paidByName || 'Unknown user'}</span>
-                                  </p>
-                                )}
-                                {order.status === 'cancelled' && (
-                                  <>
-                                    <p>
-                                      Cleared by: <span className="font-semibold text-slate-700">{order.clearedByName || 'Unknown user'}</span>
-                                    </p>
-                                    {order.clearReason && (
-                                      <p>
-                                        Reason: <span className="font-semibold text-slate-700">{order.clearReason}</span>
-                                      </p>
-                                    )}
-                                  </>
-                                )}
+{order.status === 'paid' && (
+  <>
+    {order.isReconciled && (
+      <p className="font-semibold text-amber-700">
+        Historical reconciliation —{' '}
+        {(order.reconciliationPaymentMethod || 'unknown').toUpperCase() === 'MPESA'
+          ? 'M-Pesa'
+          : order.reconciliationPaymentMethod || 'Unknown method'}
+      </p>
+    )}
+    <p>
+      Paid by:{' '}
+      <span className="font-semibold text-slate-700">
+        {order.isReconciled
+          ? 'Not recorded'
+          : order.paidByName || 'Unknown user'}
+      </span>
+    </p>
+    <p>
+      Payment time:{' '}
+      <span className="font-semibold text-slate-700">
+        {order.isReconciled
+          ? 'Not recorded'
+          : order.paidAt
+            ? new Date(order.paidAt).toLocaleString()
+            : 'Not recorded'}
+      </span>
+    </p>
+  </>
+)}
+
                                 {order.orderSlipPrintCount > 0 && (
                                   <p>
                                     Order slip printed: <span className="font-semibold text-slate-700">{order.orderSlipPrintCount}×</span>
