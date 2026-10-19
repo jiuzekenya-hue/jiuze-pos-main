@@ -129,7 +129,7 @@ export default function OpenBills() {
           </button>
         </header>
 
-        <section className="rounded-xl border border-ink/10 bg-white p-4">
+        {isOwner &&         <section className="rounded-xl border border-ink/10 bg-white p-4">
           <label
             htmlFor="cashier-filter"
             className="mb-2 block text-sm font-medium"
@@ -149,7 +149,7 @@ export default function OpenBills() {
               </option>
             ))}
           </select>
-        </section>
+        </section>}
 
         {error && (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
