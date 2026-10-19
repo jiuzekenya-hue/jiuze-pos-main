@@ -5,6 +5,8 @@ import {
   type RestaurantOpenBill,
 } from '../services/restaurantOrderService'
 import { completeRestaurantOrder } from '../services/restaurantOrderService'
+import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-KE', {
@@ -31,7 +33,7 @@ export default function OpenBills() {
     setError('')
 
     try {
-      const result = await listRestaurantOpenBills(cashierId || null)
+      const result = await listRestaurantOpenBills(isOwner ? (cashierId || null) : null)
       setBills(result)
     } catch (err) {
       setError(
@@ -40,7 +42,7 @@ export default function OpenBills() {
     } finally {
       setLoading(false)
     }
-  }, [cashierId])
+  }, [cashierId, isOwner])
 
   useEffect(() => {
     void loadBills()
@@ -104,6 +106,8 @@ export default function OpenBills() {
       )
     }
   }
+
+  if (!can(role, 'openBills', customPermissions)) return <main className="min-h-screen grid place-items-center bg-paper p-6"><section className="rounded-xl border border-ink/10 bg-white p-8 text-center"><h1 className="text-xl font-semibold">Access restricted</h1><p className="mt-2 text-sm text-ink-muted">Ask the business owner to grant Open Bills access.</p></section></main>
 
   return (
     <main className="min-h-screen bg-paper p-4 text-ink sm:p-6">
@@ -241,7 +245,7 @@ export default function OpenBills() {
 </button>
                 </div>
 
-                {payingId === bill.id && (
+                {payingId === bill.id && canRecordPayments && (
                   <div className="mt-4 space-y-4 rounded-lg border border-ink/10 p-4">
                     <h3 className="font-medium">Confirm payment received</h3>
                     <p className="text-sm text-ink-muted">
