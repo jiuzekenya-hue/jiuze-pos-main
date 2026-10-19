@@ -57,13 +57,13 @@ function App() {
         <Route path="/" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
-        <Route path="/categories" element={<PermissionRoute permission="products"><Categories /></PermissionRoute>} />
+        <Route path="/categories" element={<PermissionRoute permission="categories"><Categories /></PermissionRoute>} />
         <Route path="/products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
         <Route path="/stock-movements" element={<PermissionRoute permission="inventory"><StockMovements /></PermissionRoute>} />
         <Route path="/checkout" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
         <Route path="/sales" element={<PermissionRoute permission="sales"><SalesHistory /></PermissionRoute>} />
-        <Route path="/open-bills" element={<OwnerOnlyRoute><OpenBills /></OwnerOnlyRoute>} />
-        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/open-bills" element={<PermissionRoute permission="openBills"><OpenBills /></PermissionRoute>} />
+        <Route path="/analytics" element={<PermissionRoute permission="dashboard"><Analytics /></PermissionRoute>} />
         <Route path="/users" element={<Users />} />
         <Route path="/subscription" element={<OwnerOnlyRoute><Subscription /></OwnerOnlyRoute>} />
         <Route path="/settings" element={<Settings />} />
