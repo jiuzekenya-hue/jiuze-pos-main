@@ -11,9 +11,6 @@ export const PERMISSION_OPTIONS: { key: Permission; label: string; description: 
   { key: 'inventory', label: 'View stock', description: 'View inventory quantities' },
   { key: 'sales', label: 'View all sales', description: 'Browse business sales history' },
   { key: 'dashboard', label: 'Dashboard', description: 'View business dashboard' },
-  { key: 'reports', label: 'Reports & analytics', description: 'View business reports' },
-  { key: 'stockAdjustments', label: 'Adjust stock', description: 'Record inventory adjustments' },
-  { key: 'voidReturnSales', label: 'Void / return sales', description: 'Void or return completed sales' },
 ]
 
 const OWNER_PERMISSIONS: readonly Permission[] = ['dashboard','pos','products','inventory','sales','reports','settings','userManagement','stockAdjustments','voidReturnSales']
