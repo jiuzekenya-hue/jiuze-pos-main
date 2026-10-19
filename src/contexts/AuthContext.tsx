@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     effectiveProfileLoadResult?.status === 'loaded' ? effectiveProfileLoadResult.profile : null
 
   useEffect(() => {
-    if (role !== 'cashier' || !profile?.id) { setCustomPermissions(null); return }
+    if (profile?.role !== 'cashier' || !profile?.id) { setCustomPermissions(null); return }
     let cancelled = false
     db.from('cashier_permissions').select('permissions').eq('cashier_id', profile.id).maybeSingle().then(({ data, error }) => {
       if (cancelled) return
@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCustomPermissions(!error && data ? (data.permissions as Permission[]) : null)
     })
     return () => { cancelled = true }
-  }, [role, profile?.id])
+  }, [profile?.role, profile?.id])
 
   const value: AuthContextValue = {
     isSessionLoading,
