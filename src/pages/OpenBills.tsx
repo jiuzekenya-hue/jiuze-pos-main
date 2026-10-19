@@ -228,7 +228,7 @@ export default function OpenBills() {
                   </p>
                 )}
 
-                <div className="mt-4 flex justify-end">
+                {canRecordPayments && (                <div className="mt-4 flex justify-end">
                   <button
   type="button"
   disabled={!bill.printedAt}
@@ -243,7 +243,7 @@ export default function OpenBills() {
 >
   Record payment
 </button>
-                </div>
+                </div>)}
 
                 {payingId === bill.id && canRecordPayments && (
                   <div className="mt-4 space-y-4 rounded-lg border border-ink/10 p-4">
