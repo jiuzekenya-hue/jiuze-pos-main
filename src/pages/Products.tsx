@@ -643,8 +643,8 @@ const printDailyStock80mm = async () => {
           ) : filteredProducts.length === 0 ? (
             <div className="bg-paper-raised border border-line rounded-xl px-5 py-14 text-center">
               <p className="text-sm font-medium text-ink">{products.length === 0 ? 'No products yet.' : 'No products match your search.'}</p>
-              <p className="text-xs text-ink-muted mt-1">{products.length === 0 && isOwner ? 'Add your first product to start building the catalogue.' : 'Try a different search or category.'}</p>
-              {products.length === 0 && isOwner && categories.length > 0 && (
+              <p className="text-xs text-ink-muted mt-1">{products.length === 0 && canEdit ? 'Add your first product to start building the catalogue.' : 'Try a different search or category.'}</p>
+              {products.length === 0 && canEdit && categories.length > 0 && (
                 <button type="button" onClick={openAdd} className="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-paper">Add product</button>
               )}
             </div>
@@ -723,7 +723,7 @@ const printDailyStock80mm = async () => {
           )}
         </section>
 
-        {drawerOpen && isOwner && (
+        {drawerOpen && canEdit && (
           <div className="fixed inset-0 z-50 flex justify-end bg-black/30" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) reset() }}>
             <aside role="dialog" aria-modal="true" aria-labelledby="product-drawer-title" className="h-full w-full max-w-lg overflow-y-auto bg-paper-raised border-l border-line shadow-2xl">
               <form onSubmit={submit} className="flex min-h-full flex-col">
