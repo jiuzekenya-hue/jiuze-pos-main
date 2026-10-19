@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './contexts/auth-context'
+import { can, type Permission } from './lib/permissions'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ResetPassword from './pages/ResetPassword'
@@ -37,6 +38,12 @@ function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function PermissionRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
+  const { role, customPermissions, isProfileLoading } = useAuth()
+  if (isProfileLoading) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Loading...</div>
+  return can(role, permission, customPermissions) ? <>{children}</> : <Navigate to="/dashboard" replace />
+}
+
 function App() {
   return (
     <Routes>
@@ -45,13 +52,13 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<ModeAwareCheckout />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/stock-movements" element={<StockMovements />} />
-        <Route path="/checkout" element={<ModeAwareCheckout />} />
-        <Route path="/sales" element={<SalesHistory />} />
+        <Route path="/categories" element={<PermissionRoute permission="products"><Categories /></PermissionRoute>} />
+        <Route path="/products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
+        <Route path="/stock-movements" element={<PermissionRoute permission="inventory"><StockMovements /></PermissionRoute>} />
+        <Route path="/checkout" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
+        <Route path="/sales" element={<PermissionRoute permission="sales"><SalesHistory /></PermissionRoute>} />
         <Route path="/open-bills" element={<OwnerOnlyRoute><OpenBills /></OwnerOnlyRoute>} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<Users />} />
