@@ -886,10 +886,18 @@ export default function RestaurantCheckout() {
           : 'Order saved, but the Print Bridge is unavailable.',
       )
     } catch (err) {
-      setError(
+      const details =
         err instanceof Error
-          ? 'Unable to save order: ' + err.message
-          : 'Unable to save order.',
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message?: unknown }).message || '')
+            : String(err || '')
+
+      console.error('[RestaurantCheckout] Unable to save order', err)
+      setError(
+        details
+          ? 'Unable to save order: ' + details
+          : 'Unable to save order. Check the browser console for the database error.',
       )
     }
   }
