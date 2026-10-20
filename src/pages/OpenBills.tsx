@@ -18,11 +18,7 @@ const money = (value: number) =>
 export default function OpenBills() {
     const { role, customPermissions } = useAuth()
   const isOwner = role === 'owner'
-  const canRecordPayments = can(
-    role,
-    'recordOpenBillPayments',
-    customPermissions,
-  )
+  const canRecordPayments = can(role, 'openBills', customPermissions)
   const [bills, setBills] = useState<RestaurantOpenBill[]>([])
   const [cashierId, setCashierId] = useState('')
   const [loading, setLoading] = useState(true)
