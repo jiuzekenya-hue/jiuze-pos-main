@@ -16,8 +16,7 @@ export const PERMISSION_OPTIONS: { key: Permission; label: string; description: 
   { key: 'stockAdjustments', label: 'Adjust stock', description: 'Record stock additions, reductions and corrections' },
   { key: 'categories', label: 'Manage categories', description: 'Create and edit product categories' },
   { key: 'sales', label: 'View all sales', description: 'Browse business sales history' },
-  { key: 'openBills', label: 'View Open Bills', description: 'View outstanding printed restaurant orders' },
-  { key: 'recordOpenBillPayments', label: 'Record bill payments', description: 'Mark outstanding bills as paid after collecting payment' },
+  { key: 'openBills', label: 'Open Bills access', description: 'View all outstanding printed restaurant orders and record collected payments' },
   { key: 'dashboard', label: 'Dashboard and analytics', description: 'View business performance and analytics' },
 ]
 
@@ -27,7 +26,7 @@ export const CASHIER_DEFAULT_PERMISSIONS: readonly Permission[] = ['pos', 'mySal
 export const CASHIER_FULL_ACCESS_PERMISSIONS: readonly Permission[] = [
   'dashboard', 'pos', 'products', 'productCreate', 'productEdit',
   'inventory', 'stockAdjustments', 'categories', 'sales', 'reports',
-  'openBills', 'recordOpenBillPayments', 'mySales', 'voidReturnSales',
+  'openBills', 'mySales', 'voidReturnSales',
 ]
 
 const OWNER_PERMISSIONS: readonly Permission[] = [
@@ -41,7 +40,7 @@ const OWNER_PERMISSIONS: readonly Permission[] = [
 export const CASHIER_PERMISSION_PRESETS: { id: string; label: string; description: string; permissions: readonly Permission[] }[] = [
   { id: 'sales', label: 'Sales cashier', description: 'Checkout and own sales only', permissions: CASHIER_DEFAULT_PERMISSIONS },
   { id: 'stock', label: 'Stock manager', description: 'View and manage products, categories and stock', permissions: ['products', 'productCreate', 'productEdit', 'inventory', 'stockAdjustments', 'categories'] },
-  { id: 'bills', label: 'Bill collector', description: 'View Open Bills and record collected payments', permissions: ['openBills', 'recordOpenBillPayments'] },
+  { id: 'bills', label: 'Bill collector', description: 'View Open Bills and record collected payments', permissions: ['openBills'] },
   { id: 'full', label: 'Full access', description: 'All regular POS permissions; no owner administration', permissions: CASHIER_FULL_ACCESS_PERMISSIONS },
 ]
 
