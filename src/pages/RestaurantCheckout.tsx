@@ -587,6 +587,9 @@ export default function RestaurantCheckout() {
       if (!target) {
         throw new Error('That open order is no longer available.')
       }
+      if (profile?.role !== 'owner' && target.createdBy !== profile?.id) {
+        throw new Error('You can only open your own restaurant orders.')
+      }
 
       const targetLocation = toRestaurantLocation(
         target.locationType,
