@@ -255,22 +255,16 @@ export default function RestaurantCheckout() {
     ) => {
       orderIdsRef.current = {}
 
+      // Only map orders owned by the signed-in cashier (owners can manage
+      // any order). Never let another cashier's order ID become the save target.
+      const canManageAll = profile?.role === 'owner'
       orders.forEach((order) => {
-        const key = locationKey(
-          toRestaurantLocation(
-            order.locationType,
-            order.tableNumber,
-          ),
-        )
+        if (!canManageAll && order.createdBy !== profile?.id) return
 
-        if (order.locationType === 'table') {
-          orderIdsRef.current[key] = order.id
-        } else if (
-          order.createdBy === profile?.id &&
-          !orderIdsRef.current[key]
-        ) {
-          orderIdsRef.current[key] = order.id
-        }
+        const key = locationKey(
+          toRestaurantLocation(order.locationType, order.tableNumber),
+        )
+        if (!orderIdsRef.current[key]) orderIdsRef.current[key] = order.id
       })
 
       const target =
@@ -278,16 +272,14 @@ export default function RestaurantCheckout() {
           ? orders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
-                order.createdBy === profile?.id,
+                (canManageAll || order.createdBy === profile?.id),
             )
           : orders.find(
               (order) =>
                 locationKey(
-                  toRestaurantLocation(
-                    order.locationType,
-                    order.tableNumber,
-                  ),
-                ) === locationKey(selectedLocation(selected)),
+                  toRestaurantLocation(order.locationType, order.tableNumber),
+                ) === locationKey(selectedLocation(selected)) &&
+                (canManageAll || order.createdBy === profile?.id),
             )
 
       const hydrated = hydrateOrder(target, productRows)
@@ -700,22 +692,15 @@ export default function RestaurantCheckout() {
         listRestaurantLocationStatus(),
       ])
 
+      orderIdsRef.current = {}
+      const canManageAll = profile?.role === 'owner'
       orders.forEach((order) => {
-        const key = locationKey(
-          toRestaurantLocation(
-            order.locationType,
-            order.tableNumber,
-          ),
-        )
+        if (!canManageAll && order.createdBy !== profile?.id) return
 
-        if (order.locationType === 'table') {
-          orderIdsRef.current[key] = order.id
-        } else if (
-          order.createdBy === profile?.id &&
-          !orderIdsRef.current[key]
-        ) {
-          orderIdsRef.current[key] = order.id
-        }
+        const key = locationKey(
+          toRestaurantLocation(order.locationType, order.tableNumber),
+        )
+        if (!orderIdsRef.current[key]) orderIdsRef.current[key] = order.id
       })
 
       setLocationStatuses(statuses)
@@ -724,21 +709,15 @@ export default function RestaurantCheckout() {
         nextTable === 'takeaway'
           ? orders.find(
               (order) =>
-                order.id === orderIdsRef.current['takeaway'],
-            ) ||
-            orders.find(
-              (order) =>
                 order.locationType === 'takeaway' &&
-                order.createdBy === profile?.id,
+                (canManageAll || order.createdBy === profile?.id),
             )
           : orders.find(
               (order) =>
                 locationKey(
-                  toRestaurantLocation(
-                    order.locationType,
-                    order.tableNumber,
-                  ),
-                ) === locationKey(selectedLocation(nextTable)),
+                  toRestaurantLocation(order.locationType, order.tableNumber),
+                ) === locationKey(selectedLocation(nextTable)) &&
+                (canManageAll || order.createdBy === profile?.id),
             )
 
       selectedTableRef.current = nextTable
