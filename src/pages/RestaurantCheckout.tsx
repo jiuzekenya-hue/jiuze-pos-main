@@ -258,7 +258,11 @@ export default function RestaurantCheckout() {
       // Only map orders owned by the signed-in cashier (owners can manage
       // any order). Never let another cashier's order ID become the save target.
       const canManageAll = profile?.role === 'owner'
-      orders.forEach((order) => {
+      const editableOrders = orders.filter(
+        (order) => !lockedOrderIds.has(order.id),
+      )
+
+      editableOrders.forEach((order) => {
         if (!canManageAll && order.createdBy !== profile?.id) return
 
         const key = locationKey(
@@ -269,12 +273,12 @@ export default function RestaurantCheckout() {
 
       const target =
         selected === 'takeaway'
-          ? orders.find(
+          ? editableOrders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
                 (canManageAll || order.createdBy === profile?.id),
             )
-          : orders.find(
+          : editableOrders.find(
               (order) =>
                 locationKey(
                   toRestaurantLocation(order.locationType, order.tableNumber),
@@ -288,7 +292,7 @@ export default function RestaurantCheckout() {
       setCart(hydrated.cart)
       setDiscount(hydrated.discount)
     },
-    [hydrateOrder, profile?.id],
+    [hydrateOrder, lockedOrderIds, profile?.id],
   )
 
   const load = useCallback(async () => {
@@ -679,25 +683,30 @@ export default function RestaurantCheckout() {
       // If the current order is stale from another account,
       // do not send its ID back to Supabase and let the
       // database correctly reject ownership.
+      // Printed orders are immutable. Never attempt to save them while
+      // leaving a location; this is especially important after reloads.
+      const lockedIds = await listLockedRestaurantOrderIds()
       if (
-        currentOrderId ||
-        (cart.length > 0 && !orderNumber)
+        currentOrderId &&
+        !lockedIds.has(currentOrderId) &&
+        !lockedOrderIds.has(currentOrderId)
       ) {
-        await persistOrder(
-          currentLocation,
-          cart,
-          discountValue,
-        )
+        await persistOrder(currentLocation, cart, discountValue)
+      } else if (!currentOrderId && cart.length > 0 && !orderNumber) {
+        await persistOrder(currentLocation, cart, discountValue)
       }
 
-      const [orders, statuses] = await Promise.all([
+      const [orders, statuses, refreshedLockedIds] = await Promise.all([
         listOpenRestaurantOrders(),
         listRestaurantLocationStatus(),
+        listLockedRestaurantOrderIds(),
       ])
+      setLockedOrderIds(refreshedLockedIds)
 
       orderIdsRef.current = {}
+      const editableOrders = orders.filter((order) => !refreshedLockedIds.has(order.id))
       const canManageAll = profile?.role === 'owner'
-      orders.forEach((order) => {
+      editableOrders.forEach((order) => {
         if (!canManageAll && order.createdBy !== profile?.id) return
 
         const key = locationKey(
@@ -710,12 +719,12 @@ export default function RestaurantCheckout() {
 
       const target =
         nextTable === 'takeaway'
-          ? orders.find(
+          ? editableOrders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
                 (canManageAll || order.createdBy === profile?.id),
             )
-          : orders.find(
+          : editableOrders.find(
               (order) =>
                 locationKey(
                   toRestaurantLocation(order.locationType, order.tableNumber),
