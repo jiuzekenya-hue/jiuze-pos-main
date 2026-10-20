@@ -36,11 +36,15 @@ function Icon({ name }: { name: string }) {
 }
 
 export default function AppShell() {
-  const { user, role, profile, signOut } = useAuth()
+  const { user, role, profile, signOut, customPermissions } = useAuth()
   const isOnline = useOnlineStatus()
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
-  const visibleItems = navItems.filter((item) => !item.ownerOnly || can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings'))
+  const visibleItems = navItems.filter((item) => {
+    if (item.ownerOnly) return can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings', customPermissions)
+    const permission = item.to === '/dashboard' ? 'dashboard' : item.to === '/checkout' ? 'pos' : item.to === '/sales' ? (role === 'cashier' ? 'mySales' : 'sales') : item.to === '/products' || item.to === '/categories' ? 'products' : item.to === '/stock-movements' ? 'inventory' : null
+    return permission ? can(role, permission, customPermissions) : true
+  })
   const activeLabel = visibleItems.find((item) => item.to === location.pathname)?.label ?? 'JIUZE POS'
 
   useEffect(() => {

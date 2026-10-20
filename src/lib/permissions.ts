@@ -1,60 +1,57 @@
 import type { Role } from '../types/auth'
 
-/**
- * Sections/capabilities from the implementation brief (§5, §14).
- * Do not add entries here without updating the brief first.
- */
 export type Permission =
-  | 'dashboard'
-  | 'pos'
-  | 'products'
-  | 'inventory'
-  | 'sales'
-  | 'reports'
-  | 'settings'
-  | 'userManagement'
-  | 'stockAdjustments'
-  | 'voidReturnSales'
-  | 'mySales'
+  | 'dashboard' | 'pos' | 'products' | 'productCreate' | 'productEdit'
+  | 'inventory' | 'stockAdjustments' | 'categories'
+  | 'sales' | 'reports' | 'openBills' | 'recordOpenBillPayments'
+  | 'settings' | 'userManagement' | 'voidReturnSales' | 'mySales'
 
-const OWNER_PERMISSIONS: readonly Permission[] = [
-  'dashboard',
-  'pos',
-  'products',
-  'inventory',
-  'sales',
-  'reports',
-  'settings',
-  'userManagement',
-  'stockAdjustments',
-  'voidReturnSales',
+export const PERMISSION_OPTIONS: { key: Permission; label: string; description: string }[] = [
+  { key: 'pos', label: 'Process sales', description: 'Open checkout and create sales' },
+  { key: 'mySales', label: 'View my sales', description: 'See the cashier’s own sales' },
+  { key: 'products', label: 'View products', description: 'Browse the product catalogue' },
+  { key: 'productCreate', label: 'Add products', description: 'Create new products' },
+  { key: 'productEdit', label: 'Edit products', description: 'Change product names, prices, units and details' },
+  { key: 'inventory', label: 'View stock', description: 'View inventory quantities' },
+  { key: 'stockAdjustments', label: 'Adjust stock', description: 'Record stock additions, reductions and corrections' },
+  { key: 'categories', label: 'Manage categories', description: 'Create and edit product categories' },
+  { key: 'sales', label: 'View all sales', description: 'Browse business sales history' },
+  { key: 'openBills', label: 'Open Bills access', description: 'View all outstanding printed restaurant orders and record collected payments' },
+  { key: 'dashboard', label: 'Dashboard and analytics', description: 'View business performance and analytics' },
 ]
 
-const CASHIER_PERMISSIONS: readonly Permission[] = ['pos', 'mySales']
+export const CASHIER_DEFAULT_PERMISSIONS: readonly Permission[] = ['pos', 'mySales']
 
-const PERMISSIONS_BY_ROLE: Record<Role, readonly Permission[]> = {
-  owner: OWNER_PERMISSIONS,
-  cashier: CASHIER_PERMISSIONS,
-}
+// Full access covers regular POS operations, but never owner-only administration.
+export const CASHIER_FULL_ACCESS_PERMISSIONS: readonly Permission[] = [
+  'dashboard', 'pos', 'products', 'productCreate', 'productEdit',
+  'inventory', 'stockAdjustments', 'categories', 'sales', 'reports',
+  'openBills', 'mySales', 'voidReturnSales',
+]
 
-/**
- * SECURITY NOTE: This is a frontend convenience for showing/hiding UI.
- * It is NOT the authoritative security boundary. The authoritative
- * boundary is:
- *   - Supabase RLS policies (Phase 3), scoped by business_id and role
- *   - Server-side authorization inside secure database functions
- *     (e.g. complete_sale, void_sale — see brief §7, §27)
- *
- * A role of `null` (role not yet loaded, or schema not yet deployed)
- * grants no permissions — the safe default is to show nothing rather
- * than assume access.
- */
-export function can(role: Role | null, permission: Permission): boolean {
+const OWNER_PERMISSIONS: readonly Permission[] = [
+  ...CASHIER_FULL_ACCESS_PERMISSIONS.filter(
+    (permission) => permission !== 'mySales',
+  ),
+  'settings',
+  'userManagement',
+]
+
+export const CASHIER_PERMISSION_PRESETS: { id: string; label: string; description: string; permissions: readonly Permission[] }[] = [
+  { id: 'sales', label: 'Sales cashier', description: 'Checkout and own sales only', permissions: CASHIER_DEFAULT_PERMISSIONS },
+  { id: 'stock', label: 'Stock manager', description: 'View and manage products, categories and stock', permissions: ['products', 'productCreate', 'productEdit', 'inventory', 'stockAdjustments', 'categories'] },
+  { id: 'bills', label: 'Bill collector', description: 'View Open Bills and record collected payments', permissions: ['openBills'] },
+  { id: 'full', label: 'Full access', description: 'All regular POS permissions; no owner administration', permissions: CASHIER_FULL_ACCESS_PERMISSIONS },
+]
+
+export function can(role: Role | null, permission: Permission, customPermissions?: readonly Permission[] | null): boolean {
   if (!role) return false
-  return PERMISSIONS_BY_ROLE[role].includes(permission)
+  if (role === 'owner') return OWNER_PERMISSIONS.includes(permission)
+  return customPermissions == null ? CASHIER_DEFAULT_PERMISSIONS.includes(permission) : customPermissions.includes(permission)
 }
 
-export function permissionsFor(role: Role | null): readonly Permission[] {
+export function permissionsFor(role: Role | null, customPermissions?: readonly Permission[] | null): readonly Permission[] {
   if (!role) return []
-  return PERMISSIONS_BY_ROLE[role]
+  if (role === 'owner') return OWNER_PERMISSIONS
+  return customPermissions == null ? CASHIER_DEFAULT_PERMISSIONS : customPermissions
 }

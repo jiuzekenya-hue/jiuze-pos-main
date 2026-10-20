@@ -511,12 +511,30 @@ export default function RestaurantCheckout() {
 
   const refreshOpenOrders = useCallback(async () => {
     try {
-      const [orders, lockedIds] = await Promise.all([
+      const [orders, lockedIds, statuses] = await Promise.all([
         listOpenRestaurantOrders(),
         listLockedRestaurantOrderIds(),
+        listRestaurantLocationStatus(),
       ])
       setOpenOrders(orders)
       setLockedOrderIds(lockedIds)
+      setLocationStatuses(statuses)
+
+      // If the selected table's order was paid elsewhere, clear the stale
+      // cart/order reference so the cashier cannot continue editing it.
+      const selectedKey = locationKey(
+        selectedLocation(selectedTableRef.current),
+      )
+      const selectedOrderId = orderIdsRef.current[selectedKey]
+      if (
+        selectedOrderId &&
+        !orders.some((order) => order.id === selectedOrderId)
+      ) {
+        delete orderIdsRef.current[selectedKey]
+        setOrderNumber(null)
+        setCart([])
+        setDiscount('')
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -525,6 +543,19 @@ export default function RestaurantCheckout() {
       )
     }
   }, [])
+
+  // Keep the Open Orders panel current when the owner pays an order on
+  // another device. Poll only while the panel is visible.
+  useEffect(() => {
+    if (!showOpenOrders) return
+
+    void refreshOpenOrders()
+    const intervalId = window.setInterval(() => {
+      void refreshOpenOrders()
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [showOpenOrders, refreshOpenOrders])
 
   const refreshRecentOrders = useCallback(async () => {
     try {
@@ -1027,23 +1058,37 @@ export default function RestaurantCheckout() {
                                 <p>
                                   Cashier: <span className="font-semibold text-slate-700">{order.createdByName}</span>
                                 </p>
-                                {order.status === 'paid' && (
-                                  <p>
-                                    Paid by: <span className="font-semibold text-slate-700">{order.paidByName || 'Unknown user'}</span>
-                                  </p>
-                                )}
-                                {order.status === 'cancelled' && (
-                                  <>
-                                    <p>
-                                      Cleared by: <span className="font-semibold text-slate-700">{order.clearedByName || 'Unknown user'}</span>
-                                    </p>
-                                    {order.clearReason && (
-                                      <p>
-                                        Reason: <span className="font-semibold text-slate-700">{order.clearReason}</span>
-                                      </p>
-                                    )}
-                                  </>
-                                )}
+{order.status === 'paid' && (
+  <>
+    {order.isReconciled && (
+      <p className="font-semibold text-amber-700">
+        Historical reconciliation —{' '}
+        {(order.reconciliationPaymentMethod || 'unknown').toUpperCase() === 'MPESA'
+          ? 'M-Pesa'
+          : order.reconciliationPaymentMethod || 'Unknown method'}
+      </p>
+    )}
+    <p>
+      Paid by:{' '}
+      <span className="font-semibold text-slate-700">
+        {order.isReconciled
+          ? 'Not recorded'
+          : order.paidByName || 'Unknown user'}
+      </span>
+    </p>
+    <p>
+      Payment time:{' '}
+      <span className="font-semibold text-slate-700">
+        {order.isReconciled
+          ? 'Not recorded'
+          : order.paidAt
+            ? new Date(order.paidAt).toLocaleString()
+            : 'Not recorded'}
+      </span>
+    </p>
+  </>
+)}
+
                                 {order.orderSlipPrintCount > 0 && (
                                   <p>
                                     Order slip printed: <span className="font-semibold text-slate-700">{order.orderSlipPrintCount}×</span>

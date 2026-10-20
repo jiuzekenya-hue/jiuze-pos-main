@@ -31,6 +31,18 @@ describe('permissions', () => {
     expect(permissionsFor('cashier').slice().sort()).toEqual(['mySales', 'pos'])
   })
 
+  it('uses explicit custom permissions when saved, replacing defaults', () => {
+    expect(can('cashier', 'products', ['products'])).toBe(true)
+    expect(can('cashier', 'pos', ['products'])).toBe(false)
+    expect(can('cashier', 'inventory', ['products', 'inventory'])).toBe(true)
+  })
+
+  it('preserves default access when no custom permission row exists', () => {
+    expect(can('cashier', 'pos', null)).toBe(true)
+    expect(can('cashier', 'mySales', undefined)).toBe(true)
+    expect(can('cashier', 'products', null)).toBe(false)
+  })
+
   it('blocks cashiers from every owner-only section', () => {
     for (const permission of OWNER_ONLY) {
       expect(can('cashier', permission)).toBe(false)

@@ -38,6 +38,9 @@ export type RestaurantRecentOrder = {
   createdByName: string
   paidBy: string | null
   paidByName: string | null
+  isReconciled: boolean
+reconciliationPaymentMethod: string | null
+reconciledAt: string | null
   paidAt: string | null
   clearedBy: string | null
   clearedByName: string | null
@@ -102,6 +105,7 @@ export async function listOpenRestaurantOrders(): Promise<RestaurantOpenOrder[]>
   }))
 }
 
+
 export async function listRecentRestaurantOrders(
   limit = 30,
 ): Promise<RestaurantRecentOrder[]> {
@@ -112,7 +116,7 @@ export async function listRecentRestaurantOrders(
 
   if (error) throw error
 
-  return ((data ?? []) as Array<{
+  const rows = (data ?? []) as Array<{
     id: string
     order_number: string
     location_type: 'table' | 'takeaway'
@@ -136,32 +140,63 @@ export async function listRecentRestaurantOrders(
     updated_at: string
     subtotal: number
     total: number
-  }>).map((row) => ({
-    id: row.id,
-    orderNumber: row.order_number,
-    locationType: row.location_type,
-    tableNumber: row.table_number,
-    status: row.status,
-    discount: Number(row.discount ?? 0),
-    createdBy: row.created_by,
-    createdByName: row.created_by_name || 'Unknown cashier',
-    paidBy: row.paid_by,
-    paidByName: row.paid_by_name || null,
-    paidAt: row.paid_at,
-    clearedBy: row.cleared_by,
-    clearedByName: row.cleared_by_name || null,
-    clearedAt: row.cleared_at,
-    clearReason: row.clear_reason,
-    orderSlipPrintCount: Number(row.order_slip_print_count ?? 0),
-    lastOrderSlipPrintedBy: row.last_order_slip_printed_by,
-    lastOrderSlipPrintedByName:
-      row.last_order_slip_printed_by_name || null,
-    lastOrderSlipPrintedAt: row.last_order_slip_printed_at,
-    salesReceiptPrintCount: Number(row.sales_receipt_print_count ?? 0),
-    updatedAt: row.updated_at,
-    subtotal: Number(row.subtotal ?? 0),
-    total: Number(row.total ?? 0),
-  }))
+  }>
+
+  const orderIds = rows.map((row) => row.id)
+
+  const { data: reconciliationData, error: reconciliationError } =
+    orderIds.length > 0
+      ? await supabase.rpc('list_restaurant_order_reconciliations', {
+          p_order_ids: orderIds,
+        })
+      : { data: [], error: null }
+
+  if (reconciliationError) throw reconciliationError
+
+  const reconciliations = (reconciliationData ?? []) as Array<{
+    order_id: string
+    payment_method: string
+    reconciled_at: string
+  }>
+
+  const reconciliationByOrderId = new Map(
+    reconciliations.map((item) => [item.order_id, item]),
+  )
+
+  return rows.map((row) => {
+    const reconciliation = reconciliationByOrderId.get(row.id)
+
+    return {
+      id: row.id,
+      orderNumber: row.order_number,
+      locationType: row.location_type,
+      tableNumber: row.table_number,
+      status: row.status,
+      discount: Number(row.discount ?? 0),
+      createdBy: row.created_by,
+      createdByName: row.created_by_name || 'Unknown cashier',
+      paidBy: row.paid_by,
+      paidByName: row.paid_by_name || null,
+      paidAt: row.paid_at,
+      isReconciled: Boolean(reconciliation),
+      reconciliationPaymentMethod:
+        reconciliation?.payment_method ?? null,
+      reconciledAt: reconciliation?.reconciled_at ?? null,
+      clearedBy: row.cleared_by,
+      clearedByName: row.cleared_by_name || null,
+      clearedAt: row.cleared_at,
+      clearReason: row.clear_reason,
+      orderSlipPrintCount: Number(row.order_slip_print_count ?? 0),
+      lastOrderSlipPrintedBy: row.last_order_slip_printed_by,
+      lastOrderSlipPrintedByName:
+        row.last_order_slip_printed_by_name || null,
+      lastOrderSlipPrintedAt: row.last_order_slip_printed_at,
+      salesReceiptPrintCount: Number(row.sales_receipt_print_count ?? 0),
+      updatedAt: row.updated_at,
+      subtotal: Number(row.subtotal ?? 0),
+      total: Number(row.total ?? 0),
+    }
+  })
 }
 
 export type RestaurantLocationStatus = {
@@ -348,7 +383,7 @@ export type RestaurantOpenBill = {
   createdBy: string
   createdByName: string
   updatedAt: string
-  printedAt: string
+  printedAt: string | null
   subtotal: number
   total: number
   items: RestaurantOrderItem[]
@@ -373,7 +408,7 @@ export async function listRestaurantOpenBills(
     created_by: string
     created_by_name: string
     updated_at: string
-    printed_at: string
+    printed_at: string | null
     subtotal: number
     total: number
     items: Array<{

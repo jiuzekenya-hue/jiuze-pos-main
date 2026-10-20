@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { fetchProfile, type ProfileLoadResult } from '../services/profileService'
+import type { Permission } from '../lib/permissions'
+import { supabase as db } from '../lib/supabase'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 30
@@ -16,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [profileLoadResult, setProfileLoadResult] = useState<ProfileLoadResult | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const [customPermissions, setCustomPermissions] = useState<readonly Permission[] | null>(null)
 
   // Restore any existing session on mount (page refresh), then subscribe
   // to future auth state changes (sign in, sign out, token refresh).
@@ -159,6 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profile =
     effectiveProfileLoadResult?.status === 'loaded' ? effectiveProfileLoadResult.profile : null
 
+  useEffect(() => {
+    if (profile?.role !== 'cashier' || !profile?.id) { setCustomPermissions(null); return }
+    let cancelled = false
+    db.from('cashier_permissions').select('permissions').eq('cashier_id', profile.id).maybeSingle().then(({ data, error }) => {
+      if (cancelled) return
+      // A missing row means preserve the legacy cashier defaults.
+      setCustomPermissions(!error && data ? (data.permissions as Permission[]) : null)
+    })
+    return () => { cancelled = true }
+  }, [profile?.role, profile?.id])
+
   const value: AuthContextValue = {
     isSessionLoading,
     session,
@@ -166,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isProfileLoading,
     profile,
     role: profile?.role ?? null,
+    customPermissions,
     isSchemaPending: effectiveProfileLoadResult?.status === 'schema_pending',
     profileLoadResult: effectiveProfileLoadResult,
     signIn,

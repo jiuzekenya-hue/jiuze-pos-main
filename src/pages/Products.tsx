@@ -3,6 +3,7 @@ import { getBusiness } from '../services/businessService'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { can } from '../lib/permissions'
 import { listCategories } from '../services/categoryService'
 import { adjustStock } from '../services/inventoryService'
 import { activateProduct, createProduct, deactivateProduct, listProducts, updateProduct } from '../services/productService'
@@ -144,8 +145,10 @@ function Icon({
 }
 
 export default function Products() {
-  const { profile, role } = useAuth()
-  const isOwner = role === 'owner'
+  const { profile, role, customPermissions } = useAuth()
+  const canCreate = can(role, 'productCreate', customPermissions)
+  const canEdit = can(role, 'productEdit', customPermissions)
+  const canAdjustStock = can(role, 'stockAdjustments', customPermissions)
 
 
   const [products, setProducts] = useState<Product[]>([])
@@ -269,7 +272,7 @@ const printDailyStock80mm = async () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!profile?.businessId || !isOwner) return
+    if (!profile?.businessId || (editingId ? !canEdit : !canCreate)) return
 
     setSaving(true)
     setError(null)
@@ -355,7 +358,7 @@ const printDailyStock80mm = async () => {
   const deactivate = async (product: Product) => {
     setMenuProductId(null)
 
-    if (!isOwner || !window.confirm(`Deactivate “${product.name}”?`)) {
+    if (!canEdit || !window.confirm(`Deactivate “${product.name}”?`)) {
       return
     }
 
@@ -381,7 +384,7 @@ const printDailyStock80mm = async () => {
   const activate = async (product: Product) => {
     setMenuProductId(null)
 
-    if (!isOwner || !window.confirm(`Activate “${product.name}”?`)) {
+    if (!canEdit || !window.confirm(`Activate “${product.name}”?`)) {
       return
     }
 
@@ -412,7 +415,7 @@ const printDailyStock80mm = async () => {
   const submitAdjustment = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!adjustingProduct || !isOwner) return
+    if (!adjustingProduct || !canAdjustStock) return
 
     setAdjusting(true)
     setError(null)
@@ -525,7 +528,7 @@ const printDailyStock80mm = async () => {
               Print Daily Stock
             </button>
 
-            {isOwner && (
+            {canCreate && (
               <button
                 type="button"
                 onClick={openAdd}
@@ -640,8 +643,8 @@ const printDailyStock80mm = async () => {
           ) : filteredProducts.length === 0 ? (
             <div className="bg-paper-raised border border-line rounded-xl px-5 py-14 text-center">
               <p className="text-sm font-medium text-ink">{products.length === 0 ? 'No products yet.' : 'No products match your search.'}</p>
-              <p className="text-xs text-ink-muted mt-1">{products.length === 0 && isOwner ? 'Add your first product to start building the catalogue.' : 'Try a different search or category.'}</p>
-              {products.length === 0 && isOwner && categories.length > 0 && (
+              <p className="text-xs text-ink-muted mt-1">{products.length === 0 && canCreate ? 'Add your first product to start building the catalogue.' : 'Try a different search or category.'}</p>
+              {products.length === 0 && canCreate && categories.length > 0 && (
                 <button type="button" onClick={openAdd} className="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-paper">Add product</button>
               )}
             </div>
@@ -687,7 +690,7 @@ const printDailyStock80mm = async () => {
                       </div>
                     </div>
 
-                    {isOwner && (
+                    {canEdit && (
                       <div className="grid grid-cols-[1fr_1.45fr_48px] border-t border-line">
                         <button type="button" onClick={() => edit(product)} className="inline-flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium text-ink-muted hover:text-ink hover:bg-paper transition-colors">
                           <Icon name="edit" />
@@ -720,7 +723,7 @@ const printDailyStock80mm = async () => {
           )}
         </section>
 
-        {drawerOpen && isOwner && (
+        {drawerOpen && (editingId ? canEdit : canCreate) && (
           <div className="fixed inset-0 z-50 flex justify-end bg-black/30" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) reset() }}>
             <aside role="dialog" aria-modal="true" aria-labelledby="product-drawer-title" className="h-full w-full max-w-lg overflow-y-auto bg-paper-raised border-l border-line shadow-2xl">
               <form onSubmit={submit} className="flex min-h-full flex-col">
