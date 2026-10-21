@@ -681,9 +681,7 @@ export default function RestaurantCheckout() {
       // If the current order is stale from another account,
       // do not send its ID back to Supabase and let the
       // database correctly reject ownership.
-      // Printed orders are immutable. Never attempt to save them while
-      // leaving a location; this is especially important after reloads.
-      const lockedIds = await listLockedRestaurantOrderIds()
+      // Existing orders can be updated while checkout is stabilizing.
       if (currentOrderId) {
         await persistOrder(currentLocation, cart, discountValue)
       } else if (!currentOrderId && cart.length > 0 && !orderNumber) {
