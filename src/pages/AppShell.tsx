@@ -8,7 +8,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: 'grid' },
   { to: '/checkout', label: 'New sale', icon: 'cart' },
   { to: '/sales', label: 'Sales', icon: 'receipt' },
-  { to: '/open-bills', label: 'Open Bills', icon: 'receipt', ownerOnly: true },
+  { to: '/open-bills', label: 'Open Bills', icon: 'receipt' },
   { to: '/products', label: 'Products', icon: 'tag' },
   { to: '/categories', label: 'Categories', icon: 'folder' },
   { to: '/stock-movements', label: 'Stock history', icon: 'box' },
@@ -42,7 +42,7 @@ export default function AppShell() {
   const [moreOpen, setMoreOpen] = useState(false)
   const visibleItems = navItems.filter((item) => {
     if (item.ownerOnly) return can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings', customPermissions)
-    const permission = item.to === '/dashboard' ? 'dashboard' : item.to === '/checkout' ? 'pos' : item.to === '/sales' ? (role === 'cashier' ? 'mySales' : 'sales') : item.to === '/products' || item.to === '/categories' ? 'products' : item.to === '/stock-movements' ? 'inventory' : null
+    const permission = item.to === '/dashboard' ? 'dashboard' : item.to === '/checkout' ? 'pos' : item.to === '/sales' ? (role === 'cashier' ? 'mySales' : 'sales') : item.to === '/open-bills' ? 'openBills' : item.to === '/products' ? 'products' : item.to === '/categories' ? 'categories' : item.to === '/stock-movements' ? 'inventory' : null
     return permission ? can(role, permission, customPermissions) : true
   })
   const activeLabel = visibleItems.find((item) => item.to === location.pathname)?.label ?? 'JIUZE POS'
@@ -76,10 +76,10 @@ export default function AppShell() {
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-paper-raised/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)]" aria-label="POS navigation">
         <div className="grid grid-cols-4 max-w-lg mx-auto">
           {[
-            { to: '/', label: 'Sell', icon: 'cart' },
-            { to: '/sales', label: 'Sales', icon: 'receipt' },
-            { to: '/products', label: 'Products', icon: 'tag' },
-          ].map((item) => (
+            { to: '/', label: 'Sell', icon: 'cart', permission: 'pos' as const },
+            { to: '/sales', label: 'Sales', icon: 'receipt', permission: (role === 'cashier' ? 'mySales' : 'sales') as const },
+            { to: '/products', label: 'Products', icon: 'tag', permission: 'products' as const },
+          ].filter((item) => can(role, item.permission, customPermissions)).map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] text-[10px] font-medium ${isActive ? 'text-market-700' : 'text-ink-muted'}`}>
               <Icon name={item.icon} />
               <span>{item.label}</span>
