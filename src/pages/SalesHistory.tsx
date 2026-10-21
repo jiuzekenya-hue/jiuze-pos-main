@@ -343,6 +343,18 @@ const loadSalesReport = async () => {
       paymentMethod: sale.paymentMethod ?? 'Unrecorded',
       status: sale.status,
     })),
+    cashierTotals: (() => {
+      const totals = new Map<string, { cashierName: string; transactions: number; total: number }>()
+      for (const sale of report.sales) {
+        if (sale.status !== 'completed') continue
+        const key = sale.cashierId || sale.cashierName
+        const current = totals.get(key) ?? { cashierName: sale.cashierName, transactions: 0, total: 0 }
+        current.transactions += 1
+        current.total += sale.total
+        totals.set(key, current)
+      }
+      return [...totals.values()].sort((a, b) => b.total - a.total)
+    })(),
     totalSales: report.sales
       .filter(sale => sale.status === 'completed')
       .reduce((sum, sale) => sum + sale.total, 0),
@@ -378,6 +390,18 @@ potentialCashChange: report.potentialCashChange,
       paymentMethod: sale.paymentMethod ?? 'Unrecorded',
       status: sale.status,
     })),
+    cashierTotals: (() => {
+      const totals = new Map<string, { cashierName: string; transactions: number; total: number }>()
+      for (const sale of report.sales) {
+        if (sale.status !== 'completed') continue
+        const key = sale.cashierId || sale.cashierName
+        const current = totals.get(key) ?? { cashierName: sale.cashierName, transactions: 0, total: 0 }
+        current.transactions += 1
+        current.total += sale.total
+        totals.set(key, current)
+      }
+      return [...totals.values()].sort((a, b) => b.total - a.total)
+    })(),
     totalSales: report.sales
       .filter(sale => sale.status === 'completed')
       .reduce((sum, sale) => sum + sale.total, 0),
