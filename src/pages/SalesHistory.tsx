@@ -209,6 +209,64 @@ const loadSalesReport = async () => {
 
 {report && (
   <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
+    <h2 className="font-semibold text-ink text-lg mb-4">Sales by cashier</h2>
+    {(() => {
+      const totals = new Map<string, { cashierId: string; cashierName: string; transactions: number; total: number }>()
+      for (const sale of report.sales) {
+        if (sale.status !== 'completed') continue
+        const key = sale.cashierId || sale.cashierName
+        const current = totals.get(key) ?? {
+          cashierId: sale.cashierId,
+          cashierName: sale.cashierName,
+          transactions: 0,
+          total: 0,
+        }
+        current.transactions += 1
+        current.total += sale.total
+        totals.set(key, current)
+      }
+      const rows = [...totals.values()].sort((a, b) => b.total - a.total)
+      const totalSales = rows.reduce((sum, row) => sum + row.total, 0)
+      return rows.length ? (
+        <>
+          <p className="text-sm text-ink-muted mb-3">Completed sales only · {reportStartDate || reportEndDate ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}` : 'All-time'}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-line bg-paper text-left">
+                <tr>
+                  <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Cashier</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Transactions</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Total sales</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {rows.map((row) => (
+                  <tr key={row.cashierId || row.cashierName}>
+                    <td className="px-4 py-3 font-medium text-ink">{row.cashierName}</td>
+                    <td className="px-4 py-3 text-right text-ink-muted">{row.transactions}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-ink">{money(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-line">
+                <tr>
+                  <td className="px-4 py-3 font-semibold text-ink">Total</td>
+                  <td className="px-4 py-3 text-right font-semibold text-ink">{rows.reduce((sum, row) => sum + row.transactions, 0)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-ink">{money(totalSales)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-ink-muted">No completed sales found for this period.</p>
+      )
+    })()}
+  </section>
+)}
+
+{report && (
+  <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
       <div>
         <h2 className="font-semibold text-ink text-lg">Report summary</h2>
