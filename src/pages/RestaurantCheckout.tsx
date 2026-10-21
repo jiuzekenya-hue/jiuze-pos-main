@@ -575,7 +575,10 @@ export default function RestaurantCheckout() {
       const currentKey = locationKey(currentLocation)
       const currentOrderId = orderIdsRef.current[currentKey]
 
-      if (currentOrderId || (cart.length > 0 && !orderNumber)) {
+      // Only persist when there are items to save. An empty local cart can be
+      // stale while switching between open bills; saving it against the current
+      // order would delete that bill before the selected order is loaded.
+      if (cart.length > 0) {
         await persistOrder(
           currentLocation,
           cart,
