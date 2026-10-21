@@ -68,6 +68,11 @@ export default function OpenBills() {
       return
     }
 
+    if (paymentMethod === 'mpesa' && !reference.trim()) {
+      setError('Enter the M-Pesa transaction code before recording payment.')
+      return
+    }
+
     if (paymentMethod !== 'cash' && amount !== selectedBill.total) {
       setError('For M-Pesa and card, enter the exact bill total.')
       return
@@ -298,11 +303,11 @@ export default function OpenBills() {
                       </label>
 
                       <label className="block text-sm sm:col-span-2">
-                        Payment reference (optional)
+                        {paymentMethod === 'mpesa' ? 'M-Pesa transaction code (required)' : 'Payment reference (optional)'}
                         <input
                           value={reference}
                           onChange={(event) => setReference(event.target.value)}
-                          placeholder="M-Pesa transaction code or card reference"
+                          placeholder={paymentMethod === 'mpesa' ? 'Enter M-Pesa transaction code' : 'Card reference (if available)'}
                           className="mt-1 w-full rounded-lg border border-ink/15 px-3 py-2"
                         />
                       </label>
