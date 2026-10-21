@@ -39,8 +39,9 @@ function OwnerOnlyRoute({ children }: { children: ReactNode }) {
 }
 
 function PermissionRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
-  const { role, customPermissions, isProfileLoading } = useAuth()
-  if (isProfileLoading) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Loading...</div>
+  const { role, customPermissions, isProfileLoading, isPermissionsLoading, permissionLoadError } = useAuth()
+  if (isProfileLoading || (role === 'cashier' && isPermissionsLoading)) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Loading access...</div>
+  if (role === 'cashier' && permissionLoadError) return <main className="min-h-screen grid place-items-center bg-paper px-6"><section className="max-w-md rounded-2xl border border-line bg-paper-raised p-8 text-center"><h1 className="font-display text-2xl font-semibold text-ink">Unable to load permissions</h1><p className="mt-2 text-sm text-ink-muted">{permissionLoadError}</p></section></main>
   const allowed = permission === 'sales' && role === 'cashier'
     ? can(role, 'sales', customPermissions) || can(role, 'mySales', customPermissions)
     : can(role, permission, customPermissions)
