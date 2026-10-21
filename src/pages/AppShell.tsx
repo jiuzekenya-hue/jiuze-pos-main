@@ -77,7 +77,7 @@ export default function AppShell() {
         <div className="grid grid-cols-4 max-w-lg mx-auto">
           {[
             { to: '/', label: 'Sell', icon: 'cart', permission: 'pos' as const },
-            { to: '/sales', label: 'Sales', icon: 'receipt', permission: (role === 'cashier' ? 'mySales' : 'sales') as const },
+            { to: '/sales', label: 'Sales', icon: 'receipt', permission: role === 'cashier' ? ('mySales' as const) : ('sales' as const) },
             { to: '/products', label: 'Products', icon: 'tag', permission: 'products' as const },
           ].filter((item) => can(role, item.permission, customPermissions)).map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] text-[10px] font-medium ${isActive ? 'text-market-700' : 'text-ink-muted'}`}>
