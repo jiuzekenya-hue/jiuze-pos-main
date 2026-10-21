@@ -36,11 +36,11 @@ function Icon({ name }: { name: string }) {
 }
 
 export default function AppShell() {
-  const { user, role, profile, signOut, customPermissions } = useAuth()
+  const { user, role, profile, signOut, customPermissions, isPermissionsLoading, permissionLoadError } = useAuth()
   const isOnline = useOnlineStatus()
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
-  const visibleItems = navItems.filter((item) => {
+  const visibleItems = (role === 'cashier' && (isPermissionsLoading || permissionLoadError) ? [] : navItems).filter((item) => {
     if (item.ownerOnly) return can(role, item.to === '/analytics' ? 'reports' : item.to === '/users' ? 'userManagement' : 'settings', customPermissions)
     const permission = item.to === '/dashboard' ? 'dashboard' : item.to === '/checkout' ? 'pos' : item.to === '/sales' ? (role === 'cashier' ? 'mySales' : 'sales') : item.to === '/open-bills' ? 'openBills' : item.to === '/products' ? 'products' : item.to === '/categories' ? 'categories' : item.to === '/stock-movements' ? 'inventory' : null
     return permission ? can(role, permission, customPermissions) : true
