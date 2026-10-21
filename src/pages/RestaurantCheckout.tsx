@@ -255,39 +255,33 @@ export default function RestaurantCheckout() {
     ) => {
       orderIdsRef.current = {}
 
-      orders.forEach((order) => {
-        const key = locationKey(
-          toRestaurantLocation(
-            order.locationType,
-            order.tableNumber,
-          ),
-        )
+      // Only map orders owned by the signed-in cashier (owners can manage
+      // any order). Never let another cashier's order ID become the save target.
+      const canManageAll = profile?.role === 'owner'
+      const editableOrders = orders
 
-        if (order.locationType === 'table') {
-          orderIdsRef.current[key] = order.id
-        } else if (
-          order.createdBy === profile?.id &&
-          !orderIdsRef.current[key]
-        ) {
-          orderIdsRef.current[key] = order.id
-        }
+      editableOrders.forEach((order) => {
+        if (!canManageAll && order.createdBy !== profile?.id) return
+
+        const key = locationKey(
+          toRestaurantLocation(order.locationType, order.tableNumber),
+        )
+        if (!orderIdsRef.current[key]) orderIdsRef.current[key] = order.id
       })
 
       const target =
         selected === 'takeaway'
-          ? orders.find(
+          ? editableOrders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
-                order.createdBy === profile?.id,
+                (canManageAll || order.createdBy === profile?.id),
             )
-          : orders.find(
+          : editableOrders.find(
               (order) =>
                 locationKey(
-                  toRestaurantLocation(
-                    order.locationType,
-                    order.tableNumber,
-                  ),
-                ) === locationKey(selectedLocation(selected)),
+                  toRestaurantLocation(order.locationType, order.tableNumber),
+                ) === locationKey(selectedLocation(selected)) &&
+                (canManageAll || order.createdBy === profile?.id),
             )
 
       const hydrated = hydrateOrder(target, productRows)
@@ -296,7 +290,7 @@ export default function RestaurantCheckout() {
       setCart(hydrated.cart)
       setDiscount(hydrated.discount)
     },
-    [hydrateOrder, profile?.id],
+    [hydrateOrder, lockedOrderIds, profile?.id],
   )
 
   const load = useCallback(async () => {
@@ -595,6 +589,9 @@ export default function RestaurantCheckout() {
       if (!target) {
         throw new Error('That open order is no longer available.')
       }
+      if (profile?.role !== 'owner' && target.createdBy !== profile?.id) {
+        throw new Error('You can only open your own restaurant orders.')
+      }
 
       const targetLocation = toRestaurantLocation(
         target.locationType,
@@ -684,61 +681,47 @@ export default function RestaurantCheckout() {
       // If the current order is stale from another account,
       // do not send its ID back to Supabase and let the
       // database correctly reject ownership.
-      if (
-        currentOrderId ||
-        (cart.length > 0 && !orderNumber)
-      ) {
-        await persistOrder(
-          currentLocation,
-          cart,
-          discountValue,
-        )
+      // Existing orders can be updated while checkout is stabilizing.
+      if (currentOrderId) {
+        await persistOrder(currentLocation, cart, discountValue)
+      } else if (!currentOrderId && cart.length > 0 && !orderNumber) {
+        await persistOrder(currentLocation, cart, discountValue)
       }
 
-      const [orders, statuses] = await Promise.all([
+      const [orders, statuses, refreshedLockedIds] = await Promise.all([
         listOpenRestaurantOrders(),
         listRestaurantLocationStatus(),
+        listLockedRestaurantOrderIds(),
       ])
+      setLockedOrderIds(refreshedLockedIds)
 
-      orders.forEach((order) => {
+      orderIdsRef.current = {}
+      const editableOrders = orders
+      const canManageAll = profile?.role === 'owner'
+      editableOrders.forEach((order) => {
+        if (!canManageAll && order.createdBy !== profile?.id) return
+
         const key = locationKey(
-          toRestaurantLocation(
-            order.locationType,
-            order.tableNumber,
-          ),
+          toRestaurantLocation(order.locationType, order.tableNumber),
         )
-
-        if (order.locationType === 'table') {
-          orderIdsRef.current[key] = order.id
-        } else if (
-          order.createdBy === profile?.id &&
-          !orderIdsRef.current[key]
-        ) {
-          orderIdsRef.current[key] = order.id
-        }
+        if (!orderIdsRef.current[key]) orderIdsRef.current[key] = order.id
       })
 
       setLocationStatuses(statuses)
 
       const target =
         nextTable === 'takeaway'
-          ? orders.find(
-              (order) =>
-                order.id === orderIdsRef.current['takeaway'],
-            ) ||
-            orders.find(
+          ? editableOrders.find(
               (order) =>
                 order.locationType === 'takeaway' &&
-                order.createdBy === profile?.id,
+                (canManageAll || order.createdBy === profile?.id),
             )
-          : orders.find(
+          : editableOrders.find(
               (order) =>
                 locationKey(
-                  toRestaurantLocation(
-                    order.locationType,
-                    order.tableNumber,
-                  ),
-                ) === locationKey(selectedLocation(nextTable)),
+                  toRestaurantLocation(order.locationType, order.tableNumber),
+                ) === locationKey(selectedLocation(nextTable)) &&
+                (canManageAll || order.createdBy === profile?.id),
             )
 
       selectedTableRef.current = nextTable
@@ -907,10 +890,18 @@ export default function RestaurantCheckout() {
           : 'Order saved, but the Print Bridge is unavailable.',
       )
     } catch (err) {
-      setError(
+      const details =
         err instanceof Error
-          ? 'Unable to save order: ' + err.message
-          : 'Unable to save order.',
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message?: unknown }).message || '')
+            : String(err || '')
+
+      console.error('[RestaurantCheckout] Unable to save order', err)
+      setError(
+        details
+          ? 'Unable to save order: ' + details
+          : 'Unable to save order. Check the browser console for the database error.',
       )
     }
   }
