@@ -258,9 +258,7 @@ export default function RestaurantCheckout() {
       // Only map orders owned by the signed-in cashier (owners can manage
       // any order). Never let another cashier's order ID become the save target.
       const canManageAll = profile?.role === 'owner'
-      const editableOrders = orders.filter(
-        (order) => !lockedOrderIds.has(order.id),
-      )
+      const editableOrders = orders
 
       editableOrders.forEach((order) => {
         if (!canManageAll && order.createdBy !== profile?.id) return
@@ -686,11 +684,7 @@ export default function RestaurantCheckout() {
       // Printed orders are immutable. Never attempt to save them while
       // leaving a location; this is especially important after reloads.
       const lockedIds = await listLockedRestaurantOrderIds()
-      if (
-        currentOrderId &&
-        !lockedIds.has(currentOrderId) &&
-        !lockedOrderIds.has(currentOrderId)
-      ) {
+      if (currentOrderId) {
         await persistOrder(currentLocation, cart, discountValue)
       } else if (!currentOrderId && cart.length > 0 && !orderNumber) {
         await persistOrder(currentLocation, cart, discountValue)
@@ -704,7 +698,7 @@ export default function RestaurantCheckout() {
       setLockedOrderIds(refreshedLockedIds)
 
       orderIdsRef.current = {}
-      const editableOrders = orders.filter((order) => !refreshedLockedIds.has(order.id))
+      const editableOrders = orders
       const canManageAll = profile?.role === 'owner'
       editableOrders.forEach((order) => {
         if (!canManageAll && order.createdBy !== profile?.id) return
