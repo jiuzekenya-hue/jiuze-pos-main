@@ -177,12 +177,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPermissionLoadError(null)
     setCustomPermissions(null)
 
-    db.from('cashier_permissions')
-      .select('permissions')
-      .eq('cashier_id', profile.id)
-      .eq('business_id', profile.businessId)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await db.from('cashier_permissions')
+          .select('permissions')
+          .eq('cashier_id', profile.id)
+          .eq('business_id', profile.businessId)
+          .maybeSingle()
+
         if (cancelled) return
         if (error) {
           // Fail closed: a failed lookup must never silently grant legacy access.
@@ -192,15 +194,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         // No saved row means legacy default access; an empty saved array means no access.
         setCustomPermissions(data ? (data.permissions as Permission[]) : null)
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return
         setCustomPermissions([])
         setPermissionLoadError('Could not load your cashier permissions. Refresh the page or ask the owner to check access.')
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsPermissionsLoading(false)
-      })
+      }
+    })()
 
     return () => { cancelled = true }
   }, [profile?.role, profile?.id, profile?.businessId])
