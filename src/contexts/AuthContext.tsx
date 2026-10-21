@@ -19,6 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoadResult, setProfileLoadResult] = useState<ProfileLoadResult | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | null>(null)
   const [customPermissions, setCustomPermissions] = useState<readonly Permission[] | null>(null)
+  const [isPermissionsLoading, setIsPermissionsLoading] = useState(false)
+  const [permissionLoadError, setPermissionLoadError] = useState<string | null>(null)
 
   // Restore any existing session on mount (page refresh), then subscribe
   // to future auth state changes (sign in, sign out, token refresh).
@@ -163,15 +165,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     effectiveProfileLoadResult?.status === 'loaded' ? effectiveProfileLoadResult.profile : null
 
   useEffect(() => {
-    if (profile?.role !== 'cashier' || !profile?.id) { setCustomPermissions(null); return }
+    if (profile?.role !== 'cashier' || !profile?.id || !profile.businessId) {
+      setCustomPermissions(null)
+      setIsPermissionsLoading(false)
+      setPermissionLoadError(null)
+      return
+    }
+
     let cancelled = false
-    db.from('cashier_permissions').select('permissions').eq('cashier_id', profile.id).maybeSingle().then(({ data, error }) => {
-      if (cancelled) return
-      // A missing row means preserve the legacy cashier defaults.
-      setCustomPermissions(!error && data ? (data.permissions as Permission[]) : null)
-    })
+    setIsPermissionsLoading(true)
+    setPermissionLoadError(null)
+    setCustomPermissions(null)
+
+    db.from('cashier_permissions')
+      .select('permissions')
+      .eq('cashier_id', profile.id)
+      .eq('business_id', profile.businessId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          // Fail closed: a failed lookup must never silently grant legacy access.
+          setCustomPermissions([])
+          setPermissionLoadError('Could not load your cashier permissions. Refresh the page or ask the owner to check access.')
+          return
+        }
+        // No saved row means legacy default access; an empty saved array means no access.
+        setCustomPermissions(data ? (data.permissions as Permission[]) : null)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setCustomPermissions([])
+        setPermissionLoadError('Could not load your cashier permissions. Refresh the page or ask the owner to check access.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsPermissionsLoading(false)
+      })
+
     return () => { cancelled = true }
-  }, [profile?.role, profile?.id])
+  }, [profile?.role, profile?.id, profile?.businessId])
 
   const value: AuthContextValue = {
     isSessionLoading,
@@ -181,6 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     role: profile?.role ?? null,
     customPermissions,
+    isPermissionsLoading,
+    permissionLoadError,
     isSchemaPending: effectiveProfileLoadResult?.status === 'schema_pending',
     profileLoadResult: effectiveProfileLoadResult,
     signIn,
