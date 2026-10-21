@@ -12,6 +12,7 @@ export type SalesReportPrintData = {
     status: string
   }>
   totalSales: number
+  cashierTotals: Array<{ cashierName: string; transactions: number; total: number }>
 cashTotal: number
 cashSalesTotal: number
 potentialCashChange: number
@@ -73,7 +74,13 @@ const openPrintWindow = (
 <div>Potential change</div><strong>${money(data.potentialCashChange)}</strong>
         <div>M-Pesa</div><strong>${money(data.mpesaTotal)}</strong>
         <div>Other payments</div><strong>${money(data.otherPaymentTotal)}</strong>
-      </div>${rows}`
+      </div>
+      <section class="cashier-summary">
+  <h2>Sales by cashier</h2>
+  ${data.cashierTotals.map(row => `<div class="cashier-row"><span>${escapeHtml(row.cashierName)} · ${row.transactions} tx</span><strong>${money(row.total)}</strong></div>`).join("")}
+  <div class="cashier-row cashier-total"><strong>Total sales</strong><strong>${money(data.cashierTotals.reduce((sum, row) => sum + row.total, 0))}</strong></div>
+</section>
+      ${rows}`
     : `<div class="summary">
         <div>Total sales</div><strong>${money(data.totalSales)}</strong>
         <div>Cash sales</div><strong>${money(data.cashSalesTotal)}</strong>
@@ -88,7 +95,13 @@ const openPrintWindow = (
           <th>Payment</th><th>Status</th><th>Total</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table>`
+      </table>
+      <section class="cashier-summary">
+  <h2>Sales by cashier</h2>
+  <table><thead><tr><th>Cashier</th><th>Transactions</th><th>Total sales</th></tr></thead>
+  <tbody>${data.cashierTotals.map(row => `<tr><td>${escapeHtml(row.cashierName)}</td><td>${row.transactions}</td><td class="amount">${money(row.total)}</td></tr>`).join("")}</tbody>
+  <tfoot><tr><th>Total</th><th>${data.cashierTotals.reduce((sum, row) => sum + row.transactions, 0)}</th><th class="amount">${money(data.cashierTotals.reduce((sum, row) => sum + row.total, 0))}</th></tr></tfoot></table>
+</section>`
 
   popup.document.open()
   popup.document.write(
@@ -152,6 +165,12 @@ const openPrintWindow = (
       }
 
       .amount { text-align: right; font-weight: bold }
+      .cashier-summary { margin: ${thermal ? '6px 0' : '14px 0'}; }
+      .cashier-summary h2 { margin-bottom: 5px; }
+      .cashier-summary table { font-size: ${thermal ? '9px' : '10px'}; }
+      .cashier-summary th, .cashier-summary td { padding: ${thermal ? '3px 2px' : '5px 4px'}; }
+      .cashier-row { display: flex; justify-content: space-between; gap: 5px; padding: 3px 0; border-bottom: 1px dashed #bbb; }
+      .cashier-total { border-top: 1px solid #777; margin-top: 3px; padding-top: 5px; }
 
       table {
         width: 100%;
