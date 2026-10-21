@@ -36,6 +36,8 @@ export default function SalesHistory() {
   const [report, setReport] = useState<SalesReport | null>(null)
   const [reportStartDate, setReportStartDate] = useState('')
   const [reportEndDate, setReportEndDate] = useState('')
+  const [reportStartTime, setReportStartTime] = useState('')
+  const [reportEndTime, setReportEndTime] = useState('')
   const [reportLoading, setReportLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<SaleDetail | null>(null)
@@ -86,20 +88,27 @@ const loadSalesReport = async () => {
   setError(null)
 
   try {
-    const startDate = reportStartDate
-      ? new Date(`${reportStartDate}T00:00:00`).toISOString()
-      : undefined
-
-    const endDate = reportEndDate
-      ? new Date(
-          new Date(`${reportEndDate}T00:00:00`).getTime() +
-            24 * 60 * 60 * 1000,
-        ).toISOString()
-      : undefined
-
     if (reportStartDate && reportEndDate && reportStartDate > reportEndDate) {
       throw new Error('Start date must not be after end date.')
     }
+    if (reportStartTime && !reportStartDate) {
+      throw new Error('Choose a start date when using a start time.')
+    }
+    if (reportEndTime && !reportEndDate) {
+      throw new Error('Choose an end date when using an end time.')
+    }
+    if (reportStartDate && reportEndDate && reportStartDate === reportEndDate && reportStartTime && reportEndTime && reportStartTime > reportEndTime) {
+      throw new Error('Start time must not be after end time on the same date.')
+    }
+
+    const startDate = reportStartDate
+      ? new Date(`${reportStartDate}T${reportStartTime || '00:00'}:00`).toISOString()
+      : undefined
+
+    // Supabase uses an exclusive end boundary, so include the selected end minute.
+    const endDate = reportEndDate
+      ? new Date(new Date(`${reportEndDate}T${reportEndTime || '23:59'}:00`).getTime() + (reportEndTime ? 60_000 : 60_000)).toISOString()
+      : undefined
 
     const result = await getSalesReport(
       profile.businessId,
@@ -157,12 +166,34 @@ const loadSalesReport = async () => {
     </label>
 
     <label className="text-sm text-ink-muted">
+      Start time (optional)
+      <input
+        type="time"
+        value={reportStartTime}
+        onChange={(event) => setReportStartTime(event.target.value)}
+        disabled={!reportStartDate}
+        className="field mt-1 w-full disabled:opacity-50"
+      />
+    </label>
+
+    <label className="text-sm text-ink-muted">
       End date
       <input
         type="date"
         value={reportEndDate}
         onChange={(event) => setReportEndDate(event.target.value)}
         className="field mt-1 w-full"
+      />
+    </label>
+
+    <label className="text-sm text-ink-muted">
+      End time (optional)
+      <input
+        type="time"
+        value={reportEndTime}
+        onChange={(event) => setReportEndTime(event.target.value)}
+        disabled={!reportEndDate}
+        className="field mt-1 w-full disabled:opacity-50"
       />
     </label>
   </div>
@@ -172,6 +203,8 @@ const loadSalesReport = async () => {
   onClick={async () => {
     setReportStartDate('')
     setReportEndDate('')
+    setReportStartTime('')
+    setReportEndTime('')
 
     if (!profile?.businessId) return
 
@@ -229,7 +262,7 @@ const loadSalesReport = async () => {
       const totalSales = rows.reduce((sum, row) => sum + row.total, 0)
       return rows.length ? (
         <>
-          <p className="text-sm text-ink-muted mb-3">Completed sales only · {reportStartDate || reportEndDate ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}` : 'All-time'}</p>
+          <p className="text-sm text-ink-muted mb-3">Completed sales only · {reportStartDate || reportEndDate ? `${reportStartDate || 'Beginning'} ${reportStartTime || (reportStartDate ? '00:00' : '')} to ${reportEndDate || 'Today'} ${reportEndTime || (reportEndDate ? '23:59' : '')}` : 'All-time'}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-line bg-paper text-left">
@@ -272,7 +305,7 @@ const loadSalesReport = async () => {
         <h2 className="font-semibold text-ink text-lg">Report summary</h2>
         <p className="text-sm text-ink-muted">
           {reportStartDate || reportEndDate
-            ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
+            ? `${reportStartDate || 'Beginning'} ${reportStartTime || (reportStartDate ? '00:00' : '')} to ${reportEndDate || 'Today'} ${reportEndTime || (reportEndDate ? '23:59' : '')}`
             : 'All-time sales'}
         </p>
       </div>
@@ -333,7 +366,7 @@ const loadSalesReport = async () => {
     businessName,
     title: 'Sales Report',
     period: reportStartDate || reportEndDate
-      ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
+      ? `${reportStartDate || 'Beginning'} ${reportStartTime || (reportStartDate ? '00:00' : '')} to ${reportEndDate || 'Today'} ${reportEndTime || (reportEndDate ? '23:59' : '')}`
       : 'All-time sales',
     transactions: report.sales.map(sale => ({
       date: sale.createdAt,
