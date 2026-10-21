@@ -7,6 +7,7 @@ export interface AuthContextValue {
   isSessionLoading: boolean; session: Session | null; user: User | null
   isProfileLoading: boolean; profile: Profile | null; role: Role | null
   customPermissions: readonly Permission[] | null
+  isPermissionsLoading: boolean; permissionLoadError: string | null
   isSchemaPending: boolean; profileLoadResult: ProfileLoadResult | null
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
