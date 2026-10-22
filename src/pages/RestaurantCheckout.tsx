@@ -1632,6 +1632,16 @@ export default function RestaurantCheckout() {
                   ? 'Saving order…'
                   : 'Print Kitchen & Bar tickets'}
               </button>
+              <p className="mt-2 text-center text-sm font-medium text-slate-600">
+                After printing, press Refresh to update the screen.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-2 min-h-12 w-full rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-base font-extrabold text-slate-900 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-200"
+              >
+                Refresh
+              </button>
             </div>
           </aside>
         </div>
