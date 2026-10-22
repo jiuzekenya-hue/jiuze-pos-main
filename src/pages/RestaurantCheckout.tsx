@@ -875,7 +875,7 @@ export default function RestaurantCheckout() {
           location:
             (selectedTable === 'takeaway' ? 'Takeaway' : 'Table ' + selectedTable) +
             ' · ' + section.section,
-          title: section.section.toUpperCase() + ' ORDER SLIP',
+          title: 'ORDER SLIP',
           status: 'unpaid',
           cashier: profile?.fullName?.trim() || 'Unknown cashier',
           items: section.items.map((line) => ({
