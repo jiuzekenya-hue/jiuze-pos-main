@@ -173,3 +173,17 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
   .grid > * { min-width: 0; }
   .sticky { max-width: 100%; }
 }
+
+/* Mobile refinements: safe-area spacing and contained table scrolling. */
+@media (max-width: 767px) {
+  .min-h-screen.pb-16 { padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)); }
+  nav[aria-label="POS navigation"] { padding-bottom: env(safe-area-inset-bottom); }
+  .overflow-x-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .overflow-x-auto table { min-width: 34rem; }
+  .overflow-x-auto table th, .overflow-x-auto table td { white-space: normal; }
+  .field, input, select, textarea { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .min-h-screen .gap-4 { gap: 0.75rem; }
+  .min-h-screen .px-5, .min-h-screen .px-6 { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
