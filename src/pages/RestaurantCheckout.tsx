@@ -152,6 +152,7 @@ export default function RestaurantCheckout() {
     useState<number | 'takeaway'>(1)
   const [department, setDepartment] = useState('All')
   const [serviceSection, setServiceSection] = useState<'Kitchen' | 'Bar'>('Kitchen')
+  const [serviceChosen, setServiceChosen] = useState(false)
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [discount, setDiscount] = useState('')
@@ -1269,6 +1270,43 @@ export default function RestaurantCheckout() {
           </div>
         )}
 
+        {!serviceChosen ? (
+          <section className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-300 bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Restaurant POS</p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Where are you working?</h2>
+              <p className="mt-2 text-sm text-slate-600">Choose your section to open the correct products.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <button type="button" onClick={() => { setServiceSection('Bar'); setDepartment('All'); setSearch(''); setServiceChosen(true) }}
+                className="flex min-h-48 flex-col justify-between rounded-2xl bg-[#183B30] p-6 text-left text-white transition hover:bg-[#214d3e] focus:outline-none focus:ring-4 focus:ring-emerald-200">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Service section</span>
+                <span><span className="block text-3xl font-extrabold tracking-wide">BAR</span><span className="mt-2 block text-sm text-emerald-50">Drinks and all non-food products</span></span>
+                <span className="text-sm font-bold">Open Bar →</span>
+              </button>
+              <button type="button" onClick={() => { setServiceSection('Kitchen'); setDepartment('All'); setSearch(''); setServiceChosen(true) }}
+                className="flex min-h-48 flex-col justify-between rounded-2xl bg-[#8A4B18] p-6 text-left text-white transition hover:bg-[#a35b20] focus:outline-none focus:ring-4 focus:ring-amber-200">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">Service section</span>
+                <span><span className="block text-3xl font-extrabold tracking-wide">KITCHEN</span><span className="mt-2 block text-sm text-amber-50">Food and snack products</span></span>
+                <span className="text-sm font-bold">Open Kitchen →</span>
+              </button>
+            </div>
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-sm font-bold text-slate-900">Cashier instructions</h3>
+              <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-600">
+                <li>Choose Bar for drinks or Kitchen for food and snacks.</li>
+                <li>Select a table or takeaway, then add the required products.</li>
+                <li>Print the order tickets. Kitchen and Bar items print on separate slips.</li>
+                <li>Printed orders are locked. The owner records payment from Open Bills.</li>
+              </ol>
+              <p className="mt-3 text-xs text-slate-500">Both sections share the same restaurant order, stock, and payment records.</p>
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="mb-2 flex justify-end">
+              <button type="button" onClick={() => setServiceChosen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">← Back to section selection</button>
+            </div>
         <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)_390px]">
           <aside className="rounded-xl border border-slate-300 bg-white p-2 shadow-sm">
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -1597,6 +1635,8 @@ export default function RestaurantCheckout() {
             </div>
           </aside>
         </div>
+          </>
+        )}
       </div>
     </main>
   )
