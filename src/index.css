@@ -187,3 +187,39 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
   .min-h-screen .gap-4 { gap: 0.75rem; }
   .min-h-screen .px-5, .min-h-screen .px-6 { padding-left: 0.75rem; padding-right: 0.75rem; }
 }
+
+
+/* Mobile interaction pass: keep dialogs usable and controls reachable. */
+@media (max-width: 767px) {
+  .fixed.inset-0.z-50 {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+  .fixed.inset-0.z-50 > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .sticky.bottom-0 {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  /* Compact mobile product forms while preserving the two-column field layout. */
+  .fixed.inset-0.z-50 .grid.grid-cols-2 {
+    column-gap: 0.625rem;
+    row-gap: 0.75rem;
+  }
+  /* Tap targets for common quantity and inline actions. */
+  .min-h-screen button.h-8,
+  .min-h-screen button.h-9,
+  .min-h-screen button.w-8,
+  .min-h-screen button.w-9 {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+@media (max-width: 420px) {
+  .min-h-screen .px-6 { padding-left: 0.875rem; padding-right: 0.875rem; }
+  .min-h-screen .py-8 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+  .fixed.inset-0.z-50 { padding-left: 0.5rem; padding-right: 0.5rem; }
+}
