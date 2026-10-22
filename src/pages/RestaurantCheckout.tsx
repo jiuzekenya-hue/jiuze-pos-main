@@ -1291,7 +1291,7 @@ export default function RestaurantCheckout() {
               </span>
             </button>
 
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 xl:grid-cols-2">
               {tables.map((table) => {
                 const status = locationStatuses.find(
                   (item) =>
