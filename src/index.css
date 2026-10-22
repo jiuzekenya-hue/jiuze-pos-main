@@ -125,3 +125,51 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
     transition: none;
   }
 }
+
+
+/* Responsive baseline across every POS screen. Keep these rules additive so
+   existing desktop layouts and business workflows remain unchanged. */
+@media (max-width: 767px) {
+  html, body, #root { min-height: 100%; }
+  body { overflow-x: clip; }
+  #root { width: 100%; min-width: 0; }
+  main, section, article, header, form, fieldset { min-width: 0; }
+  input, select, textarea { max-width: 100%; }
+  button, [role="button"], a { touch-action: manipulation; }
+  button { min-height: 40px; }
+  table { max-width: 100%; }
+  th, td { overflow-wrap: anywhere; }
+  img, video, canvas, svg { max-width: 100%; }
+  dialog, [role="dialog"] { max-width: calc(100vw - 1rem); }
+  pre, code { overflow-wrap: anywhere; }
+}
+
+/* Tables can scroll inside their own panel rather than expanding the page. */
+.overflow-x-auto { max-width: 100%; overscroll-behavior-x: contain; }
+
+/* Respect device safe areas for bottom navigation and full-screen content. */
+@supports (padding: max(0px)) {
+  .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .mobile-bottom-safe { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+}
+
+/* Compact screen typography and spacing for shared page headers/cards. */
+@media (max-width: 639px) {
+  main.min-h-screen { padding-left: 0.875rem; padding-right: 0.875rem; }
+  main.min-h-screen header { gap: 0.75rem; }
+  main.min-h-screen header h1 { font-size: clamp(1.35rem, 6vw, 1.8rem); line-height: 1.2; }
+  main.min-h-screen .text-2xl { line-height: 1.25; }
+  main.min-h-screen .rounded-xl { border-radius: 0.85rem; }
+  main.min-h-screen .p-8 { padding: 1.125rem; }
+  main.min-h-screen .p-6 { padding: 1rem; }
+  main.min-h-screen .gap-6 { gap: 1rem; }
+  main.min-h-screen .space-y-6 > :not(:last-child) { margin-bottom: 1rem; }
+}
+
+/* Ensure checkout/cart and other dense flex layouts can shrink on phones. */
+@media (max-width: 767px) {
+  .flex-1, .grow { min-width: 0; }
+  .grid { min-width: 0; }
+  .grid > * { min-width: 0; }
+  .sticky { max-width: 100%; }
+}
