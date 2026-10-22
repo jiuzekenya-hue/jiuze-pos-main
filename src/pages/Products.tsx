@@ -200,7 +200,7 @@ const printDailyStock80mm = async () => {
     const business = await getBusiness(profile.businessId)
 
     const items = products
-      .filter((product) => product.isActive)
+      .filter((product) => product.isActive && filteredProducts.some((visible) => visible.id === product.id))
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((product) => ({
         name: product.name,
