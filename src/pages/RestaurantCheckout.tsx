@@ -143,7 +143,7 @@ function Icon({
 }
 
 export default function RestaurantCheckout() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
 
   const [business, setBusiness] = useState<Business | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -1301,6 +1301,13 @@ export default function RestaurantCheckout() {
               </ol>
               <p className="mt-3 text-xs text-slate-500">Both sections share the same restaurant order, stock, and payment records.</p>
             </div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-4 min-h-14 w-full rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-4 text-base font-extrabold text-slate-900 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-200"
+            >
+              Sign out after sale
+            </button>
           </section>
         ) : (
           <>
