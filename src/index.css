@@ -223,3 +223,30 @@ div.min-h-screen.bg-paper > div.max-w-6xl > header h1 { font-size: 2.5rem; line-
   .min-h-screen .py-8 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
   .fixed.inset-0.z-50 { padding-left: 0.5rem; padding-right: 0.5rem; }
 }
+
+
+/* Keep standalone page layouts consistent with the shared JIUZE POS shell. */
+@media (max-width: 639px) {
+  .min-h-screen.bg-paper > .max-w-4xl,
+  .min-h-screen.bg-paper > .max-w-5xl,
+  .min-h-screen.bg-paper > .max-w-6xl,
+  .min-h-screen.bg-paper > .max-w-7xl {
+    width: 100%;
+  }
+  .min-h-screen.bg-paper h1.text-3xl {
+    font-size: clamp(1.5rem, 6vw, 1.9rem);
+    line-height: 1.2;
+  }
+  .min-h-screen.bg-paper h2.text-2xl {
+    font-size: clamp(1.2rem, 5vw, 1.5rem);
+    line-height: 1.25;
+  }
+  .min-h-screen.bg-paper .rounded-2xl.p-5,
+  .min-h-screen.bg-paper .rounded-xl.p-5 {
+    padding: 1rem;
+  }
+  .min-h-screen.bg-paper .overflow-hidden > .px-5.py-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
