@@ -25,6 +25,14 @@ type CartLine = {
 
 const money = (value: number) => 'KES ' + value.toFixed(2)
 
+// Food and Snack categories route to Kitchen; every other category routes to Bar.
+const serviceSectionFor = (product: Product, categories: Category[]) => {
+  const categoryName = categories.find((category) => category.id === product.categoryId)?.name.trim().toLowerCase()
+  return ['food', 'foods', 'snack', 'snacks'].includes(categoryName || '')
+    ? 'Kitchen'
+    : 'Bar'
+}
+
 const tables = Array.from({ length: 12 }, (_, index) => index + 1)
 
 const locationKey = (location: RestaurantLocation) =>
@@ -143,6 +151,7 @@ export default function RestaurantCheckout() {
   const [selectedTable, setSelectedTable] =
     useState<number | 'takeaway'>(1)
   const [department, setDepartment] = useState('All')
+  const [serviceSection, setServiceSection] = useState<'Kitchen' | 'Bar'>('Kitchen')
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [discount, setDiscount] = useState('')
@@ -188,6 +197,7 @@ export default function RestaurantCheckout() {
       (product) =>
         product.isActive &&
         product.stockQuantity > 0 &&
+        serviceSectionFor(product, categories) === serviceSection &&
         (department === 'All' ||
           categories.find(
             (category) => category.id === product.categoryId,
@@ -196,7 +206,7 @@ export default function RestaurantCheckout() {
           product.name.toLowerCase().includes(query) ||
           product.sku.toLowerCase().includes(query)),
     )
-  }, [products, categories, department, search])
+  }, [products, categories, department, search, serviceSection])
 
   const subtotal = useMemo(
     () =>
@@ -845,34 +855,46 @@ export default function RestaurantCheckout() {
 
       setMessage('Order locked. Printing order…')
 
-      const printed = await browserPrint({
-        businessName: business?.name || 'Restaurant',
-        serviceType: 'restaurant',
-        location:
-          selectedTable === 'takeaway'
-            ? 'Takeaway'
-            : 'Table ' + selectedTable,
-        title: 'ORDER SLIP',
-        status: 'unpaid',
-        cashier:
-          profile?.fullName?.trim() || 'Unknown cashier',
-        items: cart.map((line) => ({
-          name: line.product.name,
-          quantity: line.quantity,
-          unitPrice: line.product.sellingPrice,
-          lineTotal:
-            line.product.sellingPrice * line.quantity,
-        })),
-        subtotal,
-        discount: discountValue,
-        total,
+      const sections = (['Kitchen', 'Bar'] as const).flatMap((section) => {
+        const sectionItems = cart.filter(
+          (line) => serviceSectionFor(line.product, categories) === section,
+        )
+        if (!sectionItems.length) return []
+        const sectionSubtotal = sectionItems.reduce(
+          (sum, line) => sum + line.product.sellingPrice * line.quantity,
+          0,
+        )
+        return [{ section, items: sectionItems, subtotal: sectionSubtotal }]
       })
 
-      if (printed) {
-        await recordRestaurantOrderPrint(
-          printOrderId,
-          'order_slip',
-        )
+      let printedCount = 0
+      for (const section of sections) {
+        const printed = await browserPrint({
+          businessName: business?.name || 'Restaurant',
+          serviceType: 'restaurant',
+          location:
+            (selectedTable === 'takeaway' ? 'Takeaway' : 'Table ' + selectedTable) +
+            ' · ' + section.section,
+          title: 'ORDER SLIP',
+          status: 'unpaid',
+          cashier: profile?.fullName?.trim() || 'Unknown cashier',
+          items: section.items.map((line) => ({
+            name: line.product.name,
+            quantity: line.quantity,
+            unitPrice: line.product.sellingPrice,
+            lineTotal: line.product.sellingPrice * line.quantity,
+          })),
+          subtotal: section.subtotal,
+          // The discount applies to the full bill, so do not duplicate it on department tickets.
+          discount: 0,
+          total: section.subtotal,
+        })
+        if (!printed) break
+        printedCount += 1
+      }
+
+      if (printedCount > 0) {
+        await recordRestaurantOrderPrint(printOrderId, 'order_slip')
         setLockedOrderIds((current) => {
           const next = new Set(current)
           next.add(printOrderId)
@@ -881,13 +903,14 @@ export default function RestaurantCheckout() {
       }
 
       setMessage(
-        printed
-          ? 'Order printed and audit recorded · ' +
-              (selectedTable === 'takeaway'
-                ? 'Takeaway'
-                : 'Table ' + selectedTable) +
-              (orderNumber ? ' · ' + orderNumber : '')
-          : 'Order saved, but the Print Bridge is unavailable.',
+        printedCount === sections.length && printedCount > 0
+          ? sections.map((section) => section.section).join(' and ') +
+            ' tickets printed · ' +
+            (selectedTable === 'takeaway' ? 'Takeaway' : 'Table ' + selectedTable) +
+            (orderNumber ? ' · ' + orderNumber : '')
+          : printedCount > 0
+            ? 'Some department tickets printed. Check the print dialog before retrying.'
+            : 'Order saved, but printing did not complete.',
       )
     } catch (err) {
       const details =
@@ -1313,6 +1336,33 @@ export default function RestaurantCheckout() {
 
           <section className="min-w-0 rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden">
             <div className="border-b border-slate-300 p-3">
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {(['Kitchen', 'Bar'] as const).map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    onClick={() => {
+                      setServiceSection(section)
+                      setDepartment('All')
+                    }}
+                    className={
+                      'rounded-lg border px-4 py-3 text-sm font-bold ' +
+                      (serviceSection === section
+                        ? section === 'Kitchen'
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
+                          : 'border-amber-700 bg-amber-700 text-white'
+                        : 'border-slate-300 bg-slate-50 text-slate-700')
+                    }
+                  >
+                    {section}
+                  </button>
+                ))}
+              </div>
+              <p className="mb-2 text-[10px] text-slate-500">
+                {serviceSection === 'Kitchen'
+                  ? 'Food and Snack categories only'
+                  : 'All other product categories'}
+              </p>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {departments.map((item) => (
                   <button
@@ -1542,7 +1592,7 @@ export default function RestaurantCheckout() {
               >
                 {savingOrder
                   ? 'Saving order…'
-                  : 'Print order'}
+                  : 'Print Kitchen & Bar tickets'}
               </button>
             </div>
           </aside>
