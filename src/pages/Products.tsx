@@ -165,6 +165,7 @@ export default function Products() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [departmentFilter, setDepartmentFilter] = useState<'all' | 'kitchen' | 'bar'>('all')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [menuProductId, setMenuProductId] = useState<string | null>(null)
   const printDailyStock = async () => {
@@ -174,7 +175,7 @@ export default function Products() {
     const business = await getBusiness(profile.businessId)
 
     const items = products
-      .filter((product) => product.isActive)
+      .filter((product) => product.isActive && filteredProducts.some((visible) => visible.id === product.id))
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((product) => ({
         name: product.name,
@@ -466,10 +467,13 @@ const printDailyStock80mm = async () => {
         const matchesCategory =
           categoryFilter === 'all' ||
           product.categoryId === categoryFilter
+        const categoryName = (categories.find((category) => category.id === product.categoryId)?.name ?? '').trim().toLowerCase()
+        const isKitchenProduct = ['food', 'foods', 'snack', 'snacks'].includes(categoryName)
+        const matchesDepartment = departmentFilter === 'all' || (departmentFilter === 'kitchen' ? isKitchenProduct : !isKitchenProduct)
 
-        return matchesSearch && matchesCategory
+        return matchesSearch && matchesCategory && matchesDepartment
       }),
-    [products, search, categoryFilter],
+    [products, categories, search, categoryFilter, departmentFilter],
   )
 
   const lowStockCount = products.filter(
@@ -572,6 +576,26 @@ const printDailyStock80mm = async () => {
             </select>
           </div>
 
+          <div className="grid grid-cols-3 gap-2 pt-3">
+            {([
+              { value: 'all', label: 'All Products' },
+              { value: 'kitchen', label: 'Kitchen' },
+              { value: 'bar', label: 'Bar' },
+            ] as const).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDepartmentFilter(option.value)}
+                className={`min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-bold transition ${departmentFilter === option.value ? 'border-market-700 bg-market-600 text-white' : 'border-line bg-paper text-ink hover:border-market-500'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <button type="button" onClick={() => void printDailyStock()} className="rounded-lg border border-market-600 px-3 py-2 text-sm font-semibold text-market-700 hover:bg-market-50">Print {departmentFilter === 'all' ? 'All' : departmentFilter === 'kitchen' ? 'Kitchen' : 'Bar'} sheet (A4)</button>
+            <button type="button" onClick={() => void printDailyStock80mm()} className="rounded-lg border border-market-600 px-3 py-2 text-sm font-semibold text-market-700 hover:bg-market-50">Print {departmentFilter === 'all' ? 'All' : departmentFilter === 'kitchen' ? 'Kitchen' : 'Bar'} sheet (Thermal)</button>
+          </div>
           <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1">
             <button
               type="button"
