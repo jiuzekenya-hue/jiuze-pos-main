@@ -28,7 +28,9 @@ const money = (value: number) => 'KES ' + value.toFixed(2)
 // Food and Snack categories route to Kitchen; every other category routes to Bar.
 const serviceSectionFor = (product: Product, categories: Category[]) => {
   const categoryName = categories.find((category) => category.id === product.categoryId)?.name.trim().toLowerCase()
-  return categoryName === 'food' || categoryName === 'snack' ? 'Kitchen' : 'Bar'
+  return ['food', 'foods', 'snack', 'snacks'].includes(categoryName || '')
+    ? 'Kitchen'
+    : 'Bar'
 }
 
 const tables = Array.from({ length: 12 }, (_, index) => index + 1)
@@ -1590,7 +1592,7 @@ export default function RestaurantCheckout() {
               >
                 {savingOrder
                   ? 'Saving order…'
-                  : 'Print order'}
+                  : 'Print Kitchen & Bar tickets'}
               </button>
             </div>
           </aside>
