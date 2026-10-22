@@ -143,7 +143,7 @@ function Icon({
 }
 
 export default function RestaurantCheckout() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
 
   const [business, setBusiness] = useState<Business | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -152,6 +152,7 @@ export default function RestaurantCheckout() {
     useState<number | 'takeaway'>(1)
   const [department, setDepartment] = useState('All')
   const [serviceSection, setServiceSection] = useState<'Kitchen' | 'Bar'>('Kitchen')
+  const [serviceChosen, setServiceChosen] = useState(false)
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [discount, setDiscount] = useState('')
@@ -1269,8 +1270,52 @@ export default function RestaurantCheckout() {
           </div>
         )}
 
-        <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)_390px]">
-          <aside className="rounded-xl border border-slate-300 bg-white p-2 shadow-sm">
+        {!serviceChosen ? (
+          <section className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-300 bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Restaurant POS</p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Where are you working?</h2>
+              <p className="mt-2 text-sm text-slate-600">Choose your section to open the correct products.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <button type="button" onClick={() => { setServiceSection('Bar'); setDepartment('All'); setSearch(''); setServiceChosen(true) }}
+                className="flex min-h-48 flex-col justify-between rounded-2xl bg-[#183B30] p-6 text-left text-white transition hover:bg-[#214d3e] focus:outline-none focus:ring-4 focus:ring-emerald-200">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Service section</span>
+                <span><span className="block text-3xl font-extrabold tracking-wide">BAR</span><span className="mt-2 block text-sm text-emerald-50">Drinks and all non-food products</span></span>
+                <span className="text-sm font-bold">Open Bar →</span>
+              </button>
+              <button type="button" onClick={() => { setServiceSection('Kitchen'); setDepartment('All'); setSearch(''); setServiceChosen(true) }}
+                className="flex min-h-48 flex-col justify-between rounded-2xl bg-[#8A4B18] p-6 text-left text-white transition hover:bg-[#a35b20] focus:outline-none focus:ring-4 focus:ring-amber-200">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">Service section</span>
+                <span><span className="block text-3xl font-extrabold tracking-wide">KITCHEN</span><span className="mt-2 block text-sm text-amber-50">Food and snack products</span></span>
+                <span className="text-sm font-bold">Open Kitchen →</span>
+              </button>
+            </div>
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 className="text-sm font-bold text-slate-900">Cashier instructions</h3>
+              <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-600">
+                <li>Choose Bar for drinks or Kitchen for food and snacks.</li>
+                <li>Select a table or takeaway, then add the required products.</li>
+                <li>Print the order tickets. Kitchen and Bar items print on separate slips.</li>
+                <li>Printed orders are locked. The owner records payment from Open Bills.</li>
+              </ol>
+              <p className="mt-3 text-xs text-slate-500">Both sections share the same restaurant order, stock, and payment records.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-4 min-h-14 w-full rounded-xl border-2 border-amber-500 bg-amber-50 px-5 py-4 text-base font-extrabold text-slate-900 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-200"
+            >
+              Sign out after sale
+            </button>
+          </section>
+        ) : (
+          <>
+            <div className="mb-2 flex justify-end">
+              <button type="button" onClick={() => setServiceChosen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">← Back to section selection</button>
+            </div>
+        <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_400px]">
+          <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Locations
             </p>
@@ -1279,7 +1324,7 @@ export default function RestaurantCheckout() {
               type="button"
               onClick={() => void selectLocation('takeaway')}
               className={
-                'mb-1 w-full rounded-lg px-3 py-3 text-left text-sm font-semibold ' +
+                'mb-2 min-h-14 w-full rounded-xl border-2 border-slate-200 px-4 py-4 text-left text-base font-bold shadow-sm transition ' +
                 (selectedTable === 'takeaway'
                   ? 'bg-slate-800 text-white'
                   : 'hover:bg-slate-100')
@@ -1291,7 +1336,7 @@ export default function RestaurantCheckout() {
               </span>
             </button>
 
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-2">
               {tables.map((table) => {
                 const status = locationStatuses.find(
                   (item) =>
@@ -1313,12 +1358,12 @@ export default function RestaurantCheckout() {
                       void selectLocation(table)
                     }
                     className={
-                      'rounded-lg px-2 py-3 text-sm font-semibold ' +
+                      'min-h-[76px] rounded-xl border px-2 py-4 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
                       (selectedTable === table
-                        ? 'bg-market-600 text-white'
+                        ? 'border-market-700 bg-market-600 text-white'
                         : isOpen
-                            ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
+                            ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                            : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-market-400 hover:bg-market-50')
                     }
                   >
                     <span className="block">
@@ -1346,12 +1391,12 @@ export default function RestaurantCheckout() {
                       setDepartment('All')
                     }}
                     className={
-                      'rounded-lg border px-4 py-3 text-sm font-bold ' +
+                      'min-h-[64px] rounded-xl border-2 px-4 py-4 text-base font-extrabold shadow-sm transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
                       (serviceSection === section
                         ? section === 'Kitchen'
-                          ? 'border-emerald-700 bg-emerald-700 text-white'
-                          : 'border-amber-700 bg-amber-700 text-white'
-                        : 'border-slate-300 bg-slate-50 text-slate-700')
+                          ? 'border-market-700 bg-market-600 text-white shadow-md'
+                          : 'border-amber-500 bg-amber-400 text-slate-950 shadow-md'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-market-400 hover:bg-market-50')
                     }
                   >
                     {section}
@@ -1363,14 +1408,14 @@ export default function RestaurantCheckout() {
                   ? 'Food and Snack categories only'
                   : 'All other product categories'}
               </p>
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="grid grid-cols-2 gap-2 pb-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                 {departments.map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setDepartment(item)}
                     className={
-                      'shrink-0 rounded-md border px-4 py-2 text-xs font-semibold ' +
+                      'min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
                       (department === item
                         ? 'border-market-600 bg-market-600 text-white'
                         : 'border-slate-300 bg-slate-50 text-slate-700')
@@ -1392,34 +1437,34 @@ export default function RestaurantCheckout() {
                     setSearch(e.target.value)
                   }
                   placeholder="Search item..."
-                  className="h-11 w-full rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-3 text-sm outline-none focus:border-market-500"
+                  className="h-14 w-full rounded-xl border-2 border-slate-300 bg-slate-50 pl-11 pr-4 text-base outline-none transition focus:border-market-500 focus:ring-4 focus:ring-amber-100"
                 />
               </label>
             </div>
 
-            <div className="max-h-[calc(100vh-190px)] overflow-y-auto p-3">
+            <div className="max-h-[calc(100vh-230px)] overflow-y-auto p-4">
               {loading ? (
                 <div className="py-20 text-center text-sm text-slate-500">
                   Loading products…
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                   {visibleProducts.map((product) => (
                     <button
                       key={product.id}
                       type="button"
                       onClick={() => addProduct(product)}
-                      className="min-h-24 rounded-lg border border-slate-300 bg-gradient-to-b from-white to-slate-50 p-3 text-left hover:border-market-500 hover:shadow-sm"
+                      className="min-h-32 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-market-500 hover:bg-market-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-amber-100 active:scale-[0.99]"
                     >
-                      <span className="block text-[10px] uppercase tracking-wide text-slate-400">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {product.unitType}
                       </span>
 
-                      <span className="mt-2 block line-clamp-2 text-sm font-semibold text-slate-800">
+                      <span className="mt-3 block line-clamp-2 text-base font-bold leading-snug text-slate-900">
                         {product.name}
                       </span>
 
-                      <span className="mt-2 block font-mono text-sm font-bold text-slate-900">
+                      <span className="mt-3 block font-mono text-base font-extrabold text-market-700">
                         {money(product.sellingPrice)}
                       </span>
                     </button>
@@ -1510,12 +1555,12 @@ export default function RestaurantCheckout() {
                               -1,
                             )
                           }
-                          className="h-8 w-8 flex items-center justify-center"
+                          className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-market-50"
                         >
                           <Icon name="minus" />
                         </button>
 
-                        <span className="w-9 text-center text-sm font-semibold">
+                        <span className="w-10 text-center text-base font-bold">
                           {line.quantity}
                         </span>
 
@@ -1588,15 +1633,27 @@ export default function RestaurantCheckout() {
                   savingOrder ||
                   !cart.length
                 }
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40"
+                className="min-h-14 w-full rounded-xl border-2 border-market-600 bg-market-600 px-4 py-4 text-base font-extrabold text-white shadow-sm transition hover:bg-market-700 focus:outline-none focus:ring-4 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {savingOrder
                   ? 'Saving order…'
                   : 'Print Kitchen & Bar tickets'}
               </button>
+              <p className="mt-2 text-center text-sm font-medium text-slate-600">
+                After printing, press Refresh to update the screen.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-2 min-h-12 w-full rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-base font-extrabold text-slate-900 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-200"
+              >
+                Refresh
+              </button>
             </div>
           </aside>
         </div>
+          </>
+        )}
       </div>
     </main>
   )

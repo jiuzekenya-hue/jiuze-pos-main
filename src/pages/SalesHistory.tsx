@@ -6,6 +6,8 @@ import {
   getSale,
   listSales,
   getSalesReport,
+  listSaleDepartments,
+  type SaleDepartment,
   type SaleDetail,
   type SaleSummary,
   type SalesReport,
@@ -32,6 +34,8 @@ function CloseIcon() {
 export default function SalesHistory() {
   const { profile } = useAuth()
   const [sales, setSales] = useState<SaleSummary[]>([])
+  const [saleDepartments, setSaleDepartments] = useState<Record<string, SaleDepartment[]>>({})
+  const [departmentFilter, setDepartmentFilter] = useState<'All' | SaleDepartment>('All')
   const [businessName, setBusinessName] = useState('')
   const [report, setReport] = useState<SalesReport | null>(null)
   const [reportStartDate, setReportStartDate] = useState('')
@@ -59,7 +63,11 @@ export default function SalesHistory() {
     if (!profile?.businessId) return
     setLoading(true)
     setError(null)
-    try { setSales(await listSales(profile.businessId, search)) }
+    try {
+      const [rows, departments] = await Promise.all([listSales(profile.businessId, search), listSaleDepartments(profile.businessId)])
+      setSales(rows)
+      setSaleDepartments(departments)
+    }
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to load sales.') }
     finally { setLoading(false) }
   }, [profile?.businessId, search])
@@ -67,12 +75,37 @@ export default function SalesHistory() {
   useEffect(() => { void loadBusiness() }, [loadBusiness])
   useEffect(() => { void load() }, [load])
 
+  const filteredSales = useMemo(() => departmentFilter === 'All' ? sales : sales.filter((sale) => (saleDepartments[sale.id] || []).includes(departmentFilter)), [sales, saleDepartments, departmentFilter])
+
+  const filteredReport = useMemo<SalesReport | null>(() => {
+    if (!report) return null
+    if (departmentFilter === 'All') return report
+    const selectedSales = report.sales.filter((sale) => (saleDepartments[sale.id] || []).includes(departmentFilter))
+    const selectedIds = new Set(selectedSales.map((sale) => sale.id))
+    const completedIds = new Set(selectedSales.filter((sale) => sale.status === 'completed').map((sale) => sale.id))
+    const saleTotals = new Map(selectedSales.map((sale) => [sale.id, sale.total]))
+    let cashTotal = 0, cashSalesTotal = 0, potentialCashChange = 0, mpesaTotal = 0, otherPaymentTotal = 0
+    for (const payment of report.paymentDetails) {
+      if (!completedIds.has(payment.saleId)) continue
+      const amount = Number(payment.amount) || 0
+      if (payment.method === 'cash') {
+        cashTotal += amount
+        const total = saleTotals.get(payment.saleId) || 0
+        cashSalesTotal += total
+        potentialCashChange += Math.max(amount - total, 0)
+      } else if (payment.method === 'mpesa') mpesaTotal += amount
+      else otherPaymentTotal += amount
+    }
+    const returnedTotal = report.returnDetails.reduce((sum, row) => sum + (selectedIds.has(row.saleId) ? row.amount : 0), 0)
+    return { ...report, sales: selectedSales, returnedTotal, cashTotal, cashSalesTotal, potentialCashChange, mpesaTotal, otherPaymentTotal }
+  }, [report, departmentFilter, saleDepartments])
+
   const summary = useMemo(() => {
-    const revenue = sales.reduce((sum, sale) => sum + sale.total, 0)
-    const average = sales.length ? revenue / sales.length : 0
-    const completed = sales.filter((sale) => sale.status === 'completed').length
+    const revenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
+    const average = filteredSales.length ? revenue / filteredSales.length : 0
+    const completed = filteredSales.filter((sale) => sale.status === 'completed').length
     return { revenue, average, completed }
-  }, [sales])
+  }, [filteredSales])
 
   const openSale = async (saleId: string) => {
     if (!profile?.businessId) return
@@ -139,14 +172,14 @@ const loadSalesReport = async () => {
   return <main className="min-h-screen bg-paper px-5 py-6 sm:px-6 lg:px-8">
     <div className="max-w-[1500px] mx-auto">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between mb-7">
-        <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Transactions</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Sales history</h1><p className="text-sm text-ink-muted mt-2">Review transactions, payment details and receipts.</p></div>
+        <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Transactions</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Sales history</h1><p className="text-sm text-ink-muted mt-2">Review transactions, payment details and receipts. Department filters classify a sale by its products.</p></div>
         <div className="flex items-center gap-2"><Link to="/checkout" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">New sale</Link><Link to="/products" className="hidden sm:inline-flex rounded-lg border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink">Products</Link></div>
       </header>
 
       {error && <div role="alert" className="mb-5 rounded-xl border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}
 
       <section className="grid gap-3 sm:grid-cols-3 mb-5">
-        <Metric label="Transactions" value={String(sales.length)} detail={`${summary.completed} completed`} />
+        <Metric label="Transactions" value={String(filteredSales.length)} detail={`${summary.completed} completed`} />
         <Metric label="Sales value" value={money(summary.revenue)} detail="Loaded transaction history" />
         <Metric label="Average sale" value={money(summary.average)} detail="Across loaded transactions" />
       </section>
@@ -240,12 +273,12 @@ const loadSalesReport = async () => {
   </div>
 </section>
 
-{report && (
+{filteredReport && (
   <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
     <h2 className="font-semibold text-ink text-lg mb-4">Sales by cashier</h2>
     {(() => {
       const totals = new Map<string, { cashierId: string; cashierName: string; transactions: number; total: number }>()
-      for (const sale of report.sales) {
+      for (const sale of filteredReport.sales) {
         if (sale.status !== 'completed') continue
         const key = sale.cashierId || sale.cashierName
         const current = totals.get(key) ?? {
@@ -298,7 +331,7 @@ const loadSalesReport = async () => {
   </section>
 )}
 
-{report && (
+{filteredReport && (
   <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
       <div>
@@ -310,7 +343,7 @@ const loadSalesReport = async () => {
         </p>
       </div>
       <p className="text-sm text-ink-muted">
-        {report.sales.length} transactions
+        {filteredReport.sales.length} transactions
       </p>
     </div>
 
@@ -318,7 +351,7 @@ const loadSalesReport = async () => {
       <Metric
         label="Total sales"
         value={money(
-          report.sales
+          filteredReport.sales
             .filter((sale) => sale.status === 'completed')
             .reduce((sum, sale) => sum + sale.total, 0),
         )}
@@ -326,32 +359,32 @@ const loadSalesReport = async () => {
       />
       <Metric
   label="Cash sales"
-  value={money(report.cashSalesTotal)}
+  value={money(filteredReport.cashSalesTotal)}
   detail="Completed cash sales"
 />
 <Metric
   label="Cash received"
-  value={money(report.cashTotal)}
+  value={money(filteredReport.cashTotal)}
   detail="Before change is deducted"
 />
 <Metric
   label="Potential change"
-  value={money(report.potentialCashChange)}
+  value={money(filteredReport.potentialCashChange)}
   detail="Estimated change from recorded payments"
 />
       <Metric
         label="M-Pesa payments"
-        value={money(report.mpesaTotal)}
+        value={money(filteredReport.mpesaTotal)}
         detail="Recorded M-Pesa payments"
       />
       <Metric
         label="Other payments"
-        value={money(report.otherPaymentTotal)}
+        value={money(filteredReport.otherPaymentTotal)}
         detail="Other recorded methods"
       />
       <Metric
   label="Returned sales"
-  value={money(report.returnedTotal)}
+  value={money(filteredReport.returnedTotal)}
   detail="Returned transactions, reported separately"
 />
     </div>
@@ -360,15 +393,15 @@ const loadSalesReport = async () => {
   <button
     type="button"
     onClick={() => {
-  if (!report) return
+  if (!filteredReport) return
 
   const printData: SalesReportPrintData = {
     businessName,
-    title: 'Sales Report',
+    title: departmentFilter === 'All' ? 'Sales Report' : `${departmentFilter} Sales Report`,
     period: reportStartDate || reportEndDate
       ? `${reportStartDate || 'Beginning'} ${reportStartTime || (reportStartDate ? '00:00' : '')} to ${reportEndDate || 'Today'} ${reportEndTime || (reportEndDate ? '23:59' : '')}`
       : 'All-time sales',
-    transactions: report.sales.map(sale => ({
+    transactions: filteredReport.sales.map(sale => ({
       date: sale.createdAt,
       receiptNumber: sale.receiptNumber,
       cashierName: sale.cashierName,
@@ -378,7 +411,7 @@ const loadSalesReport = async () => {
     })),
     cashierTotals: (() => {
       const totals = new Map<string, { cashierName: string; transactions: number; total: number }>()
-      for (const sale of report.sales) {
+      for (const sale of filteredReport.sales) {
         if (sale.status !== 'completed') continue
         const key = sale.cashierId || sale.cashierName
         const current = totals.get(key) ?? { cashierName: sale.cashierName, transactions: 0, total: 0 }
@@ -388,17 +421,17 @@ const loadSalesReport = async () => {
       }
       return [...totals.values()].sort((a, b) => b.total - a.total)
     })(),
-    totalSales: report.sales
+    totalSales: filteredReport.sales
       .filter(sale => sale.status === 'completed')
       .reduce((sum, sale) => sum + sale.total, 0),
-    cashTotal: report.cashTotal,
-    cashSalesTotal: report.cashSalesTotal,
-potentialCashChange: report.potentialCashChange,
-    mpesaTotal: report.mpesaTotal,
-    otherPaymentTotal: report.otherPaymentTotal,
+    cashTotal: filteredReport.cashTotal,
+    cashSalesTotal: filteredReport.cashSalesTotal,
+potentialCashChange: filteredReport.potentialCashChange,
+    mpesaTotal: filteredReport.mpesaTotal,
+    otherPaymentTotal: filteredReport.otherPaymentTotal,
   }
 
-  browserPrintSalesReportA4(printData)
+  if (!browserPrintSalesReportA4(printData)) setError('Print window was blocked. Allow pop-ups for this JIUZE POS site, then try Print A4 again.')
 }}
     className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper"
   >
@@ -407,15 +440,15 @@ potentialCashChange: report.potentialCashChange,
   <button
     type="button"
     onClick={() => {
-  if (!report) return
+  if (!filteredReport) return
 
   const printData: SalesReportPrintData = {
     businessName,
-    title: 'Sales Report',
+    title: departmentFilter === 'All' ? 'Sales Report' : `${departmentFilter} Sales Report`,
     period: reportStartDate || reportEndDate
       ? `${reportStartDate || 'Beginning'} to ${reportEndDate || 'Today'}`
       : 'All-time sales',
-    transactions: report.sales.map(sale => ({
+    transactions: filteredReport.sales.map(sale => ({
       date: sale.createdAt,
       receiptNumber: sale.receiptNumber,
       cashierName: sale.cashierName,
@@ -425,7 +458,7 @@ potentialCashChange: report.potentialCashChange,
     })),
     cashierTotals: (() => {
       const totals = new Map<string, { cashierName: string; transactions: number; total: number }>()
-      for (const sale of report.sales) {
+      for (const sale of filteredReport.sales) {
         if (sale.status !== 'completed') continue
         const key = sale.cashierId || sale.cashierName
         const current = totals.get(key) ?? { cashierName: sale.cashierName, transactions: 0, total: 0 }
@@ -435,17 +468,17 @@ potentialCashChange: report.potentialCashChange,
       }
       return [...totals.values()].sort((a, b) => b.total - a.total)
     })(),
-    totalSales: report.sales
+    totalSales: filteredReport.sales
       .filter(sale => sale.status === 'completed')
       .reduce((sum, sale) => sum + sale.total, 0),
-    cashTotal: report.cashTotal,
-cashSalesTotal: report.cashSalesTotal,
-potentialCashChange: report.potentialCashChange,
-mpesaTotal: report.mpesaTotal,
-    otherPaymentTotal: report.otherPaymentTotal,
+    cashTotal: filteredReport.cashTotal,
+cashSalesTotal: filteredReport.cashSalesTotal,
+potentialCashChange: filteredReport.potentialCashChange,
+mpesaTotal: filteredReport.mpesaTotal,
+    otherPaymentTotal: filteredReport.otherPaymentTotal,
   }
 
-  browserPrintSalesReport80mm(printData)
+  if (!browserPrintSalesReport80mm(printData)) setError('Print window was blocked. Allow pop-ups for this JIUZE POS site, then try Print 80mm again.')
 }}
     className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink"
   >
@@ -456,14 +489,25 @@ mpesaTotal: report.mpesaTotal,
 )}
 
       <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
+        <h2 className="mb-3 text-sm font-semibold text-ink">Filter sales by department</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {(['All', 'Kitchen', 'Bar'] as const).map((department) => (
+            <button key={department} type="button" onClick={() => setDepartmentFilter(department)} className={`min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-bold transition ${departmentFilter === department ? 'border-market-600 bg-market-600 text-white' : 'border-line bg-paper text-ink hover:bg-paper-raised'}`}>
+              {department === 'All' ? 'All Sales' : department}
+            </button>
+          ))}
+        </div>
+      </section>
+
+<section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
         <label className="relative block max-w-2xl"><span className="sr-only">Search sales</span><span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"><SearchIcon /></span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipt number..." aria-label="Search sales" className="field h-12 w-full pl-12 pr-4" /></label>
       </section>
 
-      {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading sales…</div> : sales.length === 0 ? <div className="rounded-2xl border border-dashed border-line bg-paper-raised px-5 py-16 text-center"><p className="font-medium text-ink">No sales found</p><p className="text-sm text-ink-muted mt-1">Try another receipt number or complete a new sale.</p><Link to="/checkout" className="inline-flex mt-5 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">Start a sale</Link></div> : <>
+      {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading sales…</div> : filteredSales.length === 0 ? <div className="rounded-2xl border border-dashed border-line bg-paper-raised px-5 py-16 text-center"><p className="font-medium text-ink">No sales found in this department</p><p className="text-sm text-ink-muted mt-1">Try another receipt number or complete a new sale.</p><Link to="/checkout" className="inline-flex mt-5 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">Start a sale</Link></div> : <>
         <div className="hidden md:block overflow-hidden rounded-2xl border border-line bg-paper-raised">
-          <table className="w-full text-sm"><thead className="border-b border-line bg-paper text-left"><tr><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Date</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Receipt</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Cashier</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Total</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th><th className="px-5 py-3.5 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Action</th></tr></thead><tbody className="divide-y divide-line">{sales.map((sale) => <tr key={sale.id} className="hover:bg-paper transition-colors"><td className="px-5 py-4 text-ink-muted">{new Date(sale.createdAt).toLocaleString()}</td><td className="px-5 py-4 font-mono font-medium text-ink">{sale.receiptNumber}</td><td className="px-5 py-4 text-ink">{sale.cashierName}</td><td className="px-5 py-4 font-semibold text-ink">{money(sale.total)}</td><td className="px-5 py-4"><Status status={sale.status} /></td><td className="px-5 py-4 text-right"><button type="button" onClick={() => void openSale(sale.id)} className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink hover:bg-paper">View receipt</button></td></tr>)}</tbody></table>
+          <table className="w-full text-sm"><thead className="border-b border-line bg-paper text-left"><tr><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Date</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Receipt</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Cashier</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Total</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th><th className="px-5 py-3.5 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Action</th></tr></thead><tbody className="divide-y divide-line">{filteredSales.map((sale) => <tr key={sale.id} className="hover:bg-paper transition-colors"><td className="px-5 py-4 text-ink-muted">{new Date(sale.createdAt).toLocaleString()}</td><td className="px-5 py-4 font-mono font-medium text-ink">{sale.receiptNumber}</td><td className="px-5 py-4 text-ink">{sale.cashierName}</td><td className="px-5 py-4 font-semibold text-ink">{money(sale.total)}</td><td className="px-5 py-4"><Status status={sale.status} /></td><td className="px-5 py-4 text-right"><button type="button" onClick={() => void openSale(sale.id)} className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink hover:bg-paper">View receipt</button></td></tr>)}</tbody></table>
         </div>
-        <div className="md:hidden space-y-3">{sales.map((sale) => <button key={sale.id} type="button" onClick={() => void openSale(sale.id)} className="w-full text-left rounded-2xl border border-line bg-paper-raised p-4 active:scale-[0.995]"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-medium text-ink">{sale.receiptNumber}</p><p className="text-xs text-ink-muted mt-1">{new Date(sale.createdAt).toLocaleString()}</p><p className="text-xs text-ink-muted mt-1">Cashier: <span className="text-ink">{sale.cashierName}</span></p></div><Status status={sale.status} /></div><div className="flex items-end justify-between mt-5"><div><p className="text-[11px] uppercase tracking-wide text-ink-muted">Total</p><p className="font-display font-semibold text-xl text-ink mt-1">{money(sale.total)}</p></div><span className="text-xs font-medium text-market-700">View receipt →</span></div></button>)}</div>
+        <div className="md:hidden space-y-3">{filteredSales.map((sale) => <button key={sale.id} type="button" onClick={() => void openSale(sale.id)} className="w-full text-left rounded-2xl border border-line bg-paper-raised p-4 active:scale-[0.995]"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-medium text-ink">{sale.receiptNumber}</p><p className="text-xs text-ink-muted mt-1">{new Date(sale.createdAt).toLocaleString()}</p><p className="text-xs text-ink-muted mt-1">Cashier: <span className="text-ink">{sale.cashierName}</span></p></div><Status status={sale.status} /></div><div className="flex items-end justify-between mt-5"><div><p className="text-[11px] uppercase tracking-wide text-ink-muted">Total</p><p className="font-display font-semibold text-xl text-ink mt-1">{money(sale.total)}</p></div><span className="text-xs font-medium text-market-700">View receipt →</span></div></button>)}</div>
       </>}
 
       {selected && <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="sale-detail-title"><div className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-line bg-paper-raised shadow-xl"><div className="sticky top-0 bg-paper-raised/95 backdrop-blur px-5 py-5 border-b border-line flex items-start justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-[0.14em] text-market-600">Sales receipt</p><h2 id="sale-detail-title" className="font-display text-xl sm:text-2xl font-semibold text-ink mt-1">{selected.receiptNumber}</h2><p className="text-xs text-ink-muted mt-1">{new Date(selected.createdAt).toLocaleString()}</p></div><button type="button" aria-label="Close receipt" onClick={() => setSelected(null)} className="h-9 w-9 rounded-lg border border-line flex items-center justify-center text-ink-muted hover:text-ink hover:bg-paper"><CloseIcon /></button></div><div className="px-5 py-4 border-b border-line"><p className="font-display font-semibold text-xl text-ink">{businessName || 'Shop'}</p><p className="text-xs text-ink-muted mt-1">Cashier: <span className="text-ink">{selected.cashierName}</span></p></div><div className="px-5 py-2 divide-y divide-line">{selected.items.map((item) => <div key={item.id} className="py-4 flex justify-between gap-4"><div className="min-w-0"><p className="font-medium text-sm text-ink truncate">{item.productName}</p><p className="text-xs text-ink-muted mt-1">{quantity(item.quantity)} × {money(item.unitPrice)}</p></div><strong className="text-sm text-ink whitespace-nowrap">{money(item.subtotal)}</strong></div>)}</div><div className="border-t border-line px-5 py-5 space-y-2.5 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Subtotal</span><span>{money(selected.subtotal)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Discount</span><span>{money(selected.discount)}</span></div><div className="flex justify-between items-end pt-2"><span className="font-medium text-ink">Total</span><span className="font-display text-2xl font-semibold text-ink">{money(selected.total)}</span></div><div className="flex justify-between pt-2"><span className="text-ink-muted">Payment</span><span className="font-medium text-ink">{paymentLabel(selected.payment?.method)}</span></div><div className="flex justify-between"><span className="text-ink-muted">Paid</span><span>{money(selected.payment?.amount ?? 0)}</span></div><div className="flex justify-between font-semibold"><span>Change</span><span>{money(Math.max(0, (selected.payment?.amount ?? 0) - selected.total))}</span></div></div><div className="px-5 pb-5 grid gap-3 sm:grid-cols-2"><button type="button" onClick={printSale} className="w-full rounded-xl bg-ink px-4 py-3.5 text-sm font-semibold text-paper">Print receipt</button>{selected.status === 'completed' && profile?.businessId && profile.role === 'owner' && <button type="button" onClick={() => { setReturnSale(selected); setSelected(null) }} className="w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-sm font-semibold text-ink hover:bg-paper">Return items</button>}</div></div></div>}
