@@ -6,6 +6,8 @@ import {
   getSale,
   listSales,
   getSalesReport,
+  listSaleDepartments,
+  type SaleDepartment,
   type SaleDetail,
   type SaleSummary,
   type SalesReport,
@@ -32,6 +34,8 @@ function CloseIcon() {
 export default function SalesHistory() {
   const { profile } = useAuth()
   const [sales, setSales] = useState<SaleSummary[]>([])
+  const [saleDepartments, setSaleDepartments] = useState<Record<string, SaleDepartment[]>>({})
+  const [departmentFilter, setDepartmentFilter] = useState<'All' | SaleDepartment>('All')
   const [businessName, setBusinessName] = useState('')
   const [report, setReport] = useState<SalesReport | null>(null)
   const [reportStartDate, setReportStartDate] = useState('')
@@ -59,7 +63,11 @@ export default function SalesHistory() {
     if (!profile?.businessId) return
     setLoading(true)
     setError(null)
-    try { setSales(await listSales(profile.businessId, search)) }
+    try {
+      const [rows, departments] = await Promise.all([listSales(profile.businessId, search), listSaleDepartments(profile.businessId)])
+      setSales(rows)
+      setSaleDepartments(departments)
+    }
     catch (err) { setError(err instanceof Error ? err.message : 'Unable to load sales.') }
     finally { setLoading(false) }
   }, [profile?.businessId, search])
@@ -67,12 +75,14 @@ export default function SalesHistory() {
   useEffect(() => { void loadBusiness() }, [loadBusiness])
   useEffect(() => { void load() }, [load])
 
+  const filteredSales = useMemo(() => departmentFilter === 'All' ? sales : sales.filter((sale) => (saleDepartments[sale.id] || []).includes(departmentFilter)), [sales, saleDepartments, departmentFilter])
+
   const summary = useMemo(() => {
-    const revenue = sales.reduce((sum, sale) => sum + sale.total, 0)
-    const average = sales.length ? revenue / sales.length : 0
-    const completed = sales.filter((sale) => sale.status === 'completed').length
+    const revenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
+    const average = filteredSales.length ? revenue / filteredSales.length : 0
+    const completed = filteredSales.filter((sale) => sale.status === 'completed').length
     return { revenue, average, completed }
-  }, [sales])
+  }, [filteredSales])
 
   const openSale = async (saleId: string) => {
     if (!profile?.businessId) return
@@ -139,14 +149,14 @@ const loadSalesReport = async () => {
   return <main className="min-h-screen bg-paper px-5 py-6 sm:px-6 lg:px-8">
     <div className="max-w-[1500px] mx-auto">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between mb-7">
-        <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Transactions</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Sales history</h1><p className="text-sm text-ink-muted mt-2">Review transactions, payment details and receipts.</p></div>
+        <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-market-600">Transactions</p><h1 className="font-display font-semibold text-3xl sm:text-4xl text-ink tracking-tight mt-2">Sales history</h1><p className="text-sm text-ink-muted mt-2">Review transactions, payment details and receipts. Department filters classify a sale by its products.</p></div>
         <div className="flex items-center gap-2"><Link to="/checkout" className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">New sale</Link><Link to="/products" className="hidden sm:inline-flex rounded-lg border border-line bg-paper-raised px-4 py-2.5 text-sm font-medium text-ink">Products</Link></div>
       </header>
 
       {error && <div role="alert" className="mb-5 rounded-xl border border-brick-200 bg-brick-50 px-4 py-3 text-sm text-brick-700">{error}</div>}
 
       <section className="grid gap-3 sm:grid-cols-3 mb-5">
-        <Metric label="Transactions" value={String(sales.length)} detail={`${summary.completed} completed`} />
+        <Metric label="Transactions" value={String(filteredSales.length)} detail={`${summary.completed} completed`} />
         <Metric label="Sales value" value={money(summary.revenue)} detail="Loaded transaction history" />
         <Metric label="Average sale" value={money(summary.average)} detail="Across loaded transactions" />
       </section>
@@ -456,12 +466,23 @@ mpesaTotal: report.mpesaTotal,
 )}
 
       <section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
+        <h2 className="mb-3 text-sm font-semibold text-ink">Filter sales by department</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {(['All', 'Kitchen', 'Bar'] as const).map((department) => (
+            <button key={department} type="button" onClick={() => setDepartmentFilter(department)} className={`min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-bold transition ${departmentFilter === department ? 'border-market-600 bg-market-600 text-white' : 'border-line bg-paper text-ink hover:bg-paper-raised'}`}>
+              {department === 'All' ? 'All Sales' : department}
+            </button>
+          ))}
+        </div>
+      </section>
+
+<section className="rounded-2xl border border-line bg-paper-raised p-4 mb-5">
         <label className="relative block max-w-2xl"><span className="sr-only">Search sales</span><span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"><SearchIcon /></span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipt number..." aria-label="Search sales" className="field h-12 w-full pl-12 pr-4" /></label>
       </section>
 
-      {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading sales…</div> : sales.length === 0 ? <div className="rounded-2xl border border-dashed border-line bg-paper-raised px-5 py-16 text-center"><p className="font-medium text-ink">No sales found</p><p className="text-sm text-ink-muted mt-1">Try another receipt number or complete a new sale.</p><Link to="/checkout" className="inline-flex mt-5 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">Start a sale</Link></div> : <>
+      {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading sales…</div> : filteredSales.length === 0 ? <div className="rounded-2xl border border-dashed border-line bg-paper-raised px-5 py-16 text-center"><p className="font-medium text-ink">No sales found in this department</p><p className="text-sm text-ink-muted mt-1">Try another receipt number or complete a new sale.</p><Link to="/checkout" className="inline-flex mt-5 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper">Start a sale</Link></div> : <>
         <div className="hidden md:block overflow-hidden rounded-2xl border border-line bg-paper-raised">
-          <table className="w-full text-sm"><thead className="border-b border-line bg-paper text-left"><tr><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Date</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Receipt</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Cashier</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Total</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th><th className="px-5 py-3.5 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Action</th></tr></thead><tbody className="divide-y divide-line">{sales.map((sale) => <tr key={sale.id} className="hover:bg-paper transition-colors"><td className="px-5 py-4 text-ink-muted">{new Date(sale.createdAt).toLocaleString()}</td><td className="px-5 py-4 font-mono font-medium text-ink">{sale.receiptNumber}</td><td className="px-5 py-4 text-ink">{sale.cashierName}</td><td className="px-5 py-4 font-semibold text-ink">{money(sale.total)}</td><td className="px-5 py-4"><Status status={sale.status} /></td><td className="px-5 py-4 text-right"><button type="button" onClick={() => void openSale(sale.id)} className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink hover:bg-paper">View receipt</button></td></tr>)}</tbody></table>
+          <table className="w-full text-sm"><thead className="border-b border-line bg-paper text-left"><tr><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Date</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Receipt</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Cashier</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Total</th><th className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th><th className="px-5 py-3.5 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Action</th></tr></thead><tbody className="divide-y divide-line">{filteredSales.map((sale) => <tr key={sale.id} className="hover:bg-paper transition-colors"><td className="px-5 py-4 text-ink-muted">{new Date(sale.createdAt).toLocaleString()}</td><td className="px-5 py-4 font-mono font-medium text-ink">{sale.receiptNumber}</td><td className="px-5 py-4 text-ink">{sale.cashierName}</td><td className="px-5 py-4 font-semibold text-ink">{money(sale.total)}</td><td className="px-5 py-4"><Status status={sale.status} /></td><td className="px-5 py-4 text-right"><button type="button" onClick={() => void openSale(sale.id)} className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink hover:bg-paper">View receipt</button></td></tr>)}</tbody></table>
         </div>
         <div className="md:hidden space-y-3">{sales.map((sale) => <button key={sale.id} type="button" onClick={() => void openSale(sale.id)} className="w-full text-left rounded-2xl border border-line bg-paper-raised p-4 active:scale-[0.995]"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-medium text-ink">{sale.receiptNumber}</p><p className="text-xs text-ink-muted mt-1">{new Date(sale.createdAt).toLocaleString()}</p><p className="text-xs text-ink-muted mt-1">Cashier: <span className="text-ink">{sale.cashierName}</span></p></div><Status status={sale.status} /></div><div className="flex items-end justify-between mt-5"><div><p className="text-[11px] uppercase tracking-wide text-ink-muted">Total</p><p className="font-display font-semibold text-xl text-ink mt-1">{money(sale.total)}</p></div><span className="text-xs font-medium text-market-700">View receipt →</span></div></button>)}</div>
       </>}
