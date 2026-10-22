@@ -48,6 +48,34 @@ const cashierName = (cashier: CashierProfile | CashierProfile[] | null | undefin
   return profile?.full_name?.trim() || 'Unknown cashier'
 }
 
+export type SaleDepartment = 'Kitchen' | 'Bar'
+
+export const listSaleDepartments = async (businessId: string): Promise<Record<string, SaleDepartment[]>> => {
+  const [{ data: saleItems, error: itemsError }, { data: products, error: productsError }, { data: categories, error: categoriesError }] = await Promise.all([
+    supabase.from('sale_items').select('sale_id, product_id').not('product_id', 'is', null),
+    supabase.from('products').select('id, category_id').eq('business_id', businessId),
+    supabase.from('categories').select('id, name').eq('business_id', businessId),
+  ])
+  if (itemsError) throw itemsError
+  if (productsError) throw productsError
+  if (categoriesError) throw categoriesError
+
+  const productById = new Map((products ?? []).map((product) => [product.id, product]))
+  const categoryById = new Map((categories ?? []).map((category) => [category.id, String(category.name || '').trim().toLowerCase()]))
+  const result: Record<string, SaleDepartment[]> = {}
+  for (const item of saleItems ?? []) {
+    if (!item.product_id) continue
+    const product = productById.get(item.product_id)
+    if (!product) continue
+    const categoryName = categoryById.get(product.category_id) || ''
+    const department: SaleDepartment = ['food', 'foods', 'snack', 'snacks'].includes(categoryName) ? 'Kitchen' : 'Bar'
+    const departments = result[item.sale_id] ?? []
+    if (!departments.includes(department)) departments.push(department)
+    result[item.sale_id] = departments
+  }
+  return result
+}
+
 export const listSales = async (businessId: string, search = ''): Promise<SaleSummary[]> => {
   let query = supabase
     .from('sales')
