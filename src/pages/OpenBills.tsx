@@ -34,6 +34,7 @@ export default function OpenBills() {
   const loadBills = useCallback(async () => {
     setLoading(true)
     setError('')
+    setNotice('')
 
     try {
       const result = await listRestaurantOpenBills(isOwner ? (cashierId || null) : null)
@@ -64,21 +65,25 @@ export default function OpenBills() {
 
     const amount = Number(amountReceived)
     if (!Number.isFinite(amount) || amount <= 0) {
+      setNotice('')
       setError('Enter a valid payment amount.')
       return
     }
 
     if (paymentMethod === 'mpesa' && !reference.trim()) {
+      setNotice('')
       setError('Enter the M-Pesa transaction code before recording payment.')
       return
     }
 
     if (paymentMethod !== 'cash' && amount !== selectedBill.total) {
+      setNotice('')
       setError('For M-Pesa and card, enter the exact bill total.')
       return
     }
 
     if (paymentMethod === 'cash' && amount < selectedBill.total) {
+      setNotice('')
       setError('The amount received is less than the bill total.')
       return
     }
@@ -109,6 +114,7 @@ export default function OpenBills() {
       setReference('')
       await loadBills()
     } catch (err) {
+      setNotice('')
       setError(
         err instanceof Error ? err.message : 'Unable to record payment.',
       )

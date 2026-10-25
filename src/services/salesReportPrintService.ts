@@ -220,8 +220,8 @@ const openPrintWindow = (
 
 export const browserPrintSalesReportA4 = (
   data: SalesReportPrintData,
-) => openPrintWindow(data, 'a4')
+): boolean => openPrintWindow(data, 'a4')
 
 export const browserPrintSalesReport80mm = (
   data: SalesReportPrintData,
-) => openPrintWindow(data, '80mm')
+): boolean => openPrintWindow(data, '80mm')
