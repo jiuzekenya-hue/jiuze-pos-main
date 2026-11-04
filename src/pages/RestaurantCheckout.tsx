@@ -197,7 +197,6 @@ export default function RestaurantCheckout() {
     return products.filter(
       (product) =>
         product.isActive &&
-        product.stockQuantity > 0 &&
         serviceSectionFor(product, categories) === serviceSection &&
         (department === 'All' ||
           categories.find(
@@ -753,6 +752,8 @@ export default function RestaurantCheckout() {
   }
 
   const addProduct = (product: Product) => {
+    if (!product.isActive || product.stockQuantity <= 0) return
+
     setMessage('')
     setError('')
 
@@ -1454,10 +1455,21 @@ export default function RestaurantCheckout() {
                       key={product.id}
                       type="button"
                       onClick={() => addProduct(product)}
-                      className="min-h-32 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-market-500 hover:bg-market-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-amber-100 active:scale-[0.99]"
+                      disabled={product.stockQuantity <= 0}
+                      aria-label={product.stockQuantity <= 0 ? product.name + ', out of stock' : 'Add ' + product.name}
+                      className={`min-h-32 rounded-2xl border-2 p-4 text-left shadow-sm transition focus:outline-none focus:ring-4 focus:ring-amber-100 ${
+                        product.stockQuantity <= 0
+                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-75'
+                          : 'border-slate-200 bg-white hover:border-market-500 hover:bg-market-50 hover:shadow-md active:scale-[0.99]'
+                      }`}
                     >
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {product.unitType}
+                      <span className="flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span>{product.unitType}</span>
+                        {product.stockQuantity <= 0 && (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">
+                            Out of stock
+                          </span>
+                        )}
                       </span>
 
                       <span className="mt-3 block line-clamp-2 text-base font-bold leading-snug text-slate-900">
