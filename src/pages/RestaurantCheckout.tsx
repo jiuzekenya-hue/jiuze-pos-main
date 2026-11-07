@@ -33,7 +33,7 @@ const serviceSectionFor = (product: Product, categories: Category[]) => {
     : 'Bar'
 }
 
-const tables = Array.from({ length: 12 }, (_, index) => index + 1)
+const tables = Array.from({ length: 100 }, (_, index) => index + 1)
 
 const locationKey = (location: RestaurantLocation) =>
   location.type === 'takeaway' ? 'takeaway' : 'table-' + location.tableNumber
