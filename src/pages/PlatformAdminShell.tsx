@@ -6,6 +6,7 @@ const sections = [
   { to: '/platform-admin/businesses', label: 'Businesses' },
   { to: '/platform-admin/subscriptions', label: 'Subscriptions' },
   { to: '/platform-admin/activity', label: 'Activity' },
+  { to: '/platform-admin/sales', label: 'Sales Control' },
 ]
 
 export default function PlatformAdminShell() {
