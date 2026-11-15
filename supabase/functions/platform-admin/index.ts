@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string; billing_interval?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string; billing_interval?: string; suspend?: boolean; suspension_reason?: string }
     try {
       payload = await request.json()
     } catch {
@@ -48,6 +48,17 @@ Deno.serve(async (request) => {
     if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
       return json({ error: 'Platform administrator access required' }, 403)
     }
+    if (payload.action === 'set_subscription_suspension') {
+      if (!payload.subscription_id || typeof payload.suspend !== 'boolean') return json({ error: 'Subscription and suspension action are required' }, 400)
+      const { data, error } = await client.rpc('platform_admin_set_subscription_suspension', {
+        p_subscription_id: payload.subscription_id,
+        p_suspend: payload.suspend,
+        p_reason: payload.suspension_reason?.trim() || 'Suspended by platform administrator',
+      })
+      if (error) throw error
+      return json({ subscription: data })
+    }
+
     if (payload.action === 'subscription_management') {
       const [{ data: businesses, error: businessError }, { data: subscriptions, error: subscriptionError }, { data: plans, error: plansError }, { data: prices, error: pricesError }, { data: payments, error: paymentsError }] = await Promise.all([
         client.from('businesses').select('id,name,phone,location,created_at,subscription_exempt').order('created_at', { ascending: false }).limit(1000),
@@ -64,7 +75,7 @@ Deno.serve(async (request) => {
         const plan = s.subscription_plans
         const expected = priceMap.get(s.plan_id + ':' + s.billing_interval) ?? null
         const now = Date.now()
-        const effective = s.status === 'cancelled' ? 'cancelled'
+        const effective = s.status === 'suspended' ? 'suspended'\n          : s.status === 'cancelled' ? 'cancelled'
           : s.status === 'trialing' ? (s.trial_end && new Date(s.trial_end).getTime() > now ? 'trialing' : 'expired')
           : s.status === 'active' ? (s.current_period_end && new Date(s.current_period_end).getTime() > now ? 'active' : 'expired')
           : 'expired'
