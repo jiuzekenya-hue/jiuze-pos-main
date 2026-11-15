@@ -31,6 +31,9 @@ export default function PlatformSubscriptions() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [selected, setSelected] = useState<SubscriptionRow | null>(null)
+  const [planSelected, setPlanSelected] = useState<SubscriptionRow | null>(null)
+  const [planId, setPlanId] = useState('')
+  const [planBilling, setPlanBilling] = useState<'month'|'year'|'trial'>('month')
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('mpesa')
   const [billingInterval, setBillingInterval] = useState<'month'|'year'>('month')
@@ -69,6 +72,35 @@ export default function PlatformSubscriptions() {
     await load()
   }
 
+
+  const changePlan = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!planSelected || !planId) return
+    if (!window.confirm(`Change ${planSelected.business_name}'s plan now? Entitlements change immediately; no payment is collected.`)) return
+    setSaving(true); setNotice('')
+    const { data: response, error: invokeError } = await supabase.functions.invoke('platform-admin', { body: {
+      action: 'change_subscription_plan', subscription_id: planSelected.id, plan_id: planId, billing_interval: planBilling,
+    } })
+    setSaving(false)
+    if (invokeError || response?.error) { setNotice(response?.error ?? invokeError?.message ?? 'Plan could not be changed'); return }
+    setPlanSelected(null); setNotice('Plan updated. No payment was collected.')
+    await load()
+  }
+
+  const reversePayment = async (payment: PaymentRow) => {
+    const reason = window.prompt('Enter the reason for reversing this payment:')
+    if (!reason?.trim()) return
+    if (!window.confirm('Reverse this payment? The subscription period rolls back only when this is the latest eligible payment.')) return
+    setSaving(true); setNotice('')
+    const { data: response, error: invokeError } = await supabase.functions.invoke('platform-admin', { body: {
+      action: 'reverse_subscription_payment', payment_id: payment.id, reason,
+    } })
+    setSaving(false)
+    if (invokeError || response?.error) { setNotice(response?.error ?? invokeError?.message ?? 'Payment could not be reversed'); return }
+    setNotice('Payment reversed and subscription state updated.')
+    await load()
+  }
+
   const recordPayment = async (event: FormEvent) => {
     event.preventDefault()
     if (!selected) return
@@ -97,7 +129,7 @@ export default function PlatformSubscriptions() {
     ['Renewals due in 30 days', data.metrics.upcoming_renewals.toString(), 'Upcoming paid-period end dates'],
   ]
   return <main className="min-h-screen bg-paper px-4 py-6 sm:px-6 sm:py-8"><div className="mx-auto max-w-7xl">
-    <header className="mb-7 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-market-600">JIUZE ADMIN · RECURRING REVENUE</p><h1 className="mt-2 font-display text-3xl font-semibold text-ink">POS Subscriptions</h1><p className="mt-2 text-sm text-ink-muted">Manage plans, customer subscriptions, renewals, access controls and verified collections.</p></div><button onClick={() => void load()} className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-semibold">Refresh data</button></header>
+    <header className="mb-7 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-market-600">JIUZE ADMIN · RECURRING REVENUE</p><h1 className="mt-2 font-display text-3xl font-semibold text-ink">POS Subscriptions</h1><p className="mt-2 text-sm text-ink-muted">Manage plans, customer subscriptions, renewals, access controls, reversals and verified collections.</p></div><button onClick={() => void load()} className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-sm font-semibold">Refresh data</button></header>
     {notice && <p role="status" className="mb-4 rounded-lg border border-line bg-paper-raised p-3 text-sm text-ink">{notice}</p>}
     <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{cards.map(([label,value,note]) => <article key={label} className="rounded-xl border border-line bg-paper-raised p-5"><p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p><p className="mt-3 font-display text-2xl font-semibold text-ink">{value}</p><p className="mt-1 text-xs text-ink-muted">{note}</p></article>)}</section>
     <section className="mb-7 grid gap-3 lg:grid-cols-3">{data.plans.map(plan => <article key={plan.id} className="rounded-xl border border-line bg-paper-raised p-5"><div className="flex items-center justify-between"><h2 className="font-display text-lg font-semibold">{plan.name}</h2><span className="text-xs text-ink-muted">{plan.is_active ? 'Active plan' : 'Inactive'}</span></div><p className="mt-1 text-xs text-ink-muted">{plan.trial_days} trial days</p><div className="mt-4 grid grid-cols-2 gap-2">{data.prices.filter(p => p.plan_id === plan.id).map(price => <div key={price.id} className="rounded-lg bg-paper p-3"><p className="text-xs capitalize text-ink-muted">{price.billing_interval}ly</p><p className="mt-1 font-semibold">{kes(Number(price.price_kes))}</p></div>)}</div></article>)}</section>
