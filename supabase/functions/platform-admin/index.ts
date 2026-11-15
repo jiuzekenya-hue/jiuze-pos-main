@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string; billing_interval?: string }
     try {
       payload = await request.json()
     } catch {
@@ -99,27 +99,16 @@ Deno.serve(async (request) => {
     }
 
     if (payload.action === 'record_subscription_payment') {
-      if (!payload.subscription_id || !Number.isFinite(payload.amount_kes) || Number(payload.amount_kes) <= 0 || !['mpesa','bank','cash','card','other'].includes(payload.payment_method ?? '')) return json({ error: 'Subscription, positive amount and valid payment method are required' }, 400)
+      if (!payload.subscription_id || !Number.isFinite(payload.amount_kes) || Number(payload.amount_kes) <= 0 || !['mpesa','bank','cash','card','other'].includes(payload.payment_method ?? '') || !['month','year'].includes(payload.billing_interval ?? '')) return json({ error: 'Subscription, positive amount, valid payment method and billing interval are required' }, 400)
       if (payload.payment_method === 'mpesa' && !payload.transaction_reference?.trim()) return json({ error: 'M-Pesa transaction reference is required' }, 400)
-      const { data: subscription, error: subscriptionError } = await client.from('subscriptions').select('id,business_id').eq('id', payload.subscription_id).maybeSingle()
-      if (subscriptionError) throw subscriptionError
-      if (!subscription) return json({ error: 'Subscription not found' }, 404)
-      const { data: payment, error } = await client.from('platform_subscription_payments').insert({
-        subscription_id: subscription.id,
-        business_id: subscription.business_id,
-        amount_kes: Number(payload.amount_kes),
-        payment_method: payload.payment_method,
-        transaction_reference: payload.transaction_reference?.trim() || null,
-        paid_at: payload.paid_at || new Date().toISOString(),
-        recorded_by: authData.user.id,
-        notes: payload.notes?.trim() || null,
-        status: 'confirmed',
-      }).select('*').single()
-      if (error) {
-        if (error.code === '23505') return json({ error: 'This payment reference has already been recorded.' }, 409)
-        throw error
-      }
-      return json({ payment })
+      const { data: result, error } = await client.rpc('platform_admin_record_subscription_payment', {
+        p_subscription_id: payload.subscription_id, p_amount_kes: Number(payload.amount_kes),
+        p_payment_method: payload.payment_method, p_transaction_reference: payload.transaction_reference?.trim() || null,
+        p_paid_at: payload.paid_at || new Date().toISOString(), p_notes: payload.notes?.trim() || null,
+        p_billing_interval: payload.billing_interval, p_recorded_by: authData.user.id,
+      })
+      if (error) { if (error.code === '23505') return json({ error: 'This payment reference has already been recorded.' }, 409); throw error }
+      return json({ payment: result.payment, subscription: result.subscription })
     }
 
     if (payload.action === 'analytics') {
