@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'\nimport type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 
 type SubscriptionRow = {
@@ -53,7 +53,7 @@ export default function PlatformSubscriptions() {
     return matchesStatus && (!q || [row.business_name, row.business_phone ?? '', row.plan_name].some(v => v.toLowerCase().includes(q)))
   }), [data, search, status])
 
-  const recordPayment = async (event: React.FormEvent) => {
+  const recordPayment = async (event: FormEvent) => {
     event.preventDefault()
     if (!selected) return
     setSaving(true); setNotice('')
