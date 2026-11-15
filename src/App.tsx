@@ -19,6 +19,7 @@ import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
 import Referral from './pages/Referral'
 import OpenBills from './pages/OpenBills'
+import PlatformAdmin from './pages/PlatformAdmin'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
@@ -68,6 +69,7 @@ function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/subscription" element={<OwnerOnlyRoute><Subscription /></OwnerOnlyRoute>} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/platform-admin" element={<OwnerOnlyRoute><PlatformAdmin /></OwnerOnlyRoute>} />
         <Route path="/app" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
