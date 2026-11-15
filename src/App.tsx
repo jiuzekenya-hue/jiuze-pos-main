@@ -22,7 +22,8 @@ import OpenBills from './pages/OpenBills'
 import PlatformAdmin from './pages/PlatformAdmin'
 import PlatformAdminShell from './pages/PlatformAdminShell'
 import PlatformSales from './pages/PlatformSales'
-import PlatformAnalytics from './pages/PlatformAnalytics'\nimport PlatformSubscriptions from './pages/PlatformSubscriptions'
+import PlatformAnalytics from './pages/PlatformAnalytics'
+import PlatformSubscriptions from './pages/PlatformSubscriptions'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
