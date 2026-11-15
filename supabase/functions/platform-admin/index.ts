@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string }
     try {
       payload = await request.json()
     } catch {
@@ -48,6 +48,80 @@ Deno.serve(async (request) => {
     if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
       return json({ error: 'Platform administrator access required' }, 403)
     }
+    if (payload.action === 'subscription_management') {
+      const [{ data: businesses, error: businessError }, { data: subscriptions, error: subscriptionError }, { data: plans, error: plansError }, { data: prices, error: pricesError }, { data: payments, error: paymentsError }] = await Promise.all([
+        client.from('businesses').select('id,name,phone,location,created_at,subscription_exempt').order('created_at', { ascending: false }).limit(1000),
+        client.from('subscriptions').select('id,business_id,plan_id,billing_interval,status,trial_start,trial_end,current_period_start,current_period_end,cancelled_at,created_at,updated_at,subscription_plans(name,code)').order('updated_at', { ascending: false }).limit(1000),
+        client.from('subscription_plans').select('id,name,code,description,trial_days,is_active').order('name'),
+        client.from('subscription_prices').select('id,plan_id,billing_interval,price_kes,is_active'),
+        client.from('platform_subscription_payments').select('id,subscription_id,business_id,amount_kes,payment_method,transaction_reference,status,paid_at,notes').order('paid_at', { ascending: false }).limit(500),
+      ])
+      if (businessError || subscriptionError || plansError || pricesError || paymentsError) throw businessError ?? subscriptionError ?? plansError ?? pricesError ?? paymentsError
+      const businessMap = new Map((businesses ?? []).map((b) => [b.id, b]))
+      const priceMap = new Map((prices ?? []).map((p) => [p.plan_id + ':' + p.billing_interval, Number(p.price_kes)]))
+      const subscriptionRows = (subscriptions ?? []).map((s: any) => {
+        const b = businessMap.get(s.business_id)
+        const plan = s.subscription_plans
+        const expected = priceMap.get(s.plan_id + ':' + s.billing_interval) ?? null
+        const now = Date.now()
+        const effective = s.status === 'cancelled' ? 'cancelled'
+          : s.status === 'trialing' ? (s.trial_end && new Date(s.trial_end).getTime() > now ? 'trialing' : 'expired')
+          : s.status === 'active' ? (s.current_period_end && new Date(s.current_period_end).getTime() > now ? 'active' : 'expired')
+          : 'expired'
+        return { ...s, business_name: b?.name ?? 'Unknown business', business_phone: b?.phone ?? null, subscription_exempt: b?.subscription_exempt ?? false, plan_name: plan?.name ?? 'Unknown plan', plan_code: plan?.code ?? null, effective_status: effective, expected_price_kes: expected }
+      })
+      const confirmed = (payments ?? []).filter((p) => p.status === 'confirmed')
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0)
+      const collected = confirmed.reduce((sum, p) => sum + Number(p.amount_kes), 0)
+      const collectedThisMonth = confirmed.filter((p) => new Date(p.paid_at) >= monthStart).reduce((sum, p) => sum + Number(p.amount_kes), 0)
+      const revenueByPlan = new Map<string, number>()
+      for (const p of confirmed) {
+        const sub = (subscriptions ?? []).find((s) => s.id === p.subscription_id) as any
+        const name = sub?.subscription_plans?.name ?? 'Unknown plan'
+        revenueByPlan.set(name, (revenueByPlan.get(name) ?? 0) + Number(p.amount_kes))
+      }
+      return json({
+        metrics: {
+          total_collected_kes: collected,
+          collected_this_month_kes: collectedThisMonth,
+          active_subscriptions: subscriptionRows.filter((s) => !s.subscription_exempt && s.effective_status === 'active').length,
+          trials: subscriptionRows.filter((s) => !s.subscription_exempt && s.effective_status === 'trialing').length,
+          expired: subscriptionRows.filter((s) => !s.subscription_exempt && s.effective_status === 'expired').length,
+          upcoming_renewals: subscriptionRows.filter((s) => s.effective_status === 'active' && s.current_period_end && new Date(s.current_period_end).getTime() >= Date.now() && new Date(s.current_period_end).getTime() <= Date.now() + 30 * 86400000).length,
+        },
+        subscriptions: subscriptionRows,
+        businesses: businesses ?? [],
+        plans: plans ?? [],
+        prices: prices ?? [],
+        payments: payments ?? [],
+        revenue_by_plan: [...revenueByPlan.entries()].map(([plan_name, amount_kes]) => ({ plan_name, amount_kes })),
+      })
+    }
+
+    if (payload.action === 'record_subscription_payment') {
+      if (!payload.subscription_id || !Number.isFinite(payload.amount_kes) || Number(payload.amount_kes) <= 0 || !['mpesa','bank','cash','card','other'].includes(payload.payment_method ?? '')) return json({ error: 'Subscription, positive amount and valid payment method are required' }, 400)
+      if (payload.payment_method === 'mpesa' && !payload.transaction_reference?.trim()) return json({ error: 'M-Pesa transaction reference is required' }, 400)
+      const { data: subscription, error: subscriptionError } = await client.from('subscriptions').select('id,business_id').eq('id', payload.subscription_id).maybeSingle()
+      if (subscriptionError) throw subscriptionError
+      if (!subscription) return json({ error: 'Subscription not found' }, 404)
+      const { data: payment, error } = await client.from('platform_subscription_payments').insert({
+        subscription_id: subscription.id,
+        business_id: subscription.business_id,
+        amount_kes: Number(payload.amount_kes),
+        payment_method: payload.payment_method,
+        transaction_reference: payload.transaction_reference?.trim() || null,
+        paid_at: payload.paid_at || new Date().toISOString(),
+        recorded_by: authData.user.id,
+        notes: payload.notes?.trim() || null,
+        status: 'confirmed',
+      }).select('*').single()
+      if (error) {
+        if (error.code === '23505') return json({ error: 'This payment reference has already been recorded.' }, 409)
+        throw error
+      }
+      return json({ payment })
+    }
+
     if (payload.action === 'analytics') {
       const days = payload.period === '7' ? 7 : payload.period === '90' ? 90 : payload.period === '365' ? 365 : 30
       const since = new Date(Date.now() - days * 86400000).toISOString()
