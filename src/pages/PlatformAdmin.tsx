@@ -62,7 +62,7 @@ const statusClass = (status: string) => ({
   Exempt: 'bg-blue-50 text-blue-700',
 }[status] ?? 'bg-gray-100 text-gray-600')
 
-export default function PlatformAdmin() {
+export default function PlatformAdmin({ section = 'overview' }: { section?: 'overview' | 'businesses' | 'subscriptions' | 'activity' }) {
   const [data, setData] = useState<OverviewResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -113,24 +113,24 @@ export default function PlatformAdmin() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-market-600">JIUZE POS · PLATFORM CONTROL</p>
-            <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Platform overview</h1>
-            <p className="mt-2 text-sm text-ink-muted">Monitor business accounts and subscription status across JIUZE POS.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-market-600">JIUZE ADMIN · PLATFORM CONTROL</p>
+            <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">{({ overview: 'Platform overview', businesses: 'Business directory', subscriptions: 'Subscriptions', activity: 'Platform activity' })[section]}</h1>
+            <p className="mt-2 text-sm text-ink-muted">{({ overview: 'Monitor the health of the JIUZE POS platform.', businesses: 'View and search every registered business account.', subscriptions: 'Review subscription plans, billing status and renewal dates.', activity: 'Review recent business registrations and subscription updates.' })[section]}</p>
           </div>
           <div className="rounded-lg border border-line bg-paper-raised px-4 py-2 text-xs text-ink-muted">Super Admin · Read only</div>
         </header>
 
-        <section className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {section === "overview" && <section className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {cards.map((card) => <article key={card.label} className="rounded-xl border border-line bg-paper-raised p-5">
             <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{card.label}</p>
             <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink">{card.value.toLocaleString('en-KE')}</p>
             <p className="mt-1 text-xs text-ink-muted">{card.note}</p>
           </article>)}
-        </section>
+        </section>}
 
-        <section className="mb-8 overflow-hidden rounded-xl border border-line bg-paper-raised">
+        {(section === "businesses" || section === "subscriptions") && <section className="mb-8 overflow-hidden rounded-xl border border-line bg-paper-raised">
           <div className="flex flex-col gap-4 border-b border-line p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div><h2 className="font-display text-xl font-semibold">Business accounts</h2><p className="mt-1 text-xs text-ink-muted">{businesses.length} of {data.businesses.length} businesses shown</p></div>
+            <div><h2 className="font-display text-xl font-semibold">{section === "subscriptions" ? "Subscription records" : "Registered businesses"}</h2><p className="mt-1 text-xs text-ink-muted">{businesses.length} of {data.businesses.length} businesses shown</p></div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input aria-label="Search businesses" className="field sm:w-64" placeholder="Search name, phone or location" value={search} onChange={(event) => setSearch(event.target.value)} />
               <select aria-label="Filter by subscription status" className="field sm:w-44" value={filter} onChange={(event) => setFilter(event.target.value)}>
@@ -157,14 +157,14 @@ export default function PlatformAdmin() {
               </tbody>
             </table>
           </div>
-        </section>
+        </section>}
 
-        <section className="overflow-hidden rounded-xl border border-line bg-paper-raised">
-          <div className="border-b border-line px-5 py-4"><h2 className="font-display text-xl font-semibold">Recent platform activity</h2><p className="mt-1 text-xs text-ink-muted">Business registrations and subscription updates</p></div>
+        {(section === "activity" || section === "overview") && <section className="overflow-hidden rounded-xl border border-line bg-paper-raised">
+          <div className="border-b border-line px-5 py-4"><h2 className="font-display text-xl font-semibold">{section === "overview" ? "Recent platform activity" : "Platform activity log"}</h2><p className="mt-1 text-xs text-ink-muted">Business registrations and subscription updates</p></div>
           <div className="divide-y divide-line">
             {data.activity.length === 0 ? <p className="px-5 py-8 text-sm text-ink-muted">No recent activity recorded.</p> : data.activity.map((item) => <div key={item.id} className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-medium text-ink">{item.label}</p><p className="mt-1 text-xs text-ink-muted">{item.detail}</p></div><time className="text-xs text-ink-faint">{new Date(item.created_at).toLocaleString('en-KE')}</time></div>)}
           </div>
-        </section>
+        </section>}
       </div>
     </main>
   )
