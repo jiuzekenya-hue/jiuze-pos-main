@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string; billing_interval?: string; suspend?: boolean; suspension_reason?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string; subscription_id?: string; amount_kes?: number; payment_method?: string; transaction_reference?: string; paid_at?: string; notes?: string; billing_interval?: string; suspend?: boolean; suspension_reason?: string; plan_id?: string; payment_id?: string; reason?: string }
     try {
       payload = await request.json()
     } catch {
@@ -48,6 +48,24 @@ Deno.serve(async (request) => {
     if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
       return json({ error: 'Platform administrator access required' }, 403)
     }
+    if (payload.action === 'change_subscription_plan') {
+      if (!payload.subscription_id || !payload.plan_id || !['month','year','trial'].includes(payload.billing_interval ?? '')) return json({ error: 'Subscription, plan and billing interval are required' }, 400)
+      const { data, error } = await client.rpc('platform_admin_change_subscription_plan', {
+        p_subscription_id: payload.subscription_id, p_plan_id: payload.plan_id, p_billing_interval: payload.billing_interval,
+      })
+      if (error) throw error
+      return json({ subscription: data })
+    }
+
+    if (payload.action === 'reverse_subscription_payment') {
+      if (!payload.payment_id || !payload.reason?.trim()) return json({ error: 'Payment and reversal reason are required' }, 400)
+      const { data, error } = await client.rpc('platform_admin_reverse_subscription_payment', {
+        p_payment_id: payload.payment_id, p_reason: payload.reason.trim(), p_reversed_by: authData.user.id,
+      })
+      if (error) throw error
+      return json({ result: data })
+    }
+
     if (payload.action === 'set_subscription_suspension') {
       if (!payload.subscription_id || typeof payload.suspend !== 'boolean') return json({ error: 'Subscription and suspension action are required' }, 400)
       const { data, error } = await client.rpc('platform_admin_set_subscription_suspension', {
@@ -65,7 +83,7 @@ Deno.serve(async (request) => {
         client.from('subscriptions').select('id,business_id,plan_id,billing_interval,status,trial_start,trial_end,current_period_start,current_period_end,cancelled_at,created_at,updated_at,subscription_plans(name,code)').order('updated_at', { ascending: false }).limit(1000),
         client.from('subscription_plans').select('id,name,code,description,trial_days,is_active').order('name'),
         client.from('subscription_prices').select('id,plan_id,billing_interval,price_kes,is_active'),
-        client.from('platform_subscription_payments').select('id,subscription_id,business_id,amount_kes,payment_method,transaction_reference,status,paid_at,notes').order('paid_at', { ascending: false }).limit(500),
+        client.from('platform_subscription_payments').select('id,subscription_id,business_id,amount_kes,payment_method,transaction_reference,status,paid_at,notes,reversed_at,reversal_reason,current_period_end_after').order('paid_at', { ascending: false }).limit(500),
       ])
       if (businessError || subscriptionError || plansError || pricesError || paymentsError) throw businessError ?? subscriptionError ?? plansError ?? pricesError ?? paymentsError
       const businessMap = new Map((businesses ?? []).map((b) => [b.id, b]))
