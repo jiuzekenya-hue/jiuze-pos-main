@@ -58,7 +58,7 @@ Deno.serve(async (request) => {
     const businessIds = (businesses ?? []).map((business) => business.id)
     const { data: subscriptions, error: subscriptionsError } = await client
       .from('subscriptions')
-      .select('business_id, status, trial_end, current_period_end, updated_at, created_at, subscription_plans(name, code)')
+      .select('business_id, status, trial_end, current_period_end, updated_at, subscription_plans(name, code)')
       .in('business_id', businessIds.length ? businessIds : ['00000000-0000-0000-0000-000000000000'])
     if (subscriptionsError) throw subscriptionsError
 
@@ -97,23 +97,22 @@ Deno.serve(async (request) => {
       exempt: mappedBusinesses.filter((business) => business.subscription_exempt).length,
     }
 
-    const activity = mappedBusinesses.flatMap((business) => {
-      const events = [{
+    const activity = [
+      ...(mappedBusinesses ?? []).map((business) => ({
         id: `business-${business.id}`,
-        type: 'business_registered' as const,
+        type: 'business_registered',
         label: 'Business registered',
         detail: business.name,
         created_at: business.created_at,
-      }]
-      if (business.subscription?.updated_at) events.push({
+      })),
+      ...mappedBusinesses.filter((business) => business.subscription?.updated_at).map((business) => ({
         id: `subscription-${business.id}`,
-        type: 'subscription_updated' as const,
+        type: 'subscription_updated',
         label: 'Subscription record updated',
-        detail: `${business.name} · ${business.subscription.plan_name ?? 'No plan'} · ${business.subscription.status}`,
-        created_at: business.subscription.updated_at,
-      })
-      return events
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 12)
+        detail: `${business.name} · ${business.subscription?.plan_name ?? 'No plan'} · ${business.subscription?.status}`,
+        created_at: business.subscription!.updated_at,
+      })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 12)
 
     return json({ metrics, businesses: mappedBusinesses, activity })
   } catch (error) {
