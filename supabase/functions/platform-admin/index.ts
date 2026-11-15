@@ -75,7 +75,8 @@ Deno.serve(async (request) => {
         const plan = s.subscription_plans
         const expected = priceMap.get(s.plan_id + ':' + s.billing_interval) ?? null
         const now = Date.now()
-        const effective = s.status === 'suspended' ? 'suspended'\n          : s.status === 'cancelled' ? 'cancelled'
+        const effective = s.status === 'suspended' ? 'suspended'
+          : s.status === 'cancelled' ? 'cancelled'
           : s.status === 'trialing' ? (s.trial_end && new Date(s.trial_end).getTime() > now ? 'trialing' : 'expired')
           : s.status === 'active' ? (s.current_period_end && new Date(s.current_period_end).getTime() > now ? 'active' : 'expired')
           : 'expired'
