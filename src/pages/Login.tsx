@@ -23,6 +23,7 @@ export default function Login() {
   const [isDirectoryLoading, setIsDirectoryLoading] = useState(true)
   const [directoryError, setDirectoryError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [postLoginPath, setPostLoginPath] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -72,8 +73,28 @@ export default function Login() {
     return () => { cancelled = true }
   }, [businessId])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!session) {
+      setPostLoginPath(null)
+      return
+    }
+    const requestedPath = (location.state as { from?: string } | null)?.from
+    void supabase.functions.invoke('platform-admin', { body: { action: 'check' } })
+      .then(({ data, error: checkError }) => {
+        if (cancelled) return
+        setPostLoginPath(!checkError && data?.isAdmin === true ? '/platform-admin' : (requestedPath ?? '/'))
+      })
+      .catch(() => {
+        if (!cancelled) setPostLoginPath(requestedPath ?? '/')
+      })
+    return () => { cancelled = true }
+  }, [session, location.state])
+
   if (!isSessionLoading && session) {
-    return <Navigate to={(location.state as { from?: string } | null)?.from ?? '/'} replace />
+    return postLoginPath
+      ? <Navigate to={postLoginPath} replace />
+      : <main className="grid min-h-screen place-items-center bg-[#f4f6f2] text-sm text-[#647269]">Checking account access…</main>
   }
 
   function pressKey(key: string) {
