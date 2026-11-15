@@ -36,15 +36,17 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
-      return json({ error: 'Platform administrator access required' }, 403)
-    }
-
     let payload: { action?: string }
     try {
       payload = await request.json()
     } catch {
       return json({ error: 'Invalid request body' }, 400)
+    }
+    if (payload.action === 'check') {
+      return json({ isAdmin: !adminError && adminRecord?.role === 'super_admin' })
+    }
+    if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
+      return json({ error: 'Platform administrator access required' }, 403)
     }
     if (payload.action !== 'overview') return json({ error: 'Unknown action' }, 400)
 
