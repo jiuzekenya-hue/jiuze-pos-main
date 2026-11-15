@@ -11,7 +11,7 @@ type SubscriptionRow = {
 type PaymentRow = {
   id: string; business_id: string; subscription_id: string; amount_kes: number
   payment_method: string; transaction_reference: string | null; status: string; paid_at: string
-  current_period_end_after?: string | null; reversal_reason?: string | null
+  current_period_end_after?: string | null; reversal_reason?: string | null; notes?: string | null
 }
 type Payload = {
   metrics: { total_collected_kes: number; collected_this_month_kes: number; active_subscriptions: number; trials: number; expired: number; upcoming_renewals: number }
