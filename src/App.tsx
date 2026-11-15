@@ -22,7 +22,7 @@ import OpenBills from './pages/OpenBills'
 import PlatformAdmin from './pages/PlatformAdmin'
 import PlatformAdminShell from './pages/PlatformAdminShell'
 import PlatformSales from './pages/PlatformSales'
-import PlatformAnalytics from './pages/PlatformAnalytics'
+import PlatformAnalytics from './pages/PlatformAnalytics'\nimport PlatformSubscriptions from './pages/PlatformSubscriptions'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
@@ -61,7 +61,7 @@ function App() {
       <Route element={<ProtectedRoute><PlatformAdminShell /></ProtectedRoute>}>
         <Route path="/platform-admin" element={<OwnerOnlyRoute><PlatformAdmin section="overview" /></OwnerOnlyRoute>} />
         <Route path="/platform-admin/businesses" element={<OwnerOnlyRoute><PlatformAdmin section="businesses" /></OwnerOnlyRoute>} />
-        <Route path="/platform-admin/subscriptions" element={<OwnerOnlyRoute><PlatformAdmin section="subscriptions" /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/subscriptions" element={<OwnerOnlyRoute><PlatformSubscriptions /></OwnerOnlyRoute>} />
         <Route path="/platform-admin/activity" element={<OwnerOnlyRoute><PlatformAdmin section="activity" /></OwnerOnlyRoute>} />
         <Route path="/platform-admin/sales" element={<OwnerOnlyRoute><PlatformSales /></OwnerOnlyRoute>} />
         <Route path="/platform-admin/analytics" element={<OwnerOnlyRoute><PlatformAnalytics /></OwnerOnlyRoute>} />
