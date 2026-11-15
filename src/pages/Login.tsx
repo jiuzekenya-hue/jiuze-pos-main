@@ -9,8 +9,10 @@ type CashierOption = { id: string; fullName: string }
 const keypadRows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']]
 
 export default function Login() {
-  const { session, isSessionLoading } = useAuth()
+  const { session, isSessionLoading, signIn } = useAuth()
   const location = useLocation()
+  const [loginMode, setLoginMode] = useState<'cashier' | 'email'>('cashier')
+  const [email, setEmail] = useState('')
   const [businesses, setBusinesses] = useState<BusinessOption[]>([])
   const [cashiers, setCashiers] = useState<CashierOption[]>([])
   const [businessId, setBusinessId] = useState('')
@@ -83,6 +85,19 @@ export default function Login() {
     } else {
       setPassword((current) => current + key)
     }
+  }
+
+  async function handleEmailSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    if (!email.trim() || !password) {
+      setError('Enter your email address and password.')
+      return
+    }
+    setIsSubmitting(true)
+    const result = await signIn(email.trim(), password)
+    setIsSubmitting(false)
+    if (result.error) setError(result.error)
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -186,7 +201,7 @@ export default function Login() {
         <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full border border-[#e9b949]/10" />
 
         <form
-          onSubmit={handleSubmit}
+          onSubmit={loginMode === 'email' ? handleEmailSubmit : handleSubmit}
           className="jiuze-enter jiuze-enter-delay-1 relative w-full max-w-[490px] rounded-2xl border border-[#d6ad4c]/40 bg-[#041a12]/80 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-9"
           noValidate
         >
@@ -196,48 +211,65 @@ export default function Login() {
               JIUZE <span className="text-[#e9b949]">POS</span>
             </h1>
             <p className="mt-2 text-sm text-white/60">Sign in to continue to your business.</p>
+            <div className="mt-5 grid grid-cols-2 rounded-lg border border-white/10 bg-black/20 p-1">
+              <button type="button" onClick={() => { setLoginMode('cashier'); setError(null) }} className={`rounded-md px-3 py-2 text-xs font-semibold transition ${loginMode === 'cashier' ? 'bg-[#e9b949] text-[#10170d]' : 'text-white/65 hover:text-white'}`}>Cashier sign-in</button>
+              <button type="button" onClick={() => { setLoginMode('email'); setError(null) }} className={`rounded-md px-3 py-2 text-xs font-semibold transition ${loginMode === 'email' ? 'bg-[#e9b949] text-[#10170d]' : 'text-white/65 hover:text-white'}`}>Owner / Admin email</button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="business" className="mb-2 block text-sm font-medium text-white/85">Select business</label>
-              <select id="business" value={businessId} onChange={(event) => setBusinessId(event.target.value)} disabled={isDirectoryLoading || isSubmitting || businesses.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
-                <option value="">{isDirectoryLoading ? 'Loading businesses…' : 'Choose a business'}</option>
-                {businesses.map((business) => <option key={business.id} value={business.id} className="bg-[#08271b]">{business.name}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="cashier" className="mb-2 block text-sm font-medium text-white/85">Select cashier</label>
-              <select id="cashier" value={cashierId} onChange={(event) => setCashierId(event.target.value)} disabled={!businessId || isSubmitting || cashiers.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
-                <option value="">{businessId ? 'Choose a cashier' : 'Select a business first'}</option>
-                {cashiers.map((cashier) => <option key={cashier.id} value={cashier.id} className="bg-[#08271b]">{cashier.fullName || 'Unnamed cashier'}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-white/85">Password</label>
-              <div className="relative">
-                <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] pr-16 text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="Enter your password" />
-                <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
+          {loginMode === 'email' ? (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="mb-2 block text-sm font-medium text-white/85">Email address</label>
+                <input id="email" type="email" autoComplete="username" value={email} onChange={(event) => { setEmail(event.target.value); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="you@business.com" />
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-white/85">Password</label>
+                <div className="relative">
+                  <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] pr-16 text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="Enter your password" />
+                  <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="business" className="mb-2 block text-sm font-medium text-white/85">Select business</label>
+                  <select id="business" value={businessId} onChange={(event) => setBusinessId(event.target.value)} disabled={isDirectoryLoading || isSubmitting || businesses.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
+                    <option value="">{isDirectoryLoading ? 'Loading businesses…' : 'Choose a business'}</option>
+                    {businesses.map((business) => <option key={business.id} value={business.id} className="bg-[#08271b]">{business.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="cashier" className="mb-2 block text-sm font-medium text-white/85">Select cashier</label>
+                  <select id="cashier" value={cashierId} onChange={(event) => setCashierId(event.target.value)} disabled={!businessId || isSubmitting || cashiers.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
+                    <option value="">{businessId ? 'Choose a cashier' : 'Select a business first'}</option>
+                    {cashiers.map((cashier) => <option key={cashier.id} value={cashier.id} className="bg-[#08271b]">{cashier.fullName || 'Unnamed cashier'}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-white/85">Password</label>
+                  <div className="relative">
+                    <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] pr-16 text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="Enter your password" />
+                    <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2" aria-label="On-screen numeric keypad">
+                {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold transition hover:border-[#e9b949]/40 hover:bg-white/[0.09] active:scale-[0.98] disabled:opacity-50">{key}</button>)}
+                <button type="button" onClick={() => pressKey('0')} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold transition hover:bg-white/[0.09] disabled:opacity-50">0</button>
+                <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting} aria-label="Delete last password character" className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg transition hover:bg-white/[0.09] disabled:opacity-50">←</button>
+                <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold transition hover:bg-white/[0.09] disabled:opacity-50">Clear</button>
+              </div>
+              {directoryError && <p role="status" className="mt-4 rounded-lg border border-[#e9b949]/25 bg-[#e9b949]/10 px-3 py-2.5 text-xs leading-relaxed text-[#f0c65e]">{directoryError}</p>}
+            </>
+          )}
 
-          <div className="mt-4 grid grid-cols-3 gap-2" aria-label="On-screen numeric keypad">
-            {keypadRows.flat().map((key) => (
-              <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold transition hover:border-[#e9b949]/40 hover:bg-white/[0.09] active:scale-[0.98] disabled:opacity-50">{key}</button>
-            ))}
-            <button type="button" onClick={() => pressKey('0')} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold transition hover:bg-white/[0.09] disabled:opacity-50">0</button>
-            <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting} aria-label="Delete last password character" className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg transition hover:bg-white/[0.09] disabled:opacity-50">←</button>
-            <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold transition hover:bg-white/[0.09] disabled:opacity-50">Clear</button>
-          </div>
-
-          {directoryError && <p role="status" className="mt-4 rounded-lg border border-[#e9b949]/25 bg-[#e9b949]/10 px-3 py-2.5 text-xs leading-relaxed text-[#f0c65e]">{directoryError}</p>}
           {error && <p role="alert" className="mt-4 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-xs leading-relaxed text-red-200">{error}</p>}
 
-          <button type="submit" disabled={isSubmitting || isDirectoryLoading || !businessId || !cashierId} className="jiuze-login-button mt-5 min-h-12 w-full rounded-lg bg-gradient-to-r from-[#f3cf68] via-[#e9b949] to-[#b77a17] px-4 py-3 text-sm font-bold text-[#10170d] shadow-lg shadow-[#d5a52d]/15 disabled:cursor-not-allowed disabled:opacity-60">
-            {isSubmitting ? 'Signing in…' : 'Sign in →'}
+          <button type="submit" onClick={undefined} disabled={isSubmitting || (loginMode === 'email' ? (!email.trim() || !password) : (isDirectoryLoading || !businessId || !cashierId))} className="jiuze-login-button mt-5 min-h-12 w-full rounded-lg bg-gradient-to-r from-[#f3cf68] via-[#e9b949] to-[#b77a17] px-4 py-3 text-sm font-bold text-[#10170d] shadow-lg shadow-[#d5a52d]/15 disabled:cursor-not-allowed disabled:opacity-60">
+            {isSubmitting ? 'Signing in…' : loginMode === 'email' ? 'Sign in with email →' : 'Sign in →'}
           </button>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs">
