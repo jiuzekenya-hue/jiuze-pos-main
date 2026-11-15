@@ -85,7 +85,7 @@ Deno.serve(async (request) => {
       if (itemsError || paymentsError || returnsError) throw itemsError ?? paymentsError ?? returnsError
       const returnIds = (returns ?? []).map((r) => r.id)
       const { data: returnedItems, error: returnedError } = await client.from('sales_return_items')
-        .select('return_id,original_sale_item_id,quantity,refund_amount').in('return_id', returnIds.length ? returnIds : ['00000000-0000-0000-0000-000000000000'])
+        .select('return_id,original_sale_item_id,product_name,quantity,unit_price,refund_amount').in('return_id', returnIds.length ? returnIds : ['00000000-0000-0000-0000-000000000000'])
       if (returnedError) throw returnedError
       return json({ sale: { ...sale, business_name: business?.name ?? 'Business', cashier_name: cashier?.full_name ?? 'Unknown cashier' }, items: items ?? [], payments: payments ?? [], returns: returns ?? [], returned_items: returnedItems ?? [], audit: audit ?? [] })
     }
