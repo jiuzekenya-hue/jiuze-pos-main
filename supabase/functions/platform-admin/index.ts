@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string; period?: string }
     try {
       payload = await request.json()
     } catch {
@@ -48,6 +48,75 @@ Deno.serve(async (request) => {
     if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
       return json({ error: 'Platform administrator access required' }, 403)
     }
+    if (payload.action === 'analytics') {
+      const days = payload.period === '7' ? 7 : payload.period === '90' ? 90 : payload.period === '365' ? 365 : 30
+      const since = new Date(Date.now() - days * 86400000).toISOString()
+      const [{ data: businesses, error: businessError }, { data: sales, error: salesError }, { data: returns, error: returnsError }, { data: payments, error: paymentsError }, { data: saleItems, error: itemsError }] = await Promise.all([
+        client.from('businesses').select('id,name,business_mode,created_at,subscription_exempt').order('created_at', { ascending: false }).limit(1000),
+        client.from('sales').select('id,business_id,receipt_number,total,status,created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(10000),
+        client.from('sales_returns').select('business_id,refund_amount,created_at').gte('created_at', since).limit(10000),
+        client.from('payments').select('business_id,method,amount,created_at').gte('created_at', since).limit(10000),
+        client.from('sale_items').select('sale_id,product_name,quantity,subtotal,created_at').gte('created_at', since).limit(20000),
+      ])
+      if (businessError || salesError || returnsError || paymentsError || itemsError) throw businessError ?? salesError ?? returnsError ?? paymentsError ?? itemsError
+      const businessList = businesses ?? []
+      const saleList = sales ?? []
+      const completed = saleList.filter((s) => s.status === 'completed')
+      const returnList = returns ?? []
+      const refundTotal = returnList.reduce((sum, r) => sum + Number(r.refund_amount || 0), 0)
+      const grossSales = completed.reduce((sum, s) => sum + Number(s.total || 0), 0)
+      const businessMap = new Map(businessList.map((b) => [b.id, b.name]))
+      const businessTotals = new Map<string, { business_id: string; business_name: string; transactions: number; gross_sales: number; refunds: number; last_sale: string | null }>()
+      for (const b of businessList) businessTotals.set(b.id, { business_id: b.id, business_name: b.name, transactions: 0, gross_sales: 0, refunds: 0, last_sale: null })
+      for (const s of completed) {
+        const row = businessTotals.get(s.business_id)
+        if (!row) continue
+        row.transactions += 1
+        row.gross_sales += Number(s.total || 0)
+        if (!row.last_sale || s.created_at > row.last_sale) row.last_sale = s.created_at
+      }
+      for (const r of returnList) {
+        const row = businessTotals.get(r.business_id)
+        if (row) row.refunds += Number(r.refund_amount || 0)
+      }
+      const daily = new Map<string, { date: string; sales: number; transactions: number }>()
+      for (const s of completed) {
+        const date = s.created_at.slice(0, 10)
+        const row = daily.get(date) ?? { date, sales: 0, transactions: 0 }
+        row.sales += Number(s.total || 0); row.transactions += 1; daily.set(date, row)
+      }
+      const methods = new Map<string, number>()
+      for (const p of payments ?? []) methods.set(p.method, (methods.get(p.method) ?? 0) + Number(p.amount || 0))
+      const products = new Map<string, { product_name: string; quantity: number; sales_value: number }>()
+      const completedIds = new Set(completed.map((s) => s.id))
+      for (const item of saleItems ?? []) {
+        if (!completedIds.has(item.sale_id)) continue
+        const row = products.get(item.product_name) ?? { product_name: item.product_name, quantity: 0, sales_value: 0 }
+        row.quantity += Number(item.quantity || 0); row.sales_value += Number(item.subtotal || 0); products.set(item.product_name, row)
+      }
+      const activeBusinessIds = new Set(completed.map((s) => s.business_id))
+      const activeClients = businessList.filter((b) => activeBusinessIds.has(b.id)).length
+      const clientRows = [...businessTotals.values()].map((row) => ({ ...row, net_sales: row.gross_sales - row.refunds })).sort((a, b) => b.gross_sales - a.gross_sales)
+      return json({
+        period_days: days,
+        metrics: {
+          total_businesses: businessList.length,
+          active_clients: activeClients,
+          completed_transactions: completed.length,
+          gross_sales: grossSales,
+          refunds: refundTotal,
+          net_sales: grossSales - refundTotal,
+          average_transaction: completed.length ? grossSales / completed.length : 0,
+          transactions_all_statuses: saleList.length,
+        },
+        daily: [...daily.values()].sort((a, b) => a.date.localeCompare(b.date)),
+        businesses: clientRows,
+        payment_methods: [...methods.entries()].map(([method, amount]) => ({ method, amount })).sort((a, b) => b.amount - a.amount),
+        top_products: [...products.values()].sort((a, b) => b.sales_value - a.sales_value).slice(0, 10),
+        generated_at: new Date().toISOString(),
+      })
+    }
+
     if (payload.action === 'sales') {
       let query = client.from('sales')
         .select('id,business_id,receipt_number,cashier_id,subtotal,discount,total,status,created_at')
