@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
       .eq('user_id', authData.user.id)
       .maybeSingle()
 
-    let payload: { action?: string }
+    let payload: { action?: string; search?: string; business_id?: string; sale_id?: string; items?: Array<{ sale_item_id: string; quantity: number }>; refund_method?: string; refund_reference?: string; reason?: string }
     try {
       payload = await request.json()
     } catch {
@@ -48,6 +48,65 @@ Deno.serve(async (request) => {
     if (adminError || !adminRecord || adminRecord.role !== 'super_admin') {
       return json({ error: 'Platform administrator access required' }, 403)
     }
+    if (payload.action === 'sales') {
+      let query = client.from('sales')
+        .select('id,business_id,receipt_number,cashier_id,subtotal,discount,total,status,created_at')
+        .order('created_at', { ascending: false }).limit(100)
+      if (payload.business_id) query = query.eq('business_id', payload.business_id)
+      if (payload.search?.trim()) query = query.ilike('receipt_number', `%${payload.search.trim()}%`)
+      const { data: sales, error } = await query
+      if (error) throw error
+      const businessIds = [...new Set((sales ?? []).map((s) => s.business_id))]
+      const cashierIds = [...new Set((sales ?? []).map((s) => s.cashier_id))]
+      const [{ data: businesses }, { data: profiles }] = await Promise.all([
+        client.from('businesses').select('id,name').in('id', businessIds.length ? businessIds : ['00000000-0000-0000-0000-000000000000']),
+        client.from('profiles').select('id,full_name').in('id', cashierIds.length ? cashierIds : ['00000000-0000-0000-0000-000000000000']),
+      ])
+      const businessMap = new Map((businesses ?? []).map((b) => [b.id, b.name]))
+      const cashierMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]))
+      return json({ sales: (sales ?? []).map((s) => ({ ...s, business_name: businessMap.get(s.business_id) ?? 'Business', cashier_name: cashierMap.get(s.cashier_id) ?? 'Unknown cashier' })) })
+    }
+
+    if (payload.action === 'sale_detail') {
+      if (!payload.sale_id) return json({ error: 'Sale ID is required' }, 400)
+      const { data: sale, error: saleError } = await client.from('sales')
+        .select('id,business_id,receipt_number,cashier_id,subtotal,discount,total,status,created_at')
+        .eq('id', payload.sale_id).maybeSingle()
+      if (saleError) throw saleError
+      if (!sale) return json({ error: 'Sale not found' }, 404)
+      const [{ data: business }, { data: cashier }, { data: items, error: itemsError }, { data: payments, error: paymentsError }, { data: returns, error: returnsError }, { data: audit }] = await Promise.all([
+        client.from('businesses').select('id,name').eq('id', sale.business_id).maybeSingle(),
+        client.from('profiles').select('id,full_name').eq('id', sale.cashier_id).maybeSingle(),
+        client.from('sale_items').select('id,product_id,product_name,quantity,unit_price,cost_price,discount,subtotal').eq('sale_id', sale.id),
+        client.from('payments').select('id,method,amount,reference,created_at').eq('sale_id', sale.id).order('created_at'),
+        client.from('sales_returns').select('id,return_receipt_number,refund_method,refund_amount,refund_reference,reason,created_at').eq('original_sale_id', sale.id).order('created_at', { ascending: false }),
+        client.from('platform_admin_sales_audit').select('id,action,reason,metadata,created_at').eq('sale_id', sale.id).order('created_at', { ascending: false }),
+      ])
+      if (itemsError || paymentsError || returnsError) throw itemsError ?? paymentsError ?? returnsError
+      const returnIds = (returns ?? []).map((r) => r.id)
+      const { data: returnedItems, error: returnedError } = await client.from('sales_return_items')
+        .select('return_id,original_sale_item_id,quantity,refund_amount').in('return_id', returnIds.length ? returnIds : ['00000000-0000-0000-0000-000000000000'])
+      if (returnedError) throw returnedError
+      return json({ sale: { ...sale, business_name: business?.name ?? 'Business', cashier_name: cashier?.full_name ?? 'Unknown cashier' }, items: items ?? [], payments: payments ?? [], returns: returns ?? [], returned_items: returnedItems ?? [], audit: audit ?? [] })
+    }
+
+    if (payload.action === 'process_return') {
+      if (!payload.sale_id || !payload.business_id || !Array.isArray(payload.items) || payload.items.length === 0 || !payload.reason?.trim()) return json({ error: 'Sale, business, returned items and reason are required' }, 400)
+      if (!['cash', 'mpesa', 'card'].includes(payload.refund_method ?? '')) return json({ error: 'Invalid refund method' }, 400)
+      if (['mpesa', 'card'].includes(payload.refund_method ?? '') && !payload.refund_reference?.trim()) return json({ error: 'Enter the external refund transaction reference' }, 400)
+      const { data: result, error } = await client.rpc('platform_admin_process_sale_return', {
+        p_admin_user_id: authData.user.id,
+        p_business_id: payload.business_id,
+        p_sale_id: payload.sale_id,
+        p_items: payload.items,
+        p_refund_method: payload.refund_method,
+        p_refund_reference: payload.refund_reference?.trim() || null,
+        p_reason: payload.reason.trim(),
+      })
+      if (error) throw error
+      return json({ result })
+    }
+
     if (payload.action !== 'overview') return json({ error: 'Unknown action' }, 400)
 
     const { data: businesses, error: businessesError } = await client
