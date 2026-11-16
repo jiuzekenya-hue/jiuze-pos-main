@@ -30,7 +30,7 @@ export default function Users() {
   const assignPin = async (user: CashierUser) => {
     const pin = window.prompt(`Set a unique 6-digit login PIN for ${user.fullName || 'this cashier'}:`)
     if (!pin) return
-    if (!/^\\d{6}$/.test(pin)) { setError('PIN must contain exactly 6 digits.'); return }
+    if (!/^\d{6}$/.test(pin)) { setError('PIN must contain exactly 6 digits.'); return }
     const confirmation = window.prompt('Re-enter the 6-digit PIN to confirm:')
     if (confirmation !== pin) { setError('PIN confirmation did not match.'); return }
     setSaving(true); setError('')
