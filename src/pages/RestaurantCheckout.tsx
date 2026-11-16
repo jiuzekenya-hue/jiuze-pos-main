@@ -1324,7 +1324,7 @@ export default function RestaurantCheckout() {
               type="button"
               onClick={() => void selectLocation('takeaway')}
               className={
-                'mb-2 min-h-14 w-full rounded-xl border-2 border-slate-200 px-4 py-4 text-left text-base font-bold shadow-sm transition ' +
+                'mb-2 min-h-12 w-full rounded-lg border border-slate-200 px-3 py-3 text-left text-sm font-semibold transition ' +
                 (selectedTable === 'takeaway'
                   ? 'bg-slate-800 text-white'
                   : 'hover:bg-slate-100')
@@ -1358,7 +1358,7 @@ export default function RestaurantCheckout() {
                       void selectLocation(table)
                     }
                     className={
-                      'min-h-[76px] rounded-xl border px-2 py-4 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
+                      'min-h-[64px] rounded-lg border px-2 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-market-100 ' +
                       (selectedTable === table
                         ? 'border-market-700 bg-market-600 text-white'
                         : isOpen
@@ -1391,7 +1391,7 @@ export default function RestaurantCheckout() {
                       setDepartment('All')
                     }}
                     className={
-                      'min-h-[64px] rounded-xl border-2 px-4 py-4 text-base font-extrabold shadow-sm transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
+                      'min-h-11 rounded-lg border px-3 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-market-100 ' +
                       (serviceSection === section
                         ? section === 'Kitchen'
                           ? 'border-market-700 bg-market-600 text-white shadow-md'
@@ -1415,7 +1415,7 @@ export default function RestaurantCheckout() {
                     type="button"
                     onClick={() => setDepartment(item)}
                     className={
-                      'min-h-12 rounded-xl border-2 px-3 py-3 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-amber-100 ' +
+                      'min-h-10 rounded-md border px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-market-100 ' +
                       (department === item
                         ? 'border-market-600 bg-market-600 text-white'
                         : 'border-slate-300 bg-slate-50 text-slate-700')
@@ -1437,7 +1437,7 @@ export default function RestaurantCheckout() {
                     setSearch(e.target.value)
                   }
                   placeholder="Search item..."
-                  className="h-14 w-full rounded-xl border-2 border-slate-300 bg-slate-50 pl-11 pr-4 text-base outline-none transition focus:border-market-500 focus:ring-4 focus:ring-amber-100"
+                  className="h-11 w-full rounded-md border border-slate-300 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-market-500 focus:ring-2 focus:ring-market-100"
                 />
               </label>
             </div>
@@ -1448,23 +1448,23 @@ export default function RestaurantCheckout() {
                   Loading products…
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                   {visibleProducts.map((product) => (
                     <button
                       key={product.id}
                       type="button"
                       onClick={() => addProduct(product)}
-                      className="min-h-32 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-market-500 hover:bg-market-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-amber-100 active:scale-[0.99]"
+                      className="min-h-28 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-market-400 hover:bg-market-50 focus:outline-none focus:ring-2 focus:ring-market-100 active:scale-[0.99]"
                     >
                       <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {product.unitType}
                       </span>
 
-                      <span className="mt-3 block line-clamp-2 text-base font-bold leading-snug text-slate-900">
+                      <span className="mt-2 block line-clamp-2 min-h-9 text-sm font-semibold leading-snug text-slate-900">
                         {product.name}
                       </span>
 
-                      <span className="mt-3 block font-mono text-base font-extrabold text-market-700">
+                      <span className="mt-2 block font-mono text-sm font-bold text-market-700">
                         {money(product.sellingPrice)}
                       </span>
                     </button>
