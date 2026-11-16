@@ -932,9 +932,9 @@ export default function RestaurantCheckout() {
 
 
   return (
-    <main className="min-h-screen bg-[#eef0f5] text-ink px-3 py-3 sm:px-5 lg:px-7">
-      <div className="mx-auto max-w-[1600px]">
-        <header className="mb-3 flex items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm">
+    <main className="min-h-screen bg-[#eef0f5] text-ink px-3 py-3 sm:px-5 lg:px-7 xl:h-screen xl:overflow-hidden">
+      <div className="mx-auto max-w-[1600px] xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+        <header className="mb-3 flex shrink-0 items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm">
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
               Restaurant POS
@@ -1314,8 +1314,8 @@ export default function RestaurantCheckout() {
             <div className="mb-2 flex justify-end">
               <button type="button" onClick={() => setServiceChosen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">← Back to section selection</button>
             </div>
-        <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_400px]">
-          <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[220px_minmax(0,1fr)_400px] xl:items-stretch">
+          <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm xl:min-h-0 xl:overflow-y-auto">
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Locations
             </p>
@@ -1379,7 +1379,7 @@ export default function RestaurantCheckout() {
             </div>
           </aside>
 
-          <section className="min-w-0 rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden">
+          <section className="min-w-0 rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden xl:flex xl:min-h-0 xl:flex-col">
             <div className="border-b border-slate-300 p-3">
               <div className="mb-3 grid grid-cols-2 gap-2">
                 {(['Kitchen', 'Bar'] as const).map((section) => (
@@ -1442,7 +1442,7 @@ export default function RestaurantCheckout() {
               </label>
             </div>
 
-            <div className="max-h-[calc(100vh-230px)] overflow-y-auto p-4">
+            <div className="min-h-0 overflow-y-auto p-4 xl:flex-1 xl:max-h-none">
               {loading ? (
                 <div className="py-20 text-center text-sm text-slate-500">
                   Loading products…
@@ -1481,7 +1481,7 @@ export default function RestaurantCheckout() {
             </div>
           </section>
 
-          <aside className="rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden">
+          <aside className="rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden xl:min-h-0 xl:overflow-y-auto">
             <div className="border-b border-slate-300 bg-slate-50 px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">
