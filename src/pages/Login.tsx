@@ -47,7 +47,7 @@ export default function Login() {
     } else if (key === 'backspace') {
       setPassword((current) => current.slice(0, -1))
     } else {
-      setPassword((current) => current + key)
+      setPassword((current) => loginMode === 'cashier' ? (current.length < 6 ? current + key : current) : current + key)
     }
   }
 
@@ -61,7 +61,15 @@ export default function Login() {
     setIsSubmitting(true)
     const result = await signIn(email.trim(), password)
     setIsSubmitting(false)
-    if (result.error) setError(result.error)
+    if (result.error) { setError(result.error); return }
+    const { data: authData } = await supabase.auth.getUser()
+    if (authData.user) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', authData.user.id).maybeSingle()
+      if (profile?.role === 'cashier') {
+        await supabase.auth.signOut()
+        setError('Cashier accounts must sign in using their assigned PIN.')
+      }
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
