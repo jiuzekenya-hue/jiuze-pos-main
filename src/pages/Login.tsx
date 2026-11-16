@@ -128,27 +128,33 @@ export default function Login() {
             <p className="mt-5 max-w-lg text-sm leading-7 text-white/75 sm:text-base">
               Run sales, manage stock, track orders and understand your business from one connected workspace.
             </p>
-            <div className="mt-7 flex flex-wrap gap-2 text-xs font-medium text-white/85 sm:text-sm">
-              {['Sales', 'Stock', 'Orders', 'Customers', 'Reports'].map((item) => (
-                <span key={item} className="rounded-full border border-white/20 bg-white/[0.07] px-3 py-1.5 backdrop-blur-sm">{item}</span>
+            <div className="mt-7 hidden flex-wrap gap-2 text-xs font-medium text-white/80 sm:flex">
+              {['Retail', 'Restaurants', 'Business insights'].map((item) => (
+                <span key={item} className="rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5">{item}</span>
               ))}
             </div>
           </div>
-          <div className="relative mx-auto w-full max-w-[390px] xl:mx-0">
-            <div className="absolute -inset-5 rounded-[2rem] bg-[#D4A017]/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-[#034332]/75 p-3 shadow-2xl shadow-black/40 backdrop-blur-md">
-              <div className="mb-3 flex items-center justify-between px-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/65">JIUZE workspace</span>
-                <span className="flex items-center gap-1.5 text-[10px] text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live overview</span>
+          <div className="relative mx-auto w-full max-w-[330px] xl:mx-0">
+            <div className="absolute -inset-4 rounded-[2rem] bg-[#D4A017]/10 blur-2xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#034332]/80 p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">Sample overview</span>
+                <span className="h-2 w-2 rounded-full bg-[#D4A017]" />
               </div>
-              <img src="/jiuze-pos-hero.png" alt="JIUZE POS workspace preview" className="aspect-[5/4] w-full rounded-xl object-cover object-center" />
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5"><p className="text-[10px] text-white/55">Checkout</p><p className="mt-1 text-xs font-semibold text-white">Fast sales</p></div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5"><p className="text-[10px] text-white/55">Inventory</p><p className="mt-1 text-xs font-semibold text-white">Stock control</p></div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.06] p-2.5"><p className="text-[10px] text-white/55">Insights</p><p className="mt-1 text-xs font-semibold text-white">Live reports</p></div>
+              <p className="mt-6 text-xs text-white/65">Sales performance</p>
+              <div className="mt-1 flex items-end justify-between gap-3">
+                <p className="font-display text-3xl font-bold tracking-tight text-white">KES 54,200</p>
+                <span className="mb-1 rounded-full bg-[#D4A017]/15 px-2.5 py-1 text-[11px] font-semibold text-[#E2BD78]">+12%</span>
+              </div>
+              <div className="mt-6 flex h-24 items-end gap-2" aria-label="Illustrative sales trend chart">
+                {[28, 42, 37, 58, 68, 82].map((height, index) => (
+                  <div key={index} className="flex-1 rounded-t-md bg-gradient-to-t from-[#A97D19] to-[#E2BD78]" style={{ height: `${height}%` }} />
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between border-t border-white/10 pt-3 text-[10px] text-white/50">
+                <span>Illustrative trend</span><span>Monthly growth</span>
               </div>
             </div>
-          </div>
         </div>
 
         <footer className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-5 text-xs text-white/60">
@@ -167,7 +173,7 @@ export default function Login() {
         <div className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-[#EAF3EE] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-[#F1F5EF] blur-3xl" />
 
-        <form onSubmit={loginMode === 'email' ? handleEmailSubmit : handleSubmit} className="jiuze-enter relative w-full max-w-[460px] rounded-[1.75rem] border border-[#DCE7DE] bg-white p-6 shadow-[0_18px_60px_rgba(16,41,30,0.08)] sm:p-9 lg:p-10" noValidate>
+        <form onSubmit={loginMode === 'email' ? handleEmailSubmit : handleSubmit} className="jiuze-enter relative w-full max-w-[560px] rounded-[1.75rem] border border-[#DCE7DE] bg-white p-6 shadow-[0_18px_60px_rgba(16,41,30,0.08)] sm:p-10 lg:p-12" noValidate>
           <div className="mb-8 grid grid-cols-2 rounded-xl border border-[#DCE7DE] bg-[#F1F5EF] p-1">
             <button type="button" onClick={() => { setLoginMode('cashier'); setError(null); setPassword('') }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${loginMode === 'cashier' ? 'bg-[#065F46] text-white shadow-sm' : 'text-[#64748B] hover:text-[#172B20]'}`}>Cashier login</button>
             <button type="button" onClick={() => { setLoginMode('email'); setError(null); setPassword('') }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${loginMode === 'email' ? 'bg-[#065F46] text-white shadow-sm' : 'text-[#64748B] hover:text-[#172B20]'}`}>Owner / Admin</button>
@@ -201,7 +207,7 @@ export default function Login() {
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2.5" aria-label="On-screen numeric keypad">
-                {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting || password.length >= 6} className="min-h-[54px] rounded-xl border border-[#DCE7DE] bg-white text-lg font-semibold text-[#034332] transition hover:border-[#034B37] hover:bg-[#EAF3EE] active:scale-[0.98] disabled:opacity-45">{key}</button>)}
+                {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting || password.length >= 6} className="min-h-[60px] rounded-xl border border-[#DCE7DE] bg-white text-lg font-semibold text-[#034332] transition hover:border-[#034B37] hover:bg-[#EAF3EE] active:scale-[0.98] disabled:opacity-45">{key}</button>)}
                 <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting || !password} aria-label="Delete last PIN digit" className="min-h-[54px] rounded-xl border border-[#DCE7DE] bg-white text-lg text-[#034332] transition hover:border-[#034B37] hover:bg-[#EAF3EE] disabled:opacity-45">⌫</button>
                 <button type="button" onClick={() => pressKey('0')} disabled={isSubmitting || password.length >= 6} className="min-h-[54px] rounded-xl border border-[#DCE7DE] bg-white text-lg font-semibold text-[#034332] transition hover:border-[#034B37] hover:bg-[#EAF3EE] active:scale-[0.98] disabled:opacity-45">0</button>
                 <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting || !password} className="min-h-[54px] rounded-xl border border-[#DCE7DE] bg-white text-xs font-semibold text-[#64748B] transition hover:border-[#034B37] hover:bg-[#EAF3EE] disabled:opacity-45">Clear</button>
@@ -211,7 +217,7 @@ export default function Login() {
 
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700">{error}</p>}
 
-          <button type="submit" disabled={isSubmitting || (loginMode === 'email' ? (!email.trim() || !password) : password.length !== 6)} className="jiuze-login-button mt-6 min-h-[54px] w-full rounded-xl bg-[#065F46] px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(7,83,51,0.16)] transition hover:bg-[#06452C] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={isSubmitting || (loginMode === 'email' ? (!email.trim() || !password) : password.length !== 6)} className="jiuze-login-button mt-7 min-h-[60px] w-full rounded-xl bg-[#065F46] px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(7,83,51,0.16)] transition hover:bg-[#06452C] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-85">
             {isSubmitting ? 'Signing in…' : loginMode === 'email' ? 'Sign in to workspace →' : 'Sign in securely →'}
           </button>
 
