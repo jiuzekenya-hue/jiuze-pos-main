@@ -91,7 +91,7 @@ Deno.serve(async (request) => {
   if (payload.action === 'set_pin') {
     const userId = String(payload.userId ?? '').trim()
     const pin = String(payload.pin ?? '')
-    if (!userId || !/^\\d{6}$/.test(pin)) return json({ error: 'Enter a 6-digit PIN.' }, 400)
+    if (!userId || !/^\d{6}$/.test(pin)) return json({ error: 'Enter a 6-digit PIN.' }, 400)
     const { data: target, error: targetError } = await client
       .from('profiles').select('id,business_id,role')
       .eq('id', userId).eq('business_id', ownerProfile.business_id).eq('role', 'cashier').maybeSingle()
