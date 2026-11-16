@@ -21,7 +21,7 @@ export default function PlatformAdminShell() {
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0b2b1d] font-display text-xl font-bold text-[#e9b949]">J</div>
               <div>
-                <p className="font-display text-xl font-bold tracking-tight">JIUZE <span className="text-[#b98520]">DIGITAL</span></p>
+                <p className="font-display text-xl font-bold tracking-tight">JIUZE <span className="text-[#D4A017]">DIGITAL</span></p>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#738078]">Business operating platform</p>
               </div>
             </div>
