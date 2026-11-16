@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type { Permission } from '../lib/permissions'
 export interface CashierUser { id:string; email:string|null; fullName:string|null; phone:string|null; role:'owner'|'cashier'; createdAt:string; permissions?: Permission[]|null }
-export interface CreateCashierInput { email:string; password:string; fullName?:string; phone?:string }
+export interface CreateCashierInput { email:string; pin:string; fullName?:string; phone?:string }
 export async function listBusinessUsers():Promise<CashierUser[]> {
  const {data,error}=await supabase.functions.invoke('manage-cashiers',{body:{action:'list'}})
  if(error) throw error
@@ -27,4 +27,10 @@ export async function deleteCashier(userId:string):Promise<void> {
  const {data,error}=await supabase.functions.invoke('manage-cashiers',{body:{action:'delete',userId}})
  if(error) throw error
  if(!data?.success) throw new Error(data?.error??'Cashier account was not removed.')
+}
+
+export async function setCashierPin(userId:string, pin:string):Promise<void> {
+ const {data,error}=await supabase.functions.invoke('manage-cashiers',{body:{action:'set_pin',userId,pin}})
+ if(error) throw error
+ if(!data?.success) throw new Error(data?.error??'Unable to save cashier PIN.')
 }
