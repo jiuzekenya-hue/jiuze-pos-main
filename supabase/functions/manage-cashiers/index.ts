@@ -16,8 +16,9 @@ type CreatePayload = {
 
 type ListPayload = { action: 'list' }
 type DeletePayload = { action: 'delete'; userId: string }
+type SetPinPayload = { action: 'set_pin'; userId: string; pin: string }
 
-type Payload = ListPayload | CreatePayload | DeletePayload
+type Payload = ListPayload | CreatePayload | DeletePayload | SetPinPayload
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -85,6 +86,22 @@ Deno.serve(async (request) => {
     )
 
     return json({ users })
+  }
+
+  if (payload.action === 'set_pin') {
+    const userId = String(payload.userId ?? '').trim()
+    const pin = String(payload.pin ?? '')
+    if (!userId || !/^\d{6}$/.test(pin)) return json({ error: 'Enter a 6-digit PIN.' }, 400)
+    const { data: target, error: targetError } = await client
+      .from('profiles').select('id,business_id,role')
+      .eq('id', userId).eq('business_id', ownerProfile.business_id).eq('role', 'cashier').maybeSingle()
+    if (targetError) return json({ error: 'Unable to verify cashier account.' }, 500)
+    if (!target) return json({ error: 'Cashier not found in your business.' }, 404)
+    const { error: pinError } = await client.rpc('platform_set_cashier_pin', {
+      p_cashier_id: target.id, p_business_id: target.business_id, p_pin: pin, p_actor_id: authData.user.id,
+    })
+    if (pinError) return json({ error: pinError.message.includes('already assigned') ? pinError.message : 'Unable to set cashier PIN.' }, 400)
+    return json({ success: true })
   }
 
   if (payload.action === 'delete') {

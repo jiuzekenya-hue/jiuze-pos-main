@@ -28,3 +28,9 @@ export async function deleteCashier(userId:string):Promise<void> {
  if(error) throw error
  if(!data?.success) throw new Error(data?.error??'Cashier account was not removed.')
 }
+
+export async function setCashierPin(userId: string, pin: string): Promise<void> {
+ const { data, error } = await supabase.functions.invoke('manage-cashiers', { body: { action: 'set_pin', userId, pin } })
+ if (error) throw error
+ if (!data?.success) throw new Error(data?.error ?? 'Unable to set cashier PIN.')
+}
