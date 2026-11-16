@@ -155,6 +155,7 @@ export default function Login() {
                 <span>Illustrative trend</span><span>Monthly growth</span>
               </div>
             </div>
+          </div>
         </div>
 
         <footer className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-5 text-xs text-white/60">
