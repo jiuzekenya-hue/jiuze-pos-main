@@ -3,9 +3,6 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { supabase } from '../lib/supabase'
 
-type BusinessOption = { id: string; name: string }
-type CashierOption = { id: string; fullName: string }
-
 const keypadRows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']]
 
 export default function Login() {
@@ -13,65 +10,11 @@ export default function Login() {
   const location = useLocation()
   const [loginMode, setLoginMode] = useState<'cashier' | 'email'>('cashier')
   const [email, setEmail] = useState('')
-  const [businesses, setBusinesses] = useState<BusinessOption[]>([])
-  const [cashiers, setCashiers] = useState<CashierOption[]>([])
-  const [businessId, setBusinessId] = useState('')
-  const [cashierId, setCashierId] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDirectoryLoading, setIsDirectoryLoading] = useState(true)
-  const [directoryError, setDirectoryError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [postLoginPath, setPostLoginPath] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    async function loadBusinesses() {
-      setIsDirectoryLoading(true)
-      setDirectoryError(null)
-      const { data, error: requestError } = await supabase.functions.invoke('cashier-login', {
-        body: { action: 'businesses' },
-      })
-      if (cancelled) return
-      if (requestError || !Array.isArray(data?.businesses)) {
-        setDirectoryError('Cashier sign-in setup is not available yet. Use the existing email sign-in or contact your administrator.')
-        setIsDirectoryLoading(false)
-        return
-      }
-      setBusinesses(data.businesses as BusinessOption[])
-      setBusinessId(data.businesses[0]?.id ?? '')
-      setIsDirectoryLoading(false)
-    }
-    void loadBusinesses()
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    if (!businessId) {
-      setCashiers([])
-      setCashierId('')
-      return
-    }
-    let cancelled = false
-    async function loadCashiers() {
-      setCashiers([])
-      setCashierId('')
-      const { data, error: requestError } = await supabase.functions.invoke('cashier-login', {
-        body: { action: 'cashiers', businessId },
-      })
-      if (cancelled) return
-      if (requestError || !Array.isArray(data?.cashiers)) {
-        setDirectoryError('Unable to load cashiers for this business.')
-        return
-      }
-      setDirectoryError(null)
-      setCashiers(data.cashiers as CashierOption[])
-      setCashierId(data.cashiers[0]?.id ?? '')
-    }
-    void loadCashiers()
-    return () => { cancelled = true }
-  }, [businessId])
 
   useEffect(() => {
     let cancelled = false
@@ -124,17 +67,13 @@ export default function Login() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
-    if (!businessId || !cashierId) {
-      setError('Select your business and cashier name.')
-      return
-    }
-    if (!password) {
-      setError('Enter your password.')
+    if (!/^\\d{6}$/.test(password)) {
+      setError('Enter your 6-digit cashier PIN.')
       return
     }
     setIsSubmitting(true)
     const { data, error: signInError } = await supabase.functions.invoke('cashier-login', {
-      body: { action: 'sign_in', businessId, cashierId, password },
+      body: { action: 'sign_in', pin: password },
     })
     setIsSubmitting(false)
     if (signInError || data?.error) {
@@ -254,28 +193,13 @@ export default function Login() {
             </div>
           ) : (
             <>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="business" className="mb-2 block text-sm font-medium text-white/85">Select business</label>
-                  <select id="business" value={businessId} onChange={(event) => setBusinessId(event.target.value)} disabled={isDirectoryLoading || isSubmitting || businesses.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
-                    <option value="">{isDirectoryLoading ? 'Loading businesses…' : 'Choose a business'}</option>
-                    {businesses.map((business) => <option key={business.id} value={business.id} className="bg-[#08271b]">{business.name}</option>)}
-                  </select>
+              <div>
+                <label htmlFor="cashier-pin" className="mb-2 block text-sm font-medium text-white/85">Cashier PIN</label>
+                <div className="relative">
+                  <input id="cashier-pin" type={showPassword ? 'text' : 'password'} inputMode="numeric" autoComplete="off" maxLength={6} value={password} onChange={(event) => { setPassword(event.target.value.replace(/\\D/g, '').slice(0, 6)); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="••••••" />
+                  <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
                 </div>
-                <div>
-                  <label htmlFor="cashier" className="mb-2 block text-sm font-medium text-white/85">Select cashier</label>
-                  <select id="cashier" value={cashierId} onChange={(event) => setCashierId(event.target.value)} disabled={!businessId || isSubmitting || cashiers.length === 0} className="field border-white/15 bg-white/[0.04] text-white transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40">
-                    <option value="">{businessId ? 'Choose a cashier' : 'Select a business first'}</option>
-                    {cashiers.map((cashier) => <option key={cashier.id} value={cashier.id} className="bg-[#08271b]">{cashier.fullName || 'Unnamed cashier'}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-white/85">Password</label>
-                  <div className="relative">
-                    <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] pr-16 text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="Enter your password" />
-                    <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
-                  </div>
-                </div>
+                <p className="mt-2 text-center text-xs text-white/50">Your unique 6-digit PIN identifies your cashier account.</p>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2" aria-label="On-screen numeric keypad">
                 {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg font-semibold transition hover:border-[#e9b949]/40 hover:bg-white/[0.09] active:scale-[0.98] disabled:opacity-50">{key}</button>)}
@@ -283,14 +207,14 @@ export default function Login() {
                 <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting} aria-label="Delete last password character" className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-lg transition hover:bg-white/[0.09] disabled:opacity-50">←</button>
                 <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting} className="min-h-12 rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold transition hover:bg-white/[0.09] disabled:opacity-50">Clear</button>
               </div>
-              {directoryError && <p role="status" className="mt-4 rounded-lg border border-[#e9b949]/25 bg-[#e9b949]/10 px-3 py-2.5 text-xs leading-relaxed text-[#f0c65e]">{directoryError}</p>}
+              
             </>
           )}
 
           {error && <p role="alert" className="mt-4 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-xs leading-relaxed text-red-200">{error}</p>}
 
-          <button type="submit" onClick={undefined} disabled={isSubmitting || (loginMode === 'email' ? (!email.trim() || !password) : (isDirectoryLoading || !businessId || !cashierId))} className="jiuze-login-button mt-5 min-h-12 w-full rounded-lg bg-gradient-to-r from-[#f3cf68] via-[#e9b949] to-[#b77a17] px-4 py-3 text-sm font-bold text-[#10170d] shadow-lg shadow-[#d5a52d]/15 disabled:cursor-not-allowed disabled:opacity-60">
-            {isSubmitting ? 'Signing in…' : loginMode === 'email' ? 'Sign in with email →' : 'Sign in →'}
+          <button type="submit" onClick={undefined} disabled={isSubmitting || (loginMode === 'email' ? (!email.trim() || !password) : password.length !== 6)} className="jiuze-login-button mt-5 min-h-12 w-full rounded-lg bg-gradient-to-r from-[#f3cf68] via-[#e9b949] to-[#b77a17] px-4 py-3 text-sm font-bold text-[#10170d] shadow-lg shadow-[#d5a52d]/15 disabled:cursor-not-allowed disabled:opacity-60">
+            {isSubmitting ? 'Signing in…' : loginMode === 'email' ? 'Sign in with email →' : 'Sign in with PIN →'}
           </button>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs">
