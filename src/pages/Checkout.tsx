@@ -436,22 +436,29 @@ export default function Checkout() {
               <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by product name, SKU or barcode..." aria-label="Search products" className="field w-full h-12 pl-12 pr-4 text-sm sm:text-base" />
             </label>
             <div className="flex gap-2 overflow-x-auto pt-4 pb-1 scrollbar-none">
-              <button type="button" onClick={() => setCategoryId('')} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${!categoryId ? 'bg-ink text-paper' : 'border border-line text-ink-muted hover:text-ink hover:border-ink'}`}>All products</button>
-              {categories.map((category) => <button key={category.id} type="button" onClick={() => setCategoryId(category.id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${categoryId === category.id ? 'bg-ink text-paper' : 'border border-line text-ink-muted hover:text-ink hover:border-ink'}`}>{category.name}</button>)}
+              <button type="button" onClick={() => setCategoryId('')} className={`shrink-0 rounded-md border px-3.5 py-2 text-sm font-medium transition-colors ${!categoryId ? 'border-market-700 bg-market-600 text-white' : 'border-line bg-paper-raised text-ink-muted hover:border-market-400 hover:text-ink'}`}>All products</button>
+              {categories.map((category) => <button key={category.id} type="button" onClick={() => setCategoryId(category.id)} className={`shrink-0 rounded-md border px-3.5 py-2 text-sm font-medium transition-colors ${categoryId === category.id ? 'border-market-700 bg-market-600 text-white' : 'border-line bg-paper-raised text-ink-muted hover:border-market-400 hover:text-ink'}`}>{category.name}</button>)}
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-3"><div><h2 className="font-display font-semibold text-xl text-ink">Products</h2><p className="text-xs text-ink-muted mt-1">{visibleProducts.length} available</p></div>{cart.length > 0 && <span className="text-sm text-ink-muted">{cart.length} {cart.length === 1 ? 'item' : 'items'} in sale</span>}</div>
 
-          {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading products…</div> : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {loading ? <div className="rounded-2xl border border-line bg-paper-raised px-5 py-16 text-center text-sm text-ink-muted">Loading products…</div> : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2.5">
             {visibleProducts.map((product) => {
               const inCart = cart.find((line) => line.product.id === product.id)
               const stockLow = product.stockQuantity <= product.minimumStock
-              return <button key={product.id} type="button" onClick={() => addToCart(product)} className="group text-left rounded-2xl border border-line bg-paper-raised p-4 sm:p-5 hover:border-market-300 hover:shadow-sm transition-all active:scale-[0.99]">
-                <div className="flex items-start justify-between gap-2"><span className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-mono uppercase tracking-wide text-ink-muted">{product.unitType}</span>{inCart && <span className="rounded-full bg-market-50 px-2.5 py-1 text-[10px] font-semibold text-market-700">{formatQuantity(inCart.quantity)} added</span>}</div>
-                <p className="font-medium text-ink mt-5 line-clamp-2 min-h-10">{product.name}</p>
-                <p className="font-mono text-[11px] text-ink-muted mt-1 truncate">{product.sku}</p>
-                <div className="flex items-end justify-between gap-2 mt-5"><div><p className="font-display font-semibold text-lg text-ink">{money(product.sellingPrice)}</p><p className={`text-[11px] mt-1 ${stockLow ? 'text-brick-600' : 'text-ink-muted'}`}>{formatQuantity(product.stockQuantity)} {product.unitType} left</p></div><span className="h-9 w-9 shrink-0 rounded-xl border border-line flex items-center justify-center text-ink-muted group-hover:bg-ink group-hover:text-paper group-hover:border-ink transition-colors"><PlusIcon /></span></div>
+              const stockOutSoon = product.stockQuantity <= product.minimumStock * 1.5
+              return <button key={product.id} type="button" onClick={() => addToCart(product)} className={`group min-h-[142px] text-left rounded-lg border p-3 transition-colors active:scale-[0.99] ${inCart ? 'border-market-600 bg-market-50' : 'border-[#E5E7EB] bg-[#F1F2F3] hover:border-market-400 hover:bg-[#EAF3EE]'}`}>
+                <div className="flex min-h-6 items-start justify-between gap-1.5">
+                  <span className="text-[9px] font-medium uppercase tracking-wide text-ink-muted">{product.unitType}</span>
+                  {inCart && <span className="rounded-sm bg-market-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">{formatQuantity(inCart.quantity)} added</span>}
+                </div>
+                <p className="mt-2 min-h-9 line-clamp-2 text-xs font-medium leading-4 text-ink">{product.name}</p>
+                <p className="mt-1 truncate font-mono text-[9px] text-ink-muted">{product.sku}</p>
+                <div className="mt-3 flex items-end justify-between gap-1.5">
+                  <p className="font-display text-sm font-semibold text-ink">{money(product.sellingPrice)}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white ${stockLow ? 'bg-brick-500' : stockOutSoon ? 'bg-[#D4A017]' : 'bg-[#16A34A]'}`}>{formatQuantity(product.stockQuantity)}</span>
+                </div>
               </button>
             })}
             {visibleProducts.length === 0 && <div className="col-span-full rounded-2xl border border-dashed border-line bg-paper-raised px-5 py-16 text-center"><p className="font-medium text-ink">No products found</p><p className="text-sm text-ink-muted mt-1">Try another search or category.</p></div>}
