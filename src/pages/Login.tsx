@@ -155,7 +155,9 @@ export default function Login() {
           <span>Built for better business operations.</span>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             <a href="tel:0710307318" className="transition hover:text-[#E2BD78]">0710 307 318</a>
-            <a href="https://www.jiuze.co.ke" target="_blank" rel="noreferrer" className="transition hover:text-[#E2BD78]">jiuze.co.ke</a>
+            <a href="mailto:jiuzekenya@gmail.com" className="transition hover:text-[#E2BD78]">jiuzekenya@gmail.com</a>
+            <a href="https://www.jiuze.co.ke" target="_blank" rel="noreferrer" className="transition hover:text-[#E2BD78]">www.jiuze.co.ke</a>
+            <a href="https://instagram.com/jiuzekenya" target="_blank" rel="noreferrer" className="transition hover:text-[#E2BD78]">@jiuzekenya</a>
           </div>
         </footer>
       </section>
@@ -166,12 +168,6 @@ export default function Login() {
         <div className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-[#F1F5EF] blur-3xl" />
 
         <form onSubmit={loginMode === 'email' ? handleEmailSubmit : handleSubmit} className="jiuze-enter relative w-full max-w-[460px] rounded-[1.75rem] border border-[#DCE7DE] bg-white p-6 shadow-[0_18px_60px_rgba(16,41,30,0.08)] sm:p-9 lg:p-10" noValidate>
-          <div className="mb-8 text-center">
-            <img src="/jiuze-logo.png" alt="JIUZE logo" className="mx-auto h-16 w-16 object-contain sm:h-[4.5rem] sm:w-[4.5rem]" />
-            <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#172B20]">JIUZE <span className="text-[#A97D19]">POS</span></h1>
-            <p className="mt-2 text-sm text-[#64748B]">Business operating platform</p>
-          </div>
-
           <div className="mb-8 grid grid-cols-2 rounded-xl border border-[#DCE7DE] bg-[#F1F5EF] p-1">
             <button type="button" onClick={() => { setLoginMode('cashier'); setError(null); setPassword('') }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${loginMode === 'cashier' ? 'bg-[#065F46] text-white shadow-sm' : 'text-[#64748B] hover:text-[#172B20]'}`}>Cashier login</button>
             <button type="button" onClick={() => { setLoginMode('email'); setError(null); setPassword('') }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${loginMode === 'email' ? 'bg-[#065F46] text-white shadow-sm' : 'text-[#64748B] hover:text-[#172B20]'}`}>Owner / Admin</button>
