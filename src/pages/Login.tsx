@@ -75,7 +75,7 @@ export default function Login() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
-    if (!/^\\d{6}$/.test(password)) {
+    if (!/^\d{6}$/.test(password)) {
       setError('Enter your 6-digit cashier PIN.')
       return
     }
@@ -204,7 +204,7 @@ export default function Login() {
               <div>
                 <label htmlFor="cashier-pin" className="mb-2 block text-sm font-medium text-white/85">Cashier PIN</label>
                 <div className="relative">
-                  <input id="cashier-pin" type={showPassword ? 'text' : 'password'} inputMode="numeric" autoComplete="off" maxLength={6} value={password} onChange={(event) => { setPassword(event.target.value.replace(/\\D/g, '').slice(0, 6)); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="••••••" />
+                  <input id="cashier-pin" type={showPassword ? 'text' : 'password'} inputMode="numeric" autoComplete="off" maxLength={6} value={password} onChange={(event) => { setPassword(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} disabled={isSubmitting} className="field border-white/15 bg-white/[0.04] text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/35 transition focus:border-[#e9b949] focus:ring-1 focus:ring-[#e9b949]/40" placeholder="••••••" />
                   <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-white/60 transition hover:text-[#f0c65e]">{showPassword ? 'Hide' : 'Show'}</button>
                 </div>
                 <p className="mt-2 text-center text-xs text-white/50">Your unique 6-digit PIN identifies your cashier account.</p>
