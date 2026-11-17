@@ -33,7 +33,7 @@ export default function Login() {
     setError(null)
     setIsSubmitting(true)
     if (mode === 'cashier') {
-      if (!/^\\d{6}$/.test(pin)) {
+      if (!/^\d{6}$/.test(pin)) {
         setError('Enter your 6-digit cashier PIN.')
         setIsSubmitting(false)
         return
@@ -105,7 +105,7 @@ export default function Login() {
           </div>
           {mode === 'cashier' ? <>
             <div className="mb-4 text-center"><h2 className="text-xl font-semibold">Enter cashier PIN</h2><p className="mt-1 text-sm text-white/60">Your unique 6-digit PIN identifies your cashier account.</p></div>
-            <input aria-label="Cashier PIN" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={(event) => { setPin(event.target.value.replace(/\\D/g, '').slice(0, 6)); setError(null) }} className="field border-white/15 bg-white text-center text-2xl tracking-[0.8em] text-[#073b2a] placeholder:text-slate-400" placeholder="••••••" disabled={isSubmitting} />
+            <input aria-label="Cashier PIN" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} className="field border-white/15 bg-white text-center text-2xl tracking-[0.8em] text-[#073b2a] placeholder:text-slate-400" placeholder="••••••" disabled={isSubmitting} />
             <div className="mt-4 grid grid-cols-3 gap-2" aria-label="On-screen numeric keypad">
               {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting || pin.length >= 6} className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-xl font-semibold transition hover:border-[#e9b949]/40 hover:bg-white/[0.12] active:scale-[0.98] disabled:opacity-50">{key}</button>)}
               <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting || !pin} aria-label="Delete last PIN digit" className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-xl transition hover:bg-white/[0.12] disabled:opacity-50">←</button>
