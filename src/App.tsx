@@ -19,6 +19,10 @@ import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
 import Referral from './pages/Referral'
 import OpenBills from './pages/OpenBills'
+import PlatformAdmin from './pages/PlatformAdmin'
+import PlatformAdminShell from './pages/PlatformAdminShell'
+import PlatformSales from './pages/PlatformSales'
+import PlatformAnalytics from './pages/PlatformAnalytics'
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
@@ -54,6 +58,14 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route element={<ProtectedRoute><PlatformAdminShell /></ProtectedRoute>}>
+        <Route path="/platform-admin" element={<OwnerOnlyRoute><PlatformAdmin section="overview" /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/businesses" element={<OwnerOnlyRoute><PlatformAdmin section="businesses" /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/subscriptions" element={<OwnerOnlyRoute><PlatformAdmin section="subscriptions" /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/activity" element={<OwnerOnlyRoute><PlatformAdmin section="activity" /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/sales" element={<OwnerOnlyRoute><PlatformSales /></OwnerOnlyRoute>} />
+        <Route path="/platform-admin/analytics" element={<OwnerOnlyRoute><PlatformAnalytics /></OwnerOnlyRoute>} />
+      </Route>
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="/" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
