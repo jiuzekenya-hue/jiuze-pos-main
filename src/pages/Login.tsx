@@ -33,7 +33,7 @@ export default function Login() {
     setError(null)
     setIsSubmitting(true)
     if (mode === 'cashier') {
-      if (!/^\d{6}$/.test(pin)) {
+      if (!/^\\d{6}$/.test(pin)) {
         setError('Enter your 6-digit cashier PIN.')
         setIsSubmitting(false)
         return
@@ -69,56 +69,110 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#061b13] text-white lg:grid lg:min-h-screen lg:grid-cols-2">
-      <section className="relative isolate flex min-h-[580px] flex-col justify-between overflow-hidden px-7 py-9 sm:px-12 sm:py-12 lg:min-h-screen lg:px-14 xl:px-20">
-        <div className="jiuze-hero-image absolute inset-0 -z-20 bg-cover bg-center" style={{ backgroundImage: "url('/jiuze-pos-hero.png')" }} aria-hidden="true" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/45 to-[#061b13]/95" aria-hidden="true" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/20 to-[#061b13]/30" aria-hidden="true" />
-        <div className="jiuze-enter flex items-center gap-4">
-          <img src="/jiuze-logo.png" alt="JIUZE logo" className="h-16 w-16 object-contain sm:h-20 sm:w-20" />
-          <div><p className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">JIUZE <span className="text-[#e9b949]">POS</span></p><p className="mt-1 text-[10px] uppercase tracking-[0.32em] text-white/75 sm:text-xs">Business made simple</p></div>
-        </div>
-        <div className="jiuze-enter jiuze-enter-delay-1 my-14 max-w-xl lg:my-0 lg:py-12">
-          <div className="mb-7 h-1 w-16 rounded-full bg-[#e9b949]" />
-          <h2 className="font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl xl:text-6xl">Simple.<br />Reliable.<br /><span className="text-[#f0c65e]">Built for Your Business.</span></h2>
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-white/80 sm:text-lg">Manage your business, serve your customers, and grow with JIUZE POS.</p>
-          <div className="mt-9 grid max-w-lg gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/15 bg-black/25 p-4 backdrop-blur-sm"><p className="text-sm font-semibold text-[#f0c65e]">Fast checkout</p><p className="mt-1 text-xs leading-relaxed text-white/75">Serve customers efficiently.</p></div>
-            <div className="rounded-xl border border-white/15 bg-black/25 p-4 backdrop-blur-sm"><p className="text-sm font-semibold text-[#f0c65e]">Live reports</p><p className="mt-1 text-xs leading-relaxed text-white/75">Track sales and performance.</p></div>
-            <div className="rounded-xl border border-white/15 bg-black/25 p-4 backdrop-blur-sm"><p className="text-sm font-semibold text-[#f0c65e]">Secure access</p><p className="mt-1 text-xs leading-relaxed text-white/75">Keep business data protected.</p></div>
+    <main className="min-h-screen bg-[#f7f9f7] text-[#18352b] lg:grid lg:grid-cols-[1.04fr_0.96fr]">
+      <section className="relative flex min-h-[440px] flex-col justify-between overflow-hidden border-b border-[#e6ece7] px-7 py-8 sm:px-12 sm:py-10 lg:min-h-screen lg:border-b-0 lg:border-r lg:px-14 xl:px-20">
+        <div className="pointer-events-none absolute -left-40 -top-48 h-[560px] w-[560px] rounded-full border border-[#dce9df]" />
+        <div className="pointer-events-none absolute -bottom-64 -right-36 h-[620px] w-[620px] rounded-full bg-[#edf4ee]" />
+        <div className="relative z-10 flex items-center gap-3">
+          <img src="/jiuze-logo.png" alt="JIUZE" className="h-12 w-12 object-contain" />
+          <div>
+            <p className="text-2xl font-bold tracking-tight text-[#123d2e]">JIUZE <span className="text-[#b58b32]">POS</span></p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.25em] text-[#75867d]">Business made simple</p>
           </div>
         </div>
-        <footer className="jiuze-enter jiuze-enter-delay-2 border-t border-white/20 pt-5 text-xs text-white/65">
-          <div className="flex flex-wrap gap-x-4 gap-y-2"><a href="tel:0710307318" className="transition hover:text-[#f0c65e]">0710 307 318</a><a href="https://www.jiuze.co.ke" target="_blank" rel="noreferrer" className="transition hover:text-[#f0c65e]">www.jiuze.co.ke</a><a href="mailto:jiuzekenya@gmail.com" className="transition hover:text-[#f0c65e]">jiuzekenya@gmail.com</a><span>@jiuzekenya</span></div>
-          <p className="mt-3 uppercase tracking-[0.18em]">JIUZE POS · Retail management</p>
+
+        <div className="relative z-10 mx-auto my-12 w-full max-w-[590px] lg:my-0 lg:py-12">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#9b792e]">A clearer way to run your business</p>
+          <h1 className="max-w-xl text-4xl font-semibold leading-[1.12] tracking-tight text-[#173b2e] sm:text-5xl xl:text-[56px]">
+            Your business,<br />under control.
+          </h1>
+          <p className="mt-5 max-w-md text-base leading-7 text-[#718078] sm:text-lg">
+            One simple workspace to manage sales, inventory, customers and performance.
+          </p>
+
+          <div className="mt-10 max-w-[520px] rounded-2xl border border-[#e1e9e2] bg-white p-5 shadow-[0_18px_50px_rgba(28,66,47,0.06)] sm:p-6">
+            <div className="flex items-center justify-between border-b border-[#edf1ed] pb-4">
+              <div>
+                <p className="text-sm font-semibold text-[#29483a]">Business overview</p>
+                <p className="mt-1 text-xs text-[#94a198]">A quick look at your operations</p>
+              </div>
+              <span className="rounded-full bg-[#edf6ef] px-3 py-1 text-[10px] font-semibold text-[#28734f]">LIVE</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3">
+              <div className="rounded-xl bg-[#f7faf7] p-3">
+                <p className="text-[11px] text-[#8b9990]">Sales</p>
+                <p className="mt-2 text-xl font-semibold text-[#1d4935]">Track</p>
+                <p className="mt-1 text-[10px] text-[#9aa69e]">Daily performance</p>
+              </div>
+              <div className="rounded-xl bg-[#f7faf7] p-3">
+                <p className="text-[11px] text-[#8b9990]">Inventory</p>
+                <p className="mt-2 text-xl font-semibold text-[#1d4935]">Manage</p>
+                <p className="mt-1 text-[10px] text-[#9aa69e]">Stock movement</p>
+              </div>
+              <div className="col-span-2 rounded-xl bg-[#f7faf7] p-3 sm:col-span-1">
+                <p className="text-[11px] text-[#8b9990]">Reports</p>
+                <p className="mt-2 text-xl font-semibold text-[#1d4935]">Understand</p>
+                <p className="mt-1 text-[10px] text-[#9aa69e]">Business insights</p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-end gap-1.5 rounded-xl bg-[#f7faf7] px-4 pb-3 pt-5" aria-hidden="true">
+              {[34, 48, 40, 62, 52, 76, 58, 88, 68, 96, 74, 84].map((height, index) => (
+                <div key={index} className="flex-1 rounded-t-sm bg-[#2e7956]" style={{ height: height + 'px', opacity: 0.35 + index * 0.05 }} />
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-[#7c8b82]">
+            <span>Fast checkout</span><span>Stock control</span><span>Clear reporting</span>
+          </div>
+        </div>
+
+        <footer className="relative z-10 flex flex-wrap gap-x-5 gap-y-2 border-t border-[#e2e9e3] pt-5 text-xs text-[#89968e]">
+          <a href="tel:0710307318" className="transition hover:text-[#1e6547]">0710 307 318</a>
+          <a href="https://www.jiuze.co.ke" target="_blank" rel="noreferrer" className="transition hover:text-[#1e6547]">jiuze.co.ke</a>
+          <a href="mailto:jiuzekenya@gmail.com" className="transition hover:text-[#1e6547]">jiuzekenya@gmail.com</a>
+          <span>@jiuzekenya</span>
         </footer>
       </section>
 
-      <section className="relative flex items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_#12452e_0%,_#08271b_42%,_#04150f_100%)] px-5 py-10 sm:px-10 lg:min-h-screen lg:px-12">
-        <div className="pointer-events-none absolute -right-36 -top-32 h-96 w-96 rounded-full border border-[#e9b949]/20" />
-        <div className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full border border-[#e9b949]/10" />
-        <form onSubmit={handleSubmit} className="jiuze-enter jiuze-enter-delay-1 relative w-full max-w-[560px] rounded-2xl border border-[#d6ad4c]/40 bg-[#041a12]/80 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-10" noValidate>
-          <div className="mb-7 text-center"><img src="/jiuze-logo.png" alt="JIUZE logo" className="mx-auto h-20 w-20 object-contain sm:h-24 sm:w-24" /><h1 className="mt-3 font-display text-3xl font-semibold tracking-tight">JIUZE <span className="text-[#e9b949]">POS</span></h1><p className="mt-2 text-sm text-white/60">Sign in to continue to your business.</p></div>
-          <div className="mb-7 grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-            <button type="button" onClick={() => { setMode('cashier'); setError(null) }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${mode === 'cashier' ? 'bg-[#075c40] text-white shadow' : 'text-white/60 hover:text-white'}`}>Cashier login</button>
-            <button type="button" onClick={() => { setMode('owner'); setError(null) }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${mode === 'owner' ? 'bg-[#075c40] text-white shadow' : 'text-white/60 hover:text-white'}`}>Owner / Admin</button>
+      <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-white px-5 py-12 sm:px-10 lg:min-h-screen lg:px-12">
+        <div className="pointer-events-none absolute -right-40 -top-44 h-[520px] w-[520px] rounded-full border border-[#edf2ed]" />
+        <div className="pointer-events-none absolute -bottom-52 -left-40 h-[520px] w-[520px] rounded-full bg-[#f8faf8]" />
+        <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-[470px]" noValidate>
+          <div className="mb-9">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a17d31]">Welcome back</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#183d2e]">Sign in to JIUZE POS</h2>
+            <p className="mt-2 text-sm leading-6 text-[#87948c]">Choose your access type to continue to your business.</p>
           </div>
+
+          <div className="mb-8 grid grid-cols-2 rounded-xl border border-[#e5ebe6] bg-[#f6f8f6] p-1.5">
+            <button type="button" onClick={() => { setMode('cashier'); setError(null) }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${mode === 'cashier' ? 'bg-[#145c40] text-white shadow-sm' : 'text-[#75837a] hover:text-[#24543e]'}`}>Cashier login</button>
+            <button type="button" onClick={() => { setMode('owner'); setError(null) }} className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${mode === 'owner' ? 'bg-[#145c40] text-white shadow-sm' : 'text-[#75837a] hover:text-[#24543e]'}`}>Owner / Admin</button>
+          </div>
+
           {mode === 'cashier' ? <>
-            <div className="mb-4 text-center"><h2 className="text-xl font-semibold">Enter cashier PIN</h2><p className="mt-1 text-sm text-white/60">Your unique 6-digit PIN identifies your cashier account.</p></div>
-            <input aria-label="Cashier PIN" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} className="field border-white/15 bg-white text-center text-2xl tracking-[0.8em] text-[#073b2a] placeholder:text-slate-400" placeholder="••••••" disabled={isSubmitting} />
-            <div className="mt-4 grid grid-cols-3 gap-2" aria-label="On-screen numeric keypad">
-              {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting || pin.length >= 6} className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-xl font-semibold transition hover:border-[#e9b949]/40 hover:bg-white/[0.12] active:scale-[0.98] disabled:opacity-50">{key}</button>)}
-              <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting || !pin} aria-label="Delete last PIN digit" className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-xl transition hover:bg-white/[0.12] disabled:opacity-50">←</button>
-              <button type="button" onClick={() => pressKey('0')} disabled={isSubmitting || pin.length >= 6} className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-xl font-semibold transition hover:bg-white/[0.12] disabled:opacity-50">0</button>
-              <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting || !pin} className="min-h-14 rounded-xl border border-white/10 bg-white/[0.06] text-sm font-semibold transition hover:bg-white/[0.12] disabled:opacity-50">Clear</button>
+            <div className="mb-5">
+              <h3 className="text-lg font-semibold text-[#254536]">Enter your 6-digit PIN</h3>
+              <p className="mt-1 text-sm text-[#8a978f]">Your PIN securely identifies your cashier account.</p>
+            </div>
+            <input aria-label="Cashier PIN" type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(null) }} className="field h-14 w-full rounded-xl border border-[#dfe7e0] bg-[#fbfcfb] text-center text-2xl tracking-[0.8em] text-[#16452f] placeholder:text-[#aab5ad] focus:border-[#2b7654] focus:ring-2 focus:ring-[#2b7654]/10" placeholder="••••••" disabled={isSubmitting} />
+            <div className="mt-4 grid grid-cols-3 gap-2.5" aria-label="On-screen numeric keypad">
+              {keypadRows.flat().map((key) => <button key={key} type="button" onClick={() => pressKey(key)} disabled={isSubmitting || pin.length >= 6} className="min-h-14 rounded-xl border border-[#e1e9e2] bg-white text-lg font-semibold text-[#315b46] transition hover:border-[#9dbba6] hover:bg-[#f5f9f5] active:scale-[0.98] disabled:opacity-50">{key}</button>)}
+              <button type="button" onClick={() => pressKey('backspace')} disabled={isSubmitting || !pin} aria-label="Delete last PIN digit" className="min-h-14 rounded-xl border border-[#e1e9e2] bg-white text-lg text-[#60766a] transition hover:bg-[#f5f9f5] disabled:opacity-50">⌫</button>
+              <button type="button" onClick={() => pressKey('0')} disabled={isSubmitting || pin.length >= 6} className="min-h-14 rounded-xl border border-[#e1e9e2] bg-white text-lg font-semibold text-[#315b46] transition hover:bg-[#f5f9f5] disabled:opacity-50">0</button>
+              <button type="button" onClick={() => pressKey('clear')} disabled={isSubmitting || !pin} className="min-h-14 rounded-xl border border-[#e1e9e2] bg-white text-xs font-semibold text-[#60766a] transition hover:bg-[#f5f9f5] disabled:opacity-50">Clear</button>
             </div>
           </> : <div className="space-y-4">
-            <div><label htmlFor="owner-email" className="mb-2 block text-sm font-medium text-white/85">Email address</label><input id="owner-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="field border-white/15 bg-white text-[#073b2a] placeholder:text-slate-400" placeholder="Enter your email" disabled={isSubmitting} /></div>
-            <div><label htmlFor="owner-password" className="mb-2 block text-sm font-medium text-white/85">Password</label><div className="relative"><input id="owner-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="field border-white/15 bg-white pr-16 text-[#073b2a] placeholder:text-slate-400" placeholder="Enter your password" disabled={isSubmitting} /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs text-slate-500 hover:text-[#075c40]">{showPassword ? 'Hide' : 'Show'}</button></div></div>
+            <div><label htmlFor="owner-email" className="mb-2 block text-sm font-medium text-[#53685c]">Email address</label><input id="owner-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="field h-12 w-full rounded-xl border border-[#dfe7e0] bg-[#fbfcfb] text-[#183d2e] placeholder:text-[#aab5ad] focus:border-[#2b7654] focus:ring-2 focus:ring-[#2b7654]/10" placeholder="Enter your email" disabled={isSubmitting} /></div>
+            <div><label htmlFor="owner-password" className="mb-2 block text-sm font-medium text-[#53685c]">Password</label><div className="relative"><input id="owner-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="field h-12 w-full rounded-xl border border-[#dfe7e0] bg-[#fbfcfb] pr-16 text-[#183d2e] placeholder:text-[#aab5ad] focus:border-[#2b7654] focus:ring-2 focus:ring-[#2b7654]/10" placeholder="Enter your password" disabled={isSubmitting} /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-xs font-medium text-[#718278] hover:text-[#145c40]">{showPassword ? 'Hide' : 'Show'}</button></div></div>
           </div>}
-          {error && <p role="alert" className="mt-4 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-sm leading-relaxed text-red-200">{error}</p>}
-          <button type="submit" disabled={isSubmitting || (mode === 'cashier' && pin.length !== 6)} className="jiuze-login-button mt-5 min-h-14 w-full rounded-lg bg-gradient-to-r from-[#f3cf68] via-[#e9b949] to-[#b77a17] px-4 py-3 text-base font-bold text-[#10170d] shadow-lg shadow-[#d5a52d]/15 disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? 'Signing in…' : mode === 'cashier' ? 'Sign in with PIN →' : 'Sign in →'}</button>
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs"><Link to="/reset-password" className="font-medium text-[#f0c65e] transition hover:text-white">Forgot password?</Link><Link to="/signup" className="text-white/55 transition hover:text-white">Create account</Link></div>
+
+          {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-700">{error}</p>}
+          <button type="submit" disabled={isSubmitting || (mode === 'cashier' && pin.length !== 6)} className="mt-5 min-h-13 w-full rounded-xl bg-[#145c40] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#104b34] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? 'Signing in…' : mode === 'cashier' ? 'Continue with PIN' : 'Sign in to your account'}</button>
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#edf1ed] pt-5 text-xs">
+            <Link to="/reset-password" className="font-medium text-[#286749] transition hover:text-[#123d2e]">Forgot password?</Link>
+            <Link to="/signup" className="font-medium text-[#87948c] transition hover:text-[#286749]">Create account</Link>
+          </div>
+          <p className="mt-8 text-center text-[11px] text-[#a0aaa3]">Secure access to your business workspace</p>
         </form>
       </section>
     </main>
