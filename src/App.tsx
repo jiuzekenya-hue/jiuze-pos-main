@@ -32,6 +32,13 @@ function PlatformAdminRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function DefaultHomeRoute() {
+  const { user } = useAuth()
+  return user?.app_metadata?.platform_admin === true
+    ? <Navigate to="/platform-admin" replace />
+    : <PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>
+}
+
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
   if (isProfileLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Loading...</div>
@@ -57,7 +64,7 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/platform-admin" element={<PlatformAdminRoute><PlatformAdmin /></PlatformAdminRoute>} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-        <Route path="/" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
+        <Route path="/" element={<DefaultHomeRoute />} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
         <Route path="/categories" element={<PermissionRoute permission="categories"><Categories /></PermissionRoute>} />
