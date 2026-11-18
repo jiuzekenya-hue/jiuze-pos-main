@@ -161,7 +161,7 @@ Deno.serve(async (request) => {
   if (phone && phone.length > 50) return json({ error: 'Phone number is too long' }, 400)
 
   const randomBytes = crypto.getRandomValues(new Uint8Array(32))
-  const internalPassword = btoa(String.fromCharCode(...randomBytes)).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+  const internalPassword = btoa(String.fromCharCode(...randomBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
   const { data: created, error: createError } = await client.auth.admin.createUser({
     email,
     password: internalPassword,
