@@ -92,7 +92,7 @@ Deno.serve(async (request) => {
     const userId = String(payload.userId ?? '').trim()
     const pin = String(payload.pin ?? '')
     if (!userId) return json({ error: 'Cashier ID is required' }, 400)
-    if (!/^\\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
+    if (!/^\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
     const { data: target, error: targetError } = await client.from('profiles')
       .select('id, business_id, role').eq('id', userId)
       .eq('business_id', ownerProfile.business_id).eq('role', 'cashier').maybeSingle()
@@ -156,7 +156,7 @@ Deno.serve(async (request) => {
   const phone = String(payload.phone ?? '').trim() || null
 
   if (!email || !email.includes('@')) return json({ error: 'A valid email is required' }, 400)
-  if (!/^\\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
+  if (!/^\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
   if (fullName && fullName.length > 100) return json({ error: 'Full name is too long' }, 400)
   if (phone && phone.length > 50) return json({ error: 'Phone number is too long' }, 400)
 
