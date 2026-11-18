@@ -18,7 +18,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   if (!isSessionLoading && session) {
-    return <Navigate to={(location.state as { from?: string } | null)?.from ?? '/'} replace />
+    return <Navigate to={session.user.app_metadata?.platform_admin === true ? '/platform-admin' : (location.state as { from?: string } | null)?.from ?? '/'} replace />
   }
 
   function pressKey(key: string) {
