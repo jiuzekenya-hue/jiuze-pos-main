@@ -34,7 +34,7 @@ describe('Login', () => {
   it('shows a cashier PIN keypad by default without asking for business or cashier selection', () => {
     renderLogin()
     expect(screen.getByLabelText('Cashier PIN')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sign in with PIN →' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Continue with PIN' })).toBeDisabled()
     expect(screen.queryByLabelText('Select business')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Select cashier')).not.toBeInTheDocument()
   })
@@ -43,7 +43,7 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderLogin()
     await user.type(screen.getByLabelText('Cashier PIN'), '123456')
-    await user.click(screen.getByRole('button', { name: 'Sign in with PIN →' }))
+    await user.click(screen.getByRole('button', { name: 'Continue with PIN' }))
     await waitFor(() => {
       expect(mock.supabase.functions.invoke).toHaveBeenCalledWith('cashier-login', {
         body: { action: 'sign_in', pin: '123456' },
@@ -58,7 +58,7 @@ describe('Login', () => {
     await user.click(screen.getByRole('button', { name: 'Owner / Admin' }))
     await user.type(screen.getByLabelText('Email address'), 'owner@test.com')
     await user.type(screen.getByLabelText('Password'), 'correct-password')
-    await user.click(screen.getByRole('button', { name: 'Sign in →' }))
+    await user.click(screen.getByRole('button', { name: 'Sign in to your account' }))
     expect(await screen.findByText('protected-app-shell')).toBeInTheDocument()
   })
 
