@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/auth-context'
+import { Link } from 'react-router-dom'
 
 type BusinessRow = {
   id: string
@@ -116,6 +117,7 @@ export default function PlatformAdmin() {
           <p className="mt-1 text-xs text-[#87948c]">Central business and subscription control</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/checkout" className="rounded-lg bg-[#145c40] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#104b34]">Open POS</Link>
           <span className="hidden text-xs text-[#87948c] sm:block">{user?.email}</span>
           <button onClick={() => void loadOverview(true)} disabled={refreshing} className="rounded-lg border border-[#dfe7e0] px-3 py-2 text-xs font-semibold text-[#315b46] hover:bg-[#f5f9f5] disabled:opacity-50">{refreshing ? 'Refreshing…' : 'Refresh data'}</button>
           <button onClick={() => void signOut()} className="rounded-lg bg-[#145c40] px-3 py-2 text-xs font-semibold text-white hover:bg-[#104b34]">Sign out</button>
