@@ -33,7 +33,7 @@ export default function Login() {
     setError(null)
     setIsSubmitting(true)
     if (mode === 'cashier') {
-      if (!/^\\d{6}$/.test(pin)) {
+      if (!/^\d{6}$/.test(pin)) {
         setError('Enter your 6-digit cashier PIN.')
         setIsSubmitting(false)
         return
