@@ -62,6 +62,22 @@ export default function PlatformAdmin() {
   const [filter, setFilter] = useState('all')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [selected, setSelected] = useState<BusinessRow | null>(null)
+  type ClientSale = {
+    id: string; receiptNumber: string; cashierName: string; subtotal: number; discount: number;
+    total: number; status: string; createdAt: string;
+    items: Array<{ id: string; product_name: string; quantity: number; unit_price: number; subtotal: number }>
+    payments: Array<{ method: string; amount: number; reference: string | null }>
+    returns: Array<{ return_receipt_number: string; refund_method: string; refund_amount: number; reason: string | null; created_at: string }>
+  }
+  const [clientSales, setClientSales] = useState<ClientSale[]>([])
+  const [clientSalesTotal, setClientSalesTotal] = useState(0)
+  const [clientSalesLoading, setClientSalesLoading] = useState(false)
+  const [clientSalesError, setClientSalesError] = useState<string | null>(null)
+  const [salesStartDate, setSalesStartDate] = useState('')
+  const [salesEndDate, setSalesEndDate] = useState('')
+  const [salesOffset, setSalesOffset] = useState(0)
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null)
+  const clientSalesPageSize = 50
 
   const loadOverview = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true)
@@ -105,6 +121,35 @@ export default function PlatformAdmin() {
     if (requestError || data?.error) setError(data?.error || requestError?.message || 'Could not update business access.')
     else await loadOverview(true)
     setBusyId(null)
+  }
+
+  async function loadClientSales(business: BusinessRow, offset = 0) {
+    setClientSalesLoading(true)
+    setClientSalesError(null)
+    setExpandedSaleId(null)
+    const startDate = salesStartDate ? new Date(`${salesStartDate}T00:00:00`).toISOString() : undefined
+    const endDate = salesEndDate ? new Date(new Date(`${salesEndDate}T00:00:00`).getTime() + 86400000).toISOString() : undefined
+    const { data, error: requestError } = await supabase.functions.invoke('platform-admin', {
+      body: { action: 'client_sales', businessId: business.id, startDate, endDate, offset, limit: clientSalesPageSize },
+    })
+    if (requestError || data?.error) {
+      setClientSalesError(data?.error || requestError?.message || 'Unable to load client transactions.')
+      setClientSales([])
+      setClientSalesTotal(0)
+    } else {
+      setClientSales(data.sales as ClientSale[])
+      setClientSalesTotal(Number(data.total || 0))
+      setSalesOffset(offset)
+    }
+    setClientSalesLoading(false)
+  }
+
+  function openBusinessDetails(business: BusinessRow) {
+    setSelected(business)
+    setSalesStartDate('')
+    setSalesEndDate('')
+    setSalesOffset(0)
+    void loadClientSales(business, 0)
   }
 
   if (loading) return <main className="min-h-screen grid place-items-center bg-[#f7f9f7] text-sm text-[#718078]">Loading JIUZE Platform Admin…</main>
@@ -161,7 +206,7 @@ export default function PlatformAdmin() {
                   const status = business.subscription?.status ?? 'missing'
                   const expiry = business.subscription?.status === 'trialing' ? business.subscription.trialEnd : business.subscription?.periodEnd
                   return <tr key={business.id} className="hover:bg-[#fbfdfb]">
-                    <td className="px-5 py-4"><button onClick={() => setSelected(business)} className="text-left"><span className="block font-semibold text-[#254536] hover:text-[#28734f]">{business.name}</span><span className="mt-1 block text-xs text-[#94a198]">{[business.location, business.phone].filter(Boolean).join(' · ') || 'No contact details'} · {business.mode || 'POS'}</span></button></td>
+                    <td className="px-5 py-4"><button onClick={() => openBusinessDetails(business)} className="text-left"><span className="block font-semibold text-[#254536] hover:text-[#28734f]">{business.name}</span><span className="mt-1 block text-xs text-[#94a198]">{[business.location, business.phone].filter(Boolean).join(' · ') || 'No contact details'} · {business.mode || 'POS'}</span></button></td>
                     <td className="px-4 py-4 text-[#53685c]">{business.subscription?.planName ?? '—'}</td>
                     <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${statusStyle[status] ?? 'bg-slate-100 text-slate-600'}`}>{status === 'missing' ? 'No subscription' : status}</span></td>
                     <td className="px-4 py-4 text-xs text-[#718078]">{date(expiry)}</td>
@@ -177,10 +222,38 @@ export default function PlatformAdmin() {
       </section>
 
       {selected && <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#10291f]/30 p-0 sm:items-center sm:p-5" onClick={() => setSelected(null)}>
-        <section className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
-          <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#a17d31]">Business details</p><h2 className="mt-2 text-xl font-semibold text-[#183d2e]">{selected.name}</h2><p className="mt-1 text-sm text-[#87948c]">{selected.phone || 'No phone'} · {selected.location || 'Location not set'}</p></div><button onClick={() => setSelected(null)} className="rounded-lg px-3 py-1 text-sm text-[#718078] hover:bg-[#f5f8f5]">Close</button></div>
-          <div className="mt-6 grid grid-cols-2 gap-3"><StatCard label="Completed sales" value={selected.salesCount.toLocaleString('en-KE')} detail="All time" /><StatCard label="Sales value" value={money(selected.salesTotal)} detail="Completed sales" /></div>
-          <div className="mt-5 rounded-xl border border-[#e8eee9] p-4 text-sm"><p className="font-semibold text-[#254536]">Subscription</p><p className="mt-2 text-[#718078]">{selected.subscription?.planName ?? 'No subscription'} · {selected.subscription?.status ?? 'Not configured'}</p><p className="mt-1 text-xs text-[#94a198]">Business registered {date(selected.createdAt)}</p>{selected.subscription?.suspensionReason && <p className="mt-2 text-xs text-red-700">Reason: {selected.subscription.suspensionReason}</p>}</div>
+        <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-7" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#a17d31]">Client account · sales records</p><h2 className="mt-2 text-xl font-semibold text-[#183d2e]">{selected.name}</h2><p className="mt-1 text-sm text-[#87948c]">{selected.phone || 'No phone'} · {selected.location || 'Location not set'}</p></div><button onClick={() => setSelected(null)} className="rounded-lg px-3 py-1 text-sm text-[#718078] hover:bg-[#f5f8f5]">Close</button></div>
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label="All-time transactions" value={selected.salesCount.toLocaleString('en-KE')} detail="Completed sales" />
+            <StatCard label="All-time sales value" value={money(selected.salesTotal)} detail="Completed sales" />
+            <StatCard label="Average sale" value={money(selected.salesCount ? selected.salesTotal / selected.salesCount : 0)} detail="All-time average" />
+            <StatCard label="Subscription" value={selected.subscription?.status ?? 'None'} detail={selected.subscription?.planName ?? 'No plan assigned'} />
+          </div>
+          <div className="mt-5 rounded-xl border border-[#e8eee9] p-4">
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold text-[#254536]">Transaction history</h3><p className="mt-1 text-xs text-[#94a198]">Inspect receipts, items, payment records and returns. Read-only access.</p></div><button onClick={() => void loadClientSales(selected, 0)} disabled={clientSalesLoading} className="rounded-lg border border-[#dfe7e0] px-3 py-2 text-xs font-semibold text-[#315b46] disabled:opacity-50">Refresh records</button></div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-medium text-[#718078]">From date<input type="date" value={salesStartDate} onChange={(event) => setSalesStartDate(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#dfe7e0] px-3 py-2 text-sm text-[#254536]" /></label>
+              <label className="text-xs font-medium text-[#718078]">To date<input type="date" value={salesEndDate} onChange={(event) => setSalesEndDate(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#dfe7e0] px-3 py-2 text-sm text-[#254536]" /></label>
+            </div>
+            <button onClick={() => void loadClientSales(selected, 0)} disabled={clientSalesLoading || Boolean(salesStartDate && salesEndDate && salesStartDate > salesEndDate)} className="mt-3 rounded-lg bg-[#145c40] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">Apply date filter</button>
+            {clientSalesError && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{clientSalesError}</p>}
+            {clientSalesLoading ? <p className="py-10 text-center text-sm text-[#87948c]">Loading client transactions…</p> : clientSales.length === 0 ? <p className="py-10 text-center text-sm text-[#87948c]">No transactions found for this period.</p> : <>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-[#f8faf8] text-[11px] uppercase tracking-wide text-[#87948c]"><tr><th className="px-3 py-3">Date</th><th className="px-3 py-3">Receipt</th><th className="px-3 py-3">Cashier</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Amount</th><th className="px-3 py-3 text-right">Details</th></tr></thead>
+                  <tbody className="divide-y divide-[#edf1ed]">{clientSales.map((sale) => <><tr key={sale.id} className="hover:bg-[#fbfdfb]"><td className="px-3 py-3 text-xs text-[#718078]">{new Date(sale.createdAt).toLocaleString('en-KE')}</td><td className="px-3 py-3 font-mono text-xs font-semibold text-[#254536]">{sale.receiptNumber}</td><td className="px-3 py-3 text-xs text-[#53685c]">{sale.cashierName}</td><td className="px-3 py-3"><span className="rounded-full bg-[#f1f5f1] px-2 py-1 text-[11px] capitalize text-[#53685c]">{sale.status}</span></td><td className="px-3 py-3 text-right font-semibold tabular-nums text-[#254536]">{money(sale.total)}</td><td className="px-3 py-3 text-right"><button onClick={() => setExpandedSaleId(expandedSaleId === sale.id ? null : sale.id)} className="rounded-lg border border-[#dfe7e0] px-3 py-1.5 text-xs font-semibold text-[#315b46]">{expandedSaleId === sale.id ? 'Hide' : 'Inspect'}</button></td></tr>
+                    {expandedSaleId === sale.id && <tr key={sale.id + '-details'}><td colSpan={6} className="bg-[#f8faf8] px-4 py-4"><div className="grid gap-4 md:grid-cols-3">
+                      <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Items</p>{sale.items.length ? sale.items.map((item) => <div key={item.id} className="mb-2 flex justify-between gap-3 text-xs"><span>{item.quantity} × {item.product_name}</span><span className="font-medium">{money(Number(item.subtotal))}</span></div>) : <p className="text-xs text-[#87948c]">No item records</p>}</div>
+                      <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Payments</p>{sale.payments.length ? sale.payments.map((payment, index) => <div key={index} className="mb-2 text-xs"><span className="capitalize">{payment.method}</span> · {money(Number(payment.amount))}{payment.reference ? <span className="block text-[#87948c]">Ref: {payment.reference}</span> : null}</div>) : <p className="text-xs text-[#87948c]">No payment record</p>}</div>
+                      <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Returns / refunds</p>{sale.returns.length ? sale.returns.map((item, index) => <div key={index} className="mb-2 text-xs">{item.return_receipt_number} · {money(Number(item.refund_amount))}<span className="block capitalize text-[#87948c]">{item.refund_method} · {item.reason || 'No reason recorded'}</span></div>) : <p className="text-xs text-[#87948c]">No returns recorded</p>}</div>
+                    </div><div className="mt-3 border-t border-[#e5ebe6] pt-3 text-xs text-[#718078]">Subtotal {money(sale.subtotal)} · Discount {money(sale.discount)} · Total {money(sale.total)}</div></td></tr>}</>)}</tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[#87948c]"><span>Showing {salesOffset + 1}–{Math.min(salesOffset + clientSales.length, clientSalesTotal)} of {clientSalesTotal} transactions</span><div className="flex gap-2"><button onClick={() => void loadClientSales(selected, Math.max(0, salesOffset - clientSalesPageSize))} disabled={salesOffset === 0 || clientSalesLoading} className="rounded-lg border border-[#dfe7e0] px-3 py-2 disabled:opacity-40">Previous</button><button onClick={() => void loadClientSales(selected, salesOffset + clientSalesPageSize)} disabled={salesOffset + clientSalesPageSize >= clientSalesTotal || clientSalesLoading} className="rounded-lg border border-[#dfe7e0] px-3 py-2 disabled:opacity-40">Next</button></div></div>
+            </>}
+          </div>
+          <div className="mt-4 text-xs text-[#94a198]">Business registered {date(selected.createdAt)} · Platform support view is read-only.</div>
         </section>
       </div>}
     </div>
