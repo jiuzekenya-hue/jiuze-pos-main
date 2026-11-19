@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/auth-context'
 import { Link } from 'react-router-dom'
@@ -123,12 +123,12 @@ export default function PlatformAdmin() {
     setBusyId(null)
   }
 
-  async function loadClientSales(business: BusinessRow, offset = 0) {
+  async function loadClientSales(business: BusinessRow, offset = 0, startDateValue = salesStartDate, endDateValue = salesEndDate) {
     setClientSalesLoading(true)
     setClientSalesError(null)
     setExpandedSaleId(null)
-    const startDate = salesStartDate ? new Date(`${salesStartDate}T00:00:00`).toISOString() : undefined
-    const endDate = salesEndDate ? new Date(new Date(`${salesEndDate}T00:00:00`).getTime() + 86400000).toISOString() : undefined
+    const startDate = startDateValue ? new Date(`${startDateValue}T00:00:00`).toISOString() : undefined
+    const endDate = endDateValue ? new Date(new Date(`${endDateValue}T00:00:00`).getTime() + 86400000).toISOString() : undefined
     const { data, error: requestError } = await supabase.functions.invoke('platform-admin', {
       body: { action: 'client_sales', businessId: business.id, startDate, endDate, offset, limit: clientSalesPageSize },
     })
@@ -149,7 +149,7 @@ export default function PlatformAdmin() {
     setSalesStartDate('')
     setSalesEndDate('')
     setSalesOffset(0)
-    void loadClientSales(business, 0)
+    void loadClientSales(business, 0, '', '')
   }
 
   if (loading) return <main className="min-h-screen grid place-items-center bg-[#f7f9f7] text-sm text-[#718078]">Loading JIUZE Platform Admin…</main>
@@ -242,12 +242,12 @@ export default function PlatformAdmin() {
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-[#f8faf8] text-[11px] uppercase tracking-wide text-[#87948c]"><tr><th className="px-3 py-3">Date</th><th className="px-3 py-3">Receipt</th><th className="px-3 py-3">Cashier</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Amount</th><th className="px-3 py-3 text-right">Details</th></tr></thead>
-                  <tbody className="divide-y divide-[#edf1ed]">{clientSales.map((sale) => <><tr key={sale.id} className="hover:bg-[#fbfdfb]"><td className="px-3 py-3 text-xs text-[#718078]">{new Date(sale.createdAt).toLocaleString('en-KE')}</td><td className="px-3 py-3 font-mono text-xs font-semibold text-[#254536]">{sale.receiptNumber}</td><td className="px-3 py-3 text-xs text-[#53685c]">{sale.cashierName}</td><td className="px-3 py-3"><span className="rounded-full bg-[#f1f5f1] px-2 py-1 text-[11px] capitalize text-[#53685c]">{sale.status}</span></td><td className="px-3 py-3 text-right font-semibold tabular-nums text-[#254536]">{money(sale.total)}</td><td className="px-3 py-3 text-right"><button onClick={() => setExpandedSaleId(expandedSaleId === sale.id ? null : sale.id)} className="rounded-lg border border-[#dfe7e0] px-3 py-1.5 text-xs font-semibold text-[#315b46]">{expandedSaleId === sale.id ? 'Hide' : 'Inspect'}</button></td></tr>
+                  <tbody className="divide-y divide-[#edf1ed]">{clientSales.map((sale) => <Fragment key={sale.id}><tr className="hover:bg-[#fbfdfb]"><td className="px-3 py-3 text-xs text-[#718078]">{new Date(sale.createdAt).toLocaleString('en-KE')}</td><td className="px-3 py-3 font-mono text-xs font-semibold text-[#254536]">{sale.receiptNumber}</td><td className="px-3 py-3 text-xs text-[#53685c]">{sale.cashierName}</td><td className="px-3 py-3"><span className="rounded-full bg-[#f1f5f1] px-2 py-1 text-[11px] capitalize text-[#53685c]">{sale.status}</span></td><td className="px-3 py-3 text-right font-semibold tabular-nums text-[#254536]">{money(sale.total)}</td><td className="px-3 py-3 text-right"><button onClick={() => setExpandedSaleId(expandedSaleId === sale.id ? null : sale.id)} className="rounded-lg border border-[#dfe7e0] px-3 py-1.5 text-xs font-semibold text-[#315b46]">{expandedSaleId === sale.id ? 'Hide' : 'Inspect'}</button></td></tr>
                     {expandedSaleId === sale.id && <tr key={sale.id + '-details'}><td colSpan={6} className="bg-[#f8faf8] px-4 py-4"><div className="grid gap-4 md:grid-cols-3">
                       <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Items</p>{sale.items.length ? sale.items.map((item) => <div key={item.id} className="mb-2 flex justify-between gap-3 text-xs"><span>{item.quantity} × {item.product_name}</span><span className="font-medium">{money(Number(item.subtotal))}</span></div>) : <p className="text-xs text-[#87948c]">No item records</p>}</div>
                       <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Payments</p>{sale.payments.length ? sale.payments.map((payment, index) => <div key={index} className="mb-2 text-xs"><span className="capitalize">{payment.method}</span> · {money(Number(payment.amount))}{payment.reference ? <span className="block text-[#87948c]">Ref: {payment.reference}</span> : null}</div>) : <p className="text-xs text-[#87948c]">No payment record</p>}</div>
                       <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#87948c]">Returns / refunds</p>{sale.returns.length ? sale.returns.map((item, index) => <div key={index} className="mb-2 text-xs">{item.return_receipt_number} · {money(Number(item.refund_amount))}<span className="block capitalize text-[#87948c]">{item.refund_method} · {item.reason || 'No reason recorded'}</span></div>) : <p className="text-xs text-[#87948c]">No returns recorded</p>}</div>
-                    </div><div className="mt-3 border-t border-[#e5ebe6] pt-3 text-xs text-[#718078]">Subtotal {money(sale.subtotal)} · Discount {money(sale.discount)} · Total {money(sale.total)}</div></td></tr>}</>)}</tbody>
+                    </div><div className="mt-3 border-t border-[#e5ebe6] pt-3 text-xs text-[#718078]">Subtotal {money(sale.subtotal)} · Discount {money(sale.discount)} · Total {money(sale.total)}</div></td></tr>}</Fragment>)}</tbody>
                 </table>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[#87948c]"><span>Showing {salesOffset + 1}–{Math.min(salesOffset + clientSales.length, clientSalesTotal)} of {clientSalesTotal} transactions</span><div className="flex gap-2"><button onClick={() => void loadClientSales(selected, Math.max(0, salesOffset - clientSalesPageSize))} disabled={salesOffset === 0 || clientSalesLoading} className="rounded-lg border border-[#dfe7e0] px-3 py-2 disabled:opacity-40">Previous</button><button onClick={() => void loadClientSales(selected, salesOffset + clientSalesPageSize)} disabled={salesOffset + clientSalesPageSize >= clientSalesTotal || clientSalesLoading} className="rounded-lg border border-[#dfe7e0] px-3 py-2 disabled:opacity-40">Next</button></div></div>
