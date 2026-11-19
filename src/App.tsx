@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './contexts/auth-context'
@@ -19,22 +19,30 @@ import Settings from './pages/Settings'
 import Subscription from './pages/Subscription'
 import Referral from './pages/Referral'
 import OpenBills from './pages/OpenBills'
+import PlatformAdmin from './pages/PlatformAdmin'
+
+function PlatformAdminRoute({ children }: { children: ReactNode }) {
+  const { user, session, isSessionLoading } = useAuth()
+  const location = useLocation()
+  if (isSessionLoading) return <div className="min-h-screen grid place-items-center bg-[#f7f9f7] text-sm text-[#718078]">Checking platform access…</div>
+  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (user?.app_metadata?.platform_admin !== true) {
+    return <main className="min-h-screen grid place-items-center bg-[#f7f9f7] px-6"><section className="max-w-md rounded-2xl border border-[#e5ebe6] bg-white p-8 text-center"><h1 className="text-xl font-semibold text-[#183d2e]">Restricted area</h1><p className="mt-2 text-sm text-[#718078]">This account is not authorised to access JIUZE Platform Admin.</p><button onClick={() => window.location.assign('/')} className="mt-5 rounded-lg bg-[#145c40] px-4 py-2.5 text-sm font-semibold text-white">Return to POS</button></section></main>
+  }
+  return <>{children}</>
+}
+
+function DefaultHomeRoute() {
+  const { user } = useAuth()
+  return user?.app_metadata?.platform_admin === true
+    ? <Navigate to="/platform-admin" replace />
+    : <PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>
+}
 
 function OwnerOnlyRoute({ children }: { children: ReactNode }) {
   const { role, isProfileLoading } = useAuth()
-
-  if (isProfileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">
-        Loading...
-      </div>
-    )
-  }
-
-  if (role !== 'owner') {
-    return <Navigate to="/" replace />
-  }
-
+  if (isProfileLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Loading...</div>
+  if (role !== 'owner') return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -54,8 +62,9 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/platform-admin" element={<PlatformAdminRoute><PlatformAdmin /></PlatformAdminRoute>} />
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-        <Route path="/" element={<PermissionRoute permission="pos"><ModeAwareCheckout /></PermissionRoute>} />
+        <Route path="/" element={<DefaultHomeRoute />} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
         <Route path="/referral" element={<OwnerOnlyRoute><Referral /></OwnerOnlyRoute>} />
         <Route path="/categories" element={<PermissionRoute permission="categories"><Categories /></PermissionRoute>} />
@@ -74,5 +83,4 @@ function App() {
     </Routes>
   )
 }
-
 export default App

@@ -9,15 +9,16 @@ const corsHeaders = {
 type CreatePayload = {
   action: 'create'
   email: string
-  password: string
+  pin: string
   fullName?: string
   phone?: string
 }
 
 type ListPayload = { action: 'list' }
 type DeletePayload = { action: 'delete'; userId: string }
+type SetPinPayload = { action: 'set_pin'; userId: string; pin: string }
 
-type Payload = ListPayload | CreatePayload | DeletePayload
+type Payload = ListPayload | CreatePayload | DeletePayload | SetPinPayload
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -87,6 +88,24 @@ Deno.serve(async (request) => {
     return json({ users })
   }
 
+  if (payload.action === 'set_pin') {
+    const userId = String(payload.userId ?? '').trim()
+    const pin = String(payload.pin ?? '')
+    if (!userId) return json({ error: 'Cashier ID is required' }, 400)
+    if (!/^\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
+    const { data: target, error: targetError } = await client.from('profiles')
+      .select('id, business_id, role').eq('id', userId)
+      .eq('business_id', ownerProfile.business_id).eq('role', 'cashier').maybeSingle()
+    if (targetError) return json({ error: targetError.message }, 500)
+    if (!target) return json({ error: 'Cashier not found in your business' }, 404)
+    const { error: pinError } = await client.rpc('platform_set_cashier_pin', {
+      p_cashier_id: userId, p_business_id: ownerProfile.business_id,
+      p_pin: pin, p_actor_id: authData.user.id,
+    })
+    if (pinError) return json({ error: pinError.message.includes('already assigned') ? pinError.message : 'Unable to save cashier PIN.' }, 400)
+    return json({ success: true })
+  }
+
   if (payload.action === 'delete') {
     const userId = String(payload.userId ?? '').trim()
     if (!userId) return json({ error: 'User ID is required' }, 400)
@@ -132,18 +151,20 @@ Deno.serve(async (request) => {
   if (payload.action !== 'create') return json({ error: 'Unknown action' }, 400)
 
   const email = String(payload.email ?? '').trim().toLowerCase()
-  const password = String(payload.password ?? '')
+  const pin = String(payload.pin ?? '')
   const fullName = String(payload.fullName ?? '').trim() || null
   const phone = String(payload.phone ?? '').trim() || null
 
   if (!email || !email.includes('@')) return json({ error: 'A valid email is required' }, 400)
-  if (password.length < 8) return json({ error: 'Password must be at least 8 characters' }, 400)
+  if (!/^\d{6}$/.test(pin)) return json({ error: 'PIN must contain exactly 6 digits' }, 400)
   if (fullName && fullName.length > 100) return json({ error: 'Full name is too long' }, 400)
   if (phone && phone.length > 50) return json({ error: 'Phone number is too long' }, 400)
 
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  const internalPassword = btoa(String.fromCharCode(...randomBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
   const { data: created, error: createError } = await client.auth.admin.createUser({
     email,
-    password,
+    password: internalPassword,
     email_confirm: true,
   })
 
@@ -162,6 +183,15 @@ Deno.serve(async (request) => {
   if (insertError) {
     await client.auth.admin.deleteUser(created.user.id)
     return json({ error: insertError.message }, 400)
+  }
+
+  const { error: pinError } = await client.rpc('platform_set_cashier_pin', {
+    p_cashier_id: created.user.id, p_business_id: ownerProfile.business_id,
+    p_pin: pin, p_actor_id: authData.user.id,
+  })
+  if (pinError) {
+    await client.auth.admin.deleteUser(created.user.id)
+    return json({ error: pinError.message.includes('already assigned') ? pinError.message : 'Cashier created but PIN setup failed. Please try again.' }, 400)
   }
 
   return json({

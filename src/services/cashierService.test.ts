@@ -21,8 +21,8 @@ describe('cashierService', () => {
     const user = { id: 'cashier-1', email: 'cashier@example.com', fullName: 'Cashier', phone: '0700000000', role: 'cashier', createdAt: '2026-09-01T00:00:00Z' }
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { user }, error: null })
 
-    await expect(createCashier({ email: 'cashier@example.com', password: 'password123', fullName: 'Cashier', phone: '0700000000' })).resolves.toEqual(user)
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('manage-cashiers', { body: { action: 'create', email: 'cashier@example.com', password: 'password123', fullName: 'Cashier', phone: '0700000000' } })
+    await expect(createCashier({ email: 'cashier@example.com', pin: '123456', fullName: 'Cashier', phone: '0700000000' })).resolves.toEqual(user)
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('manage-cashiers', { body: { action: 'create', email: 'cashier@example.com', pin: '123456', fullName: 'Cashier', phone: '0700000000' } })
   })
 
   it('propagates function errors', async () => {
@@ -32,6 +32,6 @@ describe('cashierService', () => {
 
   it('rejects a successful response without a created user', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: {}, error: null })
-    await expect(createCashier({ email: 'cashier@example.com', password: 'password123' })).rejects.toThrow('Cashier account was not created.')
+    await expect(createCashier({ email: 'cashier@example.com', pin: '123456' })).rejects.toThrow('Cashier account was not created.')
   })
 })

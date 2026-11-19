@@ -25,6 +25,7 @@ export function createSupabaseMock() {
       authChangeCallback = callback
       return { data: { subscription: { unsubscribe: vi.fn() } } }
     }),
+    setSession: vi.fn(async () => { currentSession = { user: { id: 'cashier-1', email: 'cashier@test.com' } }; authChangeCallback?.('SIGNED_IN', currentSession); return { data: { session: currentSession }, error: null } }),
     signInWithPassword: vi.fn(async ({ email, password }: { email: string; password: string }) => {
       if (email === 'owner@test.com' && password === 'correct-password') {
         currentSession = { user: { id: 'user-1', email } }
