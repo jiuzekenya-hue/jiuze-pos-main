@@ -26,7 +26,7 @@ Deno.serve(async (request) => {
   if (authError || !user) return json({ error: 'Invalid session.' }, 401)
   if (user.app_metadata?.platform_admin !== true) return json({ error: 'Platform administrator access required.' }, 403)
 
-  let payload: { action?: string; businessId?: string; suspend?: boolean; reason?: string }
+  let payload: { action?: string; businessId?: string; suspend?: boolean; reason?: string; startDate?: string; endDate?: string; offset?: number; limit?: number }
   try { payload = await request.json() } catch { return json({ error: 'Invalid request.' }, 400) }
 
   if (payload.action === 'set_access') {
@@ -65,6 +65,69 @@ Deno.serve(async (request) => {
     }).eq('id', subscription.id)
     if (error) return json({ error: 'Could not reactivate this business.' }, 500)
     return json({ ok: true, status: restoredStatus })
+  }
+
+  if (payload.action === 'client_sales') {
+    if (!payload.businessId) return json({ error: 'Business is required.' }, 400)
+    const limit = Math.min(Math.max(Number(payload.limit) || 50, 1), 100)
+    const offset = Math.max(Number(payload.offset) || 0, 0)
+    let query = admin.from('sales')
+      .select('id,receipt_number,cashier_id,subtotal,discount,total,status,created_at', { count: 'exact' })
+      .eq('business_id', payload.businessId)
+      .order('created_at', { ascending: false })
+    if (payload.startDate) query = query.gte('created_at', payload.startDate)
+    if (payload.endDate) query = query.lt('created_at', payload.endDate)
+    const { data: sales, error, count } = await query.range(offset, offset + limit - 1)
+    if (error) return json({ error: 'Could not load client transactions.' }, 500)
+
+    const saleIds = (sales ?? []).map((sale) => sale.id)
+    const cashierIds = [...new Set((sales ?? []).map((sale) => sale.cashier_id).filter(Boolean))]
+    const [profilesResult, itemsResult, paymentsResult, returnsResult] = await Promise.all([
+      cashierIds.length ? admin.from('profiles').select('id,full_name').in('id', cashierIds) : Promise.resolve({ data: [], error: null }),
+      saleIds.length ? admin.from('sale_items').select('sale_id,id,product_name,quantity,unit_price,subtotal').in('sale_id', saleIds).order('created_at', { ascending: true }) : Promise.resolve({ data: [], error: null }),
+      saleIds.length ? admin.from('payments').select('sale_id,method,amount,reference').in('sale_id', saleIds) : Promise.resolve({ data: [], error: null }),
+      saleIds.length ? admin.from('sales_returns').select('original_sale_id,return_receipt_number,refund_method,refund_amount,reason,created_at').eq('business_id', payload.businessId).in('original_sale_id', saleIds) : Promise.resolve({ data: [], error: null }),
+    ])
+    if (profilesResult.error || itemsResult.error || paymentsResult.error || returnsResult.error) {
+      return json({ error: 'Could not load transaction details.' }, 500)
+    }
+    const profiles = new Map((profilesResult.data ?? []).map((row) => [row.id, row.full_name]))
+    const items = new Map<string, unknown[]>()
+    for (const item of itemsResult.data ?? []) {
+      const current = items.get(item.sale_id) ?? []
+      current.push(item)
+      items.set(item.sale_id, current)
+    }
+    const payments = new Map<string, unknown[]>()
+    for (const payment of paymentsResult.data ?? []) {
+      const current = payments.get(payment.sale_id) ?? []
+      current.push(payment)
+      payments.set(payment.sale_id, current)
+    }
+    const returns = new Map<string, unknown[]>()
+    for (const row of returnsResult.data ?? []) {
+      const current = returns.get(row.original_sale_id) ?? []
+      current.push(row)
+      returns.set(row.original_sale_id, current)
+    }
+    return json({
+      sales: (sales ?? []).map((sale) => ({
+        id: sale.id,
+        receiptNumber: sale.receipt_number,
+        cashierName: profiles.get(sale.cashier_id) || 'Unknown cashier',
+        subtotal: Number(sale.subtotal || 0),
+        discount: Number(sale.discount || 0),
+        total: Number(sale.total || 0),
+        status: sale.status,
+        createdAt: sale.created_at,
+        items: items.get(sale.id) ?? [],
+        payments: payments.get(sale.id) ?? [],
+        returns: returns.get(sale.id) ?? [],
+      })),
+      total: count ?? 0,
+      offset,
+      limit,
+    })
   }
 
   if (payload.action !== 'overview') return json({ error: 'Unknown action.' }, 400)
